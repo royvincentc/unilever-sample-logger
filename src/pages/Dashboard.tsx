@@ -14,11 +14,14 @@ import {
   CheckCircle2,
   MoreVertical,
   Activity,
-  ListTodo
+  ListTodo,
+  RefreshCw
 } from 'lucide-react';
 import Header from '../components/Layout/Header';
-import { getHistory } from '../utils/db';
+import { getHistory, importHistoryBatch } from '../utils/db';
 import { getUserName } from '../utils/auth';
+import { fetchHistoryFromSheet } from '../utils/api';
+import { useToast } from '../components/ui/Toast';
 import type { HistoryEntry } from '../types';
 
 interface DashboardProps {
@@ -46,11 +49,35 @@ const quickActions = [
 
 export default function Dashboard({ theme, onSetTheme, queueCount }: DashboardProps) {
   const navigate = useNavigate();
+  const { showToast } = useToast();
   const [recent, setRecent] = useState<HistoryEntry[]>([]);
+  const [syncing, setSyncing] = useState(false);
 
-  useEffect(() => {
+  const loadData = useCallback(() => {
     getHistory(10).then(setRecent);
   }, []);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  const handleSync = async () => {
+    setSyncing(true);
+    try {
+      const externalHistory = await fetchHistoryFromSheet();
+      if (externalHistory.length > 0) {
+        await importHistoryBatch(externalHistory);
+        loadData();
+        showToast('success', 'Sync Complete', `Synced ${externalHistory.length} entries from Google Sheets`);
+      } else {
+        showToast('info', 'No New Data', 'Everything is up to date with Google Sheets');
+      }
+    } catch (error) {
+      showToast('error', 'Sync Failed', 'Could not reach n8n sync endpoint');
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   const userName = getUserName();
 
@@ -170,7 +197,18 @@ export default function Dashboard({ theme, onSetTheme, queueCount }: DashboardPr
             <motion.div variants={item}>
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-wider">Recent Submissions</h3>
-                <button onClick={() => navigate('/history')} className="text-xs font-medium text-[var(--text-secondary)] hover:text-primary-500 transition-colors">View all</button>
+                <div className="flex items-center gap-3">
+                  {syncing && <RefreshCw className="w-3 h-3 text-primary-500 animate-spin" />}
+                  <button 
+                    onClick={handleSync} 
+                    disabled={syncing}
+                    className="flex items-center gap-1.5 text-xs font-medium text-primary-500 hover:text-primary-600 transition-colors disabled:opacity-50"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${syncing ? 'animate-spin' : ''}`} />
+                    Sync with Sheet
+                  </button>
+                  <button onClick={() => navigate('/history')} className="text-xs font-medium text-[var(--text-secondary)] hover:text-primary-500 transition-colors">View all</button>
+                </div>
               </div>
               
               <div className="glass rounded-xl overflow-x-auto border border-[var(--border-subtle)]">

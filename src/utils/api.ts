@@ -105,3 +105,30 @@ export async function testWebhookConnection(url: string): Promise<boolean> {
     }
   }
 }
+
+/**
+ * Fetch the last X entries from Google Sheets via n8n sync endpoint.
+ */
+export async function fetchHistoryFromSheet(): Promise<any[]> {
+  const settings = getSettings();
+  const url = settings.webhookUrls.sync || 'https://n8n-royvincentc.onrender.com/webhook/sync-history';
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        spreadsheetId: settings.spreadsheetId,
+        limit: 50 
+      }),
+    });
+
+    if (!response.ok) return [];
+    
+    const data = await response.json();
+    return Array.isArray(data) ? data : [];
+  } catch (error) {
+    console.error('Sync failed:', error);
+    return [];
+  }
+}

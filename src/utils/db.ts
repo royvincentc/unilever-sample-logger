@@ -114,3 +114,15 @@ export async function clearQueue(): Promise<void> {
   const db = await getDB();
   await db.clear('queue');
 }
+
+export async function importHistoryBatch(entries: HistoryEntry[]): Promise<void> {
+  const db = await getDB();
+  const tx = db.transaction('history', 'readwrite');
+  for (const entry of entries) {
+    // Only import if it has a valid ID and submittedAt
+    if (entry.id && entry.submittedAt) {
+      await tx.store.put(entry);
+    }
+  }
+  await tx.done;
+}
