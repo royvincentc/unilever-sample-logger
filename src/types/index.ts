@@ -103,5 +103,6 @@ export interface HistoryEntry {
   rawMatsType?: string; // SFG, FG, ROH, CUC
   status: SampleStatus;
   submittedAt: string;
+  submittedBy: string;
   results?: any; // To store the logged results
 }

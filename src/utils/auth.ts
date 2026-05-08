@@ -1,4 +1,4 @@
-import { AUTH_CREDENTIALS, DEFAULT_SETTINGS } from '../data/constants';
+import { AUTH_USERS, PIN_USERS, DEFAULT_SETTINGS } from '../data/constants';
 
 const AUTH_KEY = 'sample_logger_auth';
 const SETTINGS_KEY = 'sample_logger_settings';
@@ -14,21 +14,38 @@ export function isAuthenticated(): boolean {
   }
 }
 
+export function getUserName(): string {
+  const session = localStorage.getItem(AUTH_KEY);
+  if (!session) return 'User';
+  try {
+    const parsed = JSON.parse(session);
+    return parsed.userName || 'User';
+  } catch {
+    return 'User';
+  }
+}
+
 export function loginWithPassword(username: string, password: string): boolean {
-  if (
-    username === AUTH_CREDENTIALS.username &&
-    password === AUTH_CREDENTIALS.password
-  ) {
-    localStorage.setItem(AUTH_KEY, JSON.stringify({ authenticated: true, method: 'password' }));
+  const user = AUTH_USERS.find(u => u.username === username && u.password === password);
+  if (user) {
+    localStorage.setItem(AUTH_KEY, JSON.stringify({ 
+      authenticated: true, 
+      method: 'password',
+      userName: user.name 
+    }));
     return true;
   }
   return false;
 }
 
 export function loginWithPin(pin: string): boolean {
-  const settings = getSettings();
-  if (pin === settings.pin) {
-    localStorage.setItem(AUTH_KEY, JSON.stringify({ authenticated: true, method: 'pin' }));
+  const user = PIN_USERS.find(u => u.pin === pin);
+  if (user) {
+    localStorage.setItem(AUTH_KEY, JSON.stringify({ 
+      authenticated: true, 
+      method: 'pin',
+      userName: user.name
+    }));
     return true;
   }
   return false;

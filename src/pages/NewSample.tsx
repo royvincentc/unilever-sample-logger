@@ -12,6 +12,7 @@ import { sendToWebhook } from '../utils/api';
 import { generateNextControlNumber } from '../utils/controlNumber';
 import { getSheetTabName } from '../utils/sheetMapping';
 import { addToQueue, addToHistory } from '../utils/db';
+import { getUserName } from '../utils/auth';
 import type { SampleType, EnviFormData, WaterFormData, RawMatsFormData, QueueItem, HistoryEntry } from '../types';
 
 interface NewSampleProps {
@@ -84,6 +85,7 @@ export default function NewSample({ theme, onSetTheme, onQueueUpdate }: NewSampl
         rawMatsType: (formData as any).type,
         status: (formData as any).status || 'ONGOING',
         submittedAt: new Date().toISOString(),
+        submittedBy: getUserName(),
       };
       await addToHistory(historyEntry);
       showToast('success', 'Submitted!', `Control #: ${finalControlNumber}`);

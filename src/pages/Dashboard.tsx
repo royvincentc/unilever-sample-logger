@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import Header from '../components/Layout/Header';
 import { getHistory } from '../utils/db';
+import { getUserName } from '../utils/auth';
 import type { HistoryEntry } from '../types';
 
 interface DashboardProps {
@@ -50,6 +51,8 @@ export default function Dashboard({ theme, onSetTheme, queueCount }: DashboardPr
   useEffect(() => {
     getHistory(10).then(setRecent);
   }, []);
+
+  const userName = getUserName();
 
   const today = new Date();
   const greeting = today.getHours() < 12 ? 'Good morning' : today.getHours() < 18 ? 'Good afternoon' : 'Good evening';
@@ -88,7 +91,7 @@ export default function Dashboard({ theme, onSetTheme, queueCount }: DashboardPr
             
             {/* Welcome */}
             <motion.div variants={item}>
-              <h1 className="text-2xl lg:text-3xl font-bold text-[var(--text-primary)]">{greeting}, Roy 👋</h1>
+              <h1 className="text-2xl lg:text-3xl font-bold text-[var(--text-primary)]">{greeting}, {userName} 👋</h1>
               <p className="text-sm text-[var(--text-secondary)] mt-1 flex items-center gap-1.5">
                 {dateStr} &bull; {timeStr}
               </p>
@@ -198,9 +201,9 @@ export default function Dashboard({ theme, onSetTheme, queueCount }: DashboardPr
                         </td>
                         <td className="p-4 flex items-center gap-2 text-[var(--text-secondary)]">
                           <div className="w-6 h-6 rounded-full bg-primary-500/20 text-primary-500 flex items-center justify-center text-[10px] font-bold">
-                            R
+                            {(entry.submittedBy || 'U')[0].toUpperCase()}
                           </div>
-                          Roy
+                          {entry.submittedBy || 'Unknown'}
                         </td>
                         <td className="p-4 text-[var(--text-secondary)] text-xs">{new Date(entry.submittedAt).toLocaleDateString()}</td>
                         <td className="p-4">{statusBadge(entry.status)}</td>
