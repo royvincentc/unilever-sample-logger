@@ -96,7 +96,7 @@ export const SPREADSHEETS = {
 // ===== AUTH CREDENTIALS =====
 export const AUTH_USERS = [
   { username: 'pf4micro@ipi.ph', password: 'ULmicrobiology_2025', name: 'PF4' },
-  { username: 'royvincentc', password: 'Vincent81101?!', name: 'Roy' }
+  { username: 'vincecodinera@gmail.com', password: 'Vincent81101!!', name: 'Roy' }
 ];
 
 export const PIN_USERS = [
