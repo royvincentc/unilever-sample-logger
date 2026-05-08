@@ -12,10 +12,12 @@ import {
   UploadCloud,
   BarChart3,
   CheckCircle2,
-  MoreVertical,
   Activity,
   ListTodo,
-  RefreshCw
+  RefreshCw,
+  FlaskConical as Flask,
+  Droplets as WaterIcon,
+  Package as Box
 } from 'lucide-react';
 import Header from '../components/Layout/Header';
 import { getHistory, importHistoryBatch } from '../utils/db';
@@ -52,9 +54,77 @@ export default function Dashboard({ theme, onSetTheme, queueCount }: DashboardPr
   const { showToast } = useToast();
   const [recent, setRecent] = useState<HistoryEntry[]>([]);
   const [syncing, setSyncing] = useState(false);
+  const [stats, setStats] = useState({
+    dueToday: 0,
+    overdue: 0,
+    upcoming: 0,
+    ongoing: 0,
+    pendingRelease: 0
+  });
+  const [upcomingTasks, setUpcomingTasks] = useState<any[]>([]);
 
-  const loadData = useCallback(() => {
-    getHistory(10).then(setRecent);
+  const loadData = useCallback(async () => {
+    const history = await getHistory(100);
+    setRecent(history.slice(0, 10));
+
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    
+    let dueToday = 0;
+    let overdue = 0;
+    let upcoming = 0;
+    let ongoing = 0;
+    let pendingRelease = 0;
+    const tasks: any[] = [];
+
+    history.forEach(entry => {
+      if (entry.status === 'ONGOING' || entry.status === 'ON GOING') ongoing++;
+      if (entry.status === 'PENDING RELEASE') pendingRelease++;
+      
+      // Calculate incubation tasks for active samples
+      if (entry.status !== 'RELEASED' && entry.status !== 'COMPLETED') {
+        const baseDate = new Date(entry.dateAnalyzed || entry.dateSampled || entry.submittedAt);
+        baseDate.setHours(0, 0, 0, 0);
+
+        const checkTask = (name: string, days: number, icon: any, color: string) => {
+          const dueDate = new Date(baseDate);
+          dueDate.setDate(dueDate.getDate() + days);
+          
+          const diffDays = Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+          
+          // Only show if not finished (checking results object for this reading)
+          const isDone = entry.results && entry.results[name];
+          if (isDone) return;
+
+          if (diffDays === 0) dueToday++;
+          else if (diffDays < 0) overdue++;
+          else upcoming++;
+
+          tasks.push({
+            id: `${entry.id}-${name}`,
+            name: `${entry.sampleName} - ${name}`,
+            dueDate,
+            diffDays,
+            icon,
+            color
+          });
+        };
+
+        if (entry.sampleType === 'ENVI') {
+          checkTask('Final Reading (48h)', 2, Flask, 'text-emerald-500');
+        } else if (entry.sampleType === 'WATER') {
+          checkTask('1st Reading (48h)', 2, WaterIcon, 'text-blue-500');
+          checkTask('2nd Reading (7 Days)', 7, WaterIcon, 'text-cyan-500');
+          checkTask('Final Reading (14 Days)', 14, WaterIcon, 'text-indigo-500');
+        } else if (entry.sampleType === 'RawMats') {
+          checkTask('APC Final (7 Days)', 7, Box, 'text-purple-500');
+          checkTask('MY Final (7 Days)', 7, Box, 'text-pink-500');
+        }
+      }
+    });
+
+    setStats({ dueToday, overdue, upcoming, ongoing, pendingRelease });
+    setUpcomingTasks(tasks.sort((a,b) => a.dueDate.getTime() - b.dueDate.getTime()).slice(0, 3));
   }, []);
 
   useEffect(() => {
@@ -269,28 +339,28 @@ export default function Dashboard({ theme, onSetTheme, queueCount }: DashboardPr
             <motion.div variants={item} className="glass rounded-xl border border-[var(--border-subtle)] p-5">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-wider">Queue Summary</h3>
-                <button className="text-[10px] bg-[var(--bg-input)] px-2 py-1 rounded text-[var(--text-secondary)] hover:text-[var(--text-primary)]">View all</button>
+                <button onClick={() => navigate('/history')} className="text-[10px] bg-[var(--bg-input)] px-2 py-1 rounded text-[var(--text-secondary)] hover:text-[var(--text-primary)]">View all</button>
               </div>
               <div className="space-y-3">
                 <div className="flex items-center justify-between text-sm">
-                  <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-blue-500"/> <span className="text-[var(--text-secondary)]">New Samples</span></div>
-                  <span className="font-medium text-[var(--text-primary)]">5</span>
+                  <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-blue-500"/> <span className="text-[var(--text-secondary)]">Pending Sync</span></div>
+                  <span className="font-medium text-[var(--text-primary)]">{queueCount}</span>
                 </div>
                 <div className="flex items-center justify-between text-sm">
                   <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-cyan-500"/> <span className="text-[var(--text-secondary)]">In Progress</span></div>
-                  <span className="font-medium text-[var(--text-primary)]">4</span>
+                  <span className="font-medium text-[var(--text-primary)]">{stats.ongoing}</span>
                 </div>
                 <div className="flex items-center justify-between text-sm">
                   <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-emerald-500"/> <span className="text-[var(--text-secondary)]">In Incubation</span></div>
-                  <span className="font-medium text-[var(--text-primary)]">18</span>
+                  <span className="font-medium text-[var(--text-primary)]">{stats.upcoming + stats.dueToday}</span>
                 </div>
                 <div className="flex items-center justify-between text-sm">
                   <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-warning-500"/> <span className="text-[var(--text-secondary)]">For Review</span></div>
-                  <span className="font-medium text-[var(--text-primary)]">7</span>
+                  <span className="font-medium text-[var(--text-primary)]">{stats.pendingRelease}</span>
                 </div>
                 <div className="flex items-center justify-between text-sm">
                   <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-danger-500"/> <span className="text-[var(--text-secondary)]">Overdue</span></div>
-                  <span className="font-medium text-danger-500">2</span>
+                  <span className="font-medium text-danger-500">{stats.overdue}</span>
                 </div>
               </div>
             </motion.div>
@@ -302,27 +372,19 @@ export default function Dashboard({ theme, onSetTheme, queueCount }: DashboardPr
                 <button onClick={() => navigate('/incubation')} className="text-[10px] bg-[var(--bg-input)] px-2 py-1 rounded text-[var(--text-secondary)] hover:text-[var(--text-primary)]">View all</button>
               </div>
               <div className="space-y-4">
-                <div className="flex gap-3">
-                  <div className="mt-0.5"><Clock className="w-4 h-4 text-warning-500" /></div>
-                  <div>
-                    <p className="text-sm font-medium text-[var(--text-primary)]">RO Water - Microbial Test</p>
-                    <p className="text-xs text-warning-500 mt-0.5">Due in 2h 15m</p>
+                {upcomingTasks.length > 0 ? upcomingTasks.map(task => (
+                  <div key={task.id} className="flex gap-3">
+                    <div className="mt-0.5"><task.icon className={`w-4 h-4 ${task.color}`} /></div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-[var(--text-primary)] truncate">{task.name}</p>
+                      <p className={`text-xs mt-0.5 ${task.diffDays <= 0 ? 'text-danger-500 font-bold' : 'text-warning-500'}`}>
+                        {task.diffDays === 0 ? 'Due Today' : task.diffDays < 0 ? `${Math.abs(task.diffDays)}d Overdue` : `Due in ${task.diffDays} days`}
+                      </p>
+                    </div>
                   </div>
-                </div>
-                <div className="flex gap-3">
-                  <div className="mt-0.5"><Clock className="w-4 h-4 text-warning-500" /></div>
-                  <div>
-                    <p className="text-sm font-medium text-[var(--text-primary)]">Chilled Water - Legionella</p>
-                    <p className="text-xs text-warning-500 mt-0.5">Due in 4h 30m</p>
-                  </div>
-                </div>
-                <div className="flex gap-3">
-                  <div className="mt-0.5"><Clock className="w-4 h-4 text-warning-500" /></div>
-                  <div>
-                    <p className="text-sm font-medium text-[var(--text-primary)]">Production Swab - Line 3</p>
-                    <p className="text-xs text-warning-500 mt-0.5">Due in 6h 45m</p>
-                  </div>
-                </div>
+                )) : (
+                  <p className="text-xs text-[var(--text-muted)] italic py-2">No upcoming duties.</p>
+                )}
               </div>
             </motion.div>
 
