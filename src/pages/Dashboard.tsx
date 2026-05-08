@@ -64,6 +64,9 @@ export default function Dashboard({ theme, onSetTheme, queueCount }: DashboardPr
   });
   const [upcomingTasks, setUpcomingTasks] = useState<any[]>([]);
 
+  const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'success' | 'error'>('idle');
+  const [syncError, setSyncError] = useState<string | null>(null);
+
   const loadData = useCallback(async () => {
     const history = await getHistory(100);
     const currentUser = getUserName();
@@ -139,13 +142,20 @@ export default function Dashboard({ theme, onSetTheme, queueCount }: DashboardPr
     
     // Background sync on load to ensure shared history is real-time
     const autoSync = async () => {
+      setSyncStatus('syncing');
       try {
         const sheetHistory = await fetchHistoryFromSheet();
         if (sheetHistory.length > 0) {
           await importHistoryBatch(sheetHistory);
-          loadData(); // Reload UI with fresh data
+          await loadData(); // Reload UI with fresh data
+          setSyncStatus('success');
+          setSyncError(null);
+        } else {
+          setSyncStatus('success'); // Empty is still a "success" connection
         }
-      } catch (e) {
+      } catch (e: any) {
+        setSyncStatus('error');
+        setSyncError(e.message || 'Unknown sync error');
         console.error('Background sync failed', e);
       }
     };
@@ -286,8 +296,22 @@ export default function Dashboard({ theme, onSetTheme, queueCount }: DashboardPr
 
             {/* Recent Submissions */}
             <motion.div variants={item}>
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-wider">Recent Submissions</h3>
+              <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 mb-3">
+                <div>
+                  <h3 className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-wider">Recent Submissions</h3>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider 
+                      ${syncStatus === 'syncing' ? 'bg-primary-500/10 text-primary-500 animate-pulse' : 
+                        syncStatus === 'success' ? 'bg-emerald-500/10 text-emerald-500' : 
+                        syncStatus === 'error' ? 'bg-danger-500/10 text-danger-500' : 'bg-[var(--bg-sidebar)] text-[var(--text-muted)]'}`}>
+                      {syncStatus === 'syncing' && <RefreshCw className="w-2.5 h-2.5 animate-spin" />}
+                      {syncStatus === 'success' && <CheckCircle2 className="w-2.5 h-2.5" />}
+                      {syncStatus === 'error' && <AlertCircle className="w-2.5 h-2.5" />}
+                      {syncStatus === 'idle' ? 'Ready' : syncStatus}
+                    </span>
+                    {syncError && <span className="text-danger-500 text-[10px] italic">({syncError})</span>}
+                  </div>
+                </div>
                 <div className="flex items-center gap-3">
                   {syncing && <RefreshCw className="w-3 h-3 text-primary-500 animate-spin" />}
                   <button 
