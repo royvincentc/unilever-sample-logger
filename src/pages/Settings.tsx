@@ -248,9 +248,8 @@ export default function Settings({ theme, onSetTheme }: Props) {
                   try {
                     const sheetHistory = await fetchHistoryFromSheet();
                     if (sheetHistory.length > 0) {
-                      await clearHistory();
                       await importHistoryBatch(sheetHistory);
-                      showToast('success', 'Sync Complete!', 'All devices are now matched.');
+                      showToast('success', 'Sync Complete!', 'Cloud data merged with local history.');
                     } else {
                       showToast('warning', 'No data found', 'No items in cloud.');
                     }

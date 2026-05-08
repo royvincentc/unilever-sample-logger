@@ -76,7 +76,7 @@ export default function NewSample({ theme, onSetTheme, onQueueUpdate }: NewSampl
 
     if (result.success) {
       const historyEntry: HistoryEntry = {
-        id: `${finalControlNumber}${sampleName}`,
+        id: `${finalControlNumber}-${sampleName}`,
         sampleType,
         controlNumber: finalControlNumber,
         sampleName,
