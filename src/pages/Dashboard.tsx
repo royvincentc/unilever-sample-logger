@@ -373,7 +373,12 @@ export default function Dashboard({ theme, onSetTheme, queueCount }: DashboardPr
                       </thead>
                       <tbody className="divide-y divide-[var(--border-subtle)] text-sm">
                         {(() => {
-                          const filtered = recent.filter(e => e.sampleType === activeTab);
+                          const filtered = recent.filter(e => {
+                            const type = (e.sampleType || '').toUpperCase();
+                            const current = activeTab.toUpperCase();
+                            if (current === 'RAWMATS') return type === 'RAWMATS' || type === 'RAW MATS' || type === 'RAW MATS & FINISHED GOODS';
+                            return type === current;
+                          });
                           const groups: Record<string, HistoryEntry[]> = {};
                           filtered.forEach(entry => {
                             if (!groups[entry.controlNumber]) groups[entry.controlNumber] = [];

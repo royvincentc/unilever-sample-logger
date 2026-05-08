@@ -36,13 +36,12 @@ export default function Sidebar({ onLogout, queueCount }: SidebarProps) {
     >
       {/* Logo */}
       <div className="flex items-center gap-3 px-6 py-6 border-b border-[var(--border-subtle)]">
-        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500 to-accent-500
-                        flex items-center justify-center shadow-lg shadow-primary-500/25">
-          <Beaker className="w-5 h-5 text-white" />
+        <div className="w-10 h-10 rounded-xl bg-white overflow-hidden p-1 flex items-center justify-center shadow-sm">
+          <img src="/unilever-logo.png" alt="Unilever" className="w-full h-full object-contain" />
         </div>
         <div>
-          <h1 className="text-base font-bold text-[var(--text-primary)]">Unilever Dashboard</h1>
-          <p className="text-xs text-[var(--text-muted)]">QC Microbiology</p>
+          <h1 className="text-base font-bold text-[var(--text-primary)] leading-tight">Unilever Dashboard</h1>
+          <p className="text-[10px] text-[var(--text-muted)] font-bold uppercase tracking-widest">QC Microbiology</p>
         </div>
       </div>
 
