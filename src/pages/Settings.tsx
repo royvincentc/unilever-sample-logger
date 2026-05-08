@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { Save, Wifi, WifiOff, Trash2 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Save, Wifi, WifiOff, Trash2, Lock, Unlock, ShieldCheck } from 'lucide-react';
 import Header from '../components/Layout/Header';
 import TextInput from '../components/ui/TextInput';
 import Button from '../components/ui/Button';
@@ -16,20 +16,35 @@ interface Props {
 }
 
 export default function Settings({ theme, onSetTheme }: Props) {
-  const { showToast } = useToast();
   const [settings, setSettings] = useState(getSettings());
+  const [isLocked, setIsLocked] = useState(true);
+  const [password, setPassword] = useState('');
+  const [showPasswordPrompt, setShowPasswordPrompt] = useState(false);
   const [testing, setTesting] = useState<string | null>(null);
   const [testResults, setTestResults] = useState<Record<string, boolean | null>>({});
+  const { showToast } = useToast();
+
+  const ADMIN_PASSWORD = 'uqRaRrb4rc7!';
 
   useEffect(() => { setSettings(getSettings()); }, []);
+
+  const handleUnlock = () => {
+    if (password === ADMIN_PASSWORD) {
+      setIsLocked(false);
+      setShowPasswordPrompt(false);
+      setPassword('');
+      showToast('success', 'Unlocked', 'Administrative settings are now editable');
+    } else {
+      showToast('error', 'Incorrect Password', 'Access denied');
+    }
+  };
 
   const handleSave = () => {
     saveSettings(settings);
     showToast('success', 'Settings Saved');
   };
 
-  const handleTest = async (key: 'envi' | 'water' | 'rawmats') => {
-    const url = settings.webhookUrls[key];
+  const handleTest = async (url: string, key: 'envi' | 'water' | 'rawmats') => {
     if (!url) { showToast('warning', 'No URL', 'Enter a webhook URL first'); return; }
     setTesting(key);
     const ok = await testWebhookConnection(url);
@@ -44,90 +59,152 @@ export default function Settings({ theme, onSetTheme }: Props) {
     showToast('info', 'Data Cleared', 'All local data has been removed');
   };
 
-  const webhookFields: { key: 'envi' | 'water' | 'rawmats'; label: string }[] = [
-    { key: 'envi', label: 'ENVI Webhook URL' },
-    { key: 'water', label: 'WATER Webhook URL' },
-    { key: 'rawmats', label: 'RawMats Webhook URL' },
-  ];
-
   return (
     <div>
       <Header theme={theme} onSetTheme={onSetTheme} title="Settings" />
       <div className="px-4 lg:px-8 max-w-2xl space-y-6">
-        {/* Webhooks */}
-        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="glass rounded-2xl p-5 space-y-4">
-          <h4 className="text-sm font-semibold text-[var(--text-primary)] uppercase tracking-wider">n8n Webhooks</h4>
-          {webhookFields.map((f) => (
-            <div key={f.key} className="space-y-2">
-              <TextInput
-                label={f.label}
-                value={settings.webhookUrls[f.key]}
-                onChange={(v) => setSettings({ ...settings, webhookUrls: { ...settings.webhookUrls, [f.key]: v } })}
-                placeholder="https://your-n8n.com/webhook/..."
-              />
-              <div className="flex items-center gap-2">
-                <Button variant="ghost" size="sm" loading={testing === f.key} onClick={() => handleTest(f.key)}
-                  icon={testResults[f.key] === true ? <Wifi className="w-3 h-3" /> : testResults[f.key] === false ? <WifiOff className="w-3 h-3" /> : undefined}>
-                  Test
-                </Button>
-                {testResults[f.key] === true && <span className="text-xs text-success-500">✓ Connected</span>}
-                {testResults[f.key] === false && <span className="text-xs text-danger-500">✗ Unreachable</span>}
+        
+        {/* Header with Lock Status */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold text-[var(--text-primary)]">Settings</h2>
+            <p className="text-sm text-[var(--text-secondary)]">Manage app configuration and connectivity</p>
+          </div>
+          <button
+            onClick={() => isLocked ? setShowPasswordPrompt(true) : setIsLocked(true)}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl border transition-all ${
+              isLocked 
+                ? 'bg-[var(--bg-input)] border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-primary-500'
+                : 'bg-primary-500/10 border-primary-500/20 text-primary-500'
+            }`}
+          >
+            {isLocked ? <Lock className="w-4 h-4" /> : <Unlock className="w-4 h-4" />}
+            <span className="text-sm font-bold uppercase tracking-wider">
+              {isLocked ? 'Protected' : 'Unlocked'}
+            </span>
+          </button>
+        </div>
+
+        <AnimatePresence>
+          {showPasswordPrompt && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="glass rounded-2xl p-6 border-2 border-primary-500/30 shadow-xl"
+            >
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-full bg-primary-500/20 flex items-center justify-center">
+                  <ShieldCheck className="w-6 h-6 text-primary-500" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-[var(--text-primary)]">Admin Verification Required</h3>
+                  <p className="text-xs text-[var(--text-secondary)]">Enter password to modify core configuration</p>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Enter admin password..."
+                  className="flex-1 bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded-xl px-4 py-2 text-sm text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  autoFocus
+                  onKeyDown={(e) => e.key === 'Enter' && handleUnlock()}
+                />
+                <button
+                  onClick={handleUnlock}
+                  className="bg-primary-500 hover:bg-primary-600 text-white font-bold py-2 px-6 rounded-xl transition-all shadow-lg shadow-primary-500/20"
+                >
+                  Verify
+                </button>
+                <button
+                  onClick={() => setShowPasswordPrompt(false)}
+                  className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-4 text-sm font-medium"
+                >
+                  Cancel
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <div className="space-y-6">
+          {/* Webhooks */}
+          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="glass rounded-2xl p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <h4 className="text-sm font-semibold text-[var(--text-primary)] uppercase tracking-wider">n8n Webhooks</h4>
+              {isLocked && <Lock className="w-3.5 h-3.5 text-[var(--text-muted)]" />}
+            </div>
+            <div className={isLocked ? 'opacity-60 pointer-events-none grayscale-[0.5]' : ''}>
+              <TextInput label="ENVI Webhook URL" value={settings.webhookUrls.envi} onChange={(v) => setSettings({ ...settings, webhookUrls: { ...settings.webhookUrls, envi: v } })} />
+              <button onClick={() => handleTest(settings.webhookUrls.envi, 'envi')} className="text-xs text-primary-500 hover:underline mt-1 font-medium">Test</button>
+              
+              <div className="mt-4">
+                <TextInput label="WATER Webhook URL" value={settings.webhookUrls.water} onChange={(v) => setSettings({ ...settings, webhookUrls: { ...settings.webhookUrls, water: v } })} />
+                <button onClick={() => handleTest(settings.webhookUrls.water, 'water')} className="text-xs text-primary-500 hover:underline mt-1 font-medium">Test</button>
+              </div>
+              
+              <div className="mt-4">
+                <TextInput label="RawMats Webhook URL" value={settings.webhookUrls.rawmats} onChange={(v) => setSettings({ ...settings, webhookUrls: { ...settings.webhookUrls, rawmats: v } })} />
+                <button onClick={() => handleTest(settings.webhookUrls.rawmats, 'rawmats')} className="text-xs text-primary-500 hover:underline mt-1 font-medium">Test</button>
               </div>
             </div>
-          ))}
-        </motion.div>
+          </motion.div>
 
-        {/* Sheet ID */}
-        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }} className="glass rounded-2xl p-5 space-y-4">
-          <h4 className="text-sm font-semibold text-[var(--text-primary)] uppercase tracking-wider">Google Sheet</h4>
-          
-          <div className="flex p-1 bg-[var(--bg-input)] rounded-xl border border-[var(--border-subtle)]">
-            <button
-              onClick={() => setSettings({ ...settings, spreadsheetId: SPREADSHEETS.practice })}
-              className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
-                settings.spreadsheetId === SPREADSHEETS.practice
-                  ? 'bg-primary-500 text-white shadow-md'
-                  : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-              }`}
-            >
-              Practice Sheet
-            </button>
-            <button
-              onClick={() => setSettings({ ...settings, spreadsheetId: SPREADSHEETS.official })}
-              className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
-                settings.spreadsheetId === SPREADSHEETS.official
-                  ? 'bg-primary-500 text-white shadow-md'
-                  : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-              }`}
-            >
-              Official Sheet
-            </button>
-          </div>
+          {/* Sheet ID */}
+          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }} className="glass rounded-2xl p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <h4 className="text-sm font-semibold text-[var(--text-primary)] uppercase tracking-wider">Google Sheet</h4>
+              {isLocked && <Lock className="w-3.5 h-3.5 text-[var(--text-muted)]" />}
+            </div>
+            
+            <div className={isLocked ? 'opacity-60 pointer-events-none grayscale-[0.5]' : ''}>
+              <div className="flex p-1 bg-[var(--bg-input)] rounded-xl border border-[var(--border-subtle)]">
+                <button
+                  onClick={() => setSettings({ ...settings, spreadsheetId: SPREADSHEETS.practice })}
+                  className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
+                    settings.spreadsheetId === SPREADSHEETS.practice
+                      ? 'bg-primary-500 text-white shadow-md'
+                      : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                  }`}
+                >
+                  Practice Sheet
+                </button>
+                <button
+                  onClick={() => setSettings({ ...settings, spreadsheetId: SPREADSHEETS.official })}
+                  className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
+                    settings.spreadsheetId === SPREADSHEETS.official
+                      ? 'bg-primary-500 text-white shadow-md'
+                      : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                  }`}
+                >
+                  Official Sheet
+                </button>
+              </div>
 
-          <TextInput label="Custom Spreadsheet ID" value={settings.spreadsheetId} onChange={(v) => setSettings({ ...settings, spreadsheetId: v })} />
-          <p className="text-xs text-[var(--text-muted)] italic">
-            Currently using: {settings.spreadsheetId === SPREADSHEETS.practice ? 'Practice Mode' : settings.spreadsheetId === SPREADSHEETS.official ? 'Production Mode' : 'Custom ID'}
-          </p>
-        </motion.div>
+              <div className="mt-4">
+                <TextInput label="Custom Spreadsheet ID" value={settings.spreadsheetId} onChange={(v) => setSettings({ ...settings, spreadsheetId: v })} />
+                <p className="text-xs text-[var(--text-muted)] italic mt-2">
+                  Currently using: {settings.spreadsheetId === SPREADSHEETS.practice ? 'Practice Mode' : settings.spreadsheetId === SPREADSHEETS.official ? 'Production Mode' : 'Custom ID'}
+                </p>
+              </div>
+            </div>
+          </motion.div>
 
-        {/* PIN */}
-        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="glass rounded-2xl p-5 space-y-4">
-          <h4 className="text-sm font-semibold text-[var(--text-primary)] uppercase tracking-wider">Security</h4>
-          <TextInput label="8-Digit PIN" value={settings.pin} onChange={(v) => setSettings({ ...settings, pin: v.replace(/\D/g, '').slice(0, 8) })} placeholder="Enter 8-digit PIN" />
-        </motion.div>
+          {/* Danger zone */}
+          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="glass rounded-2xl p-5 space-y-4">
+            <h4 className="text-sm font-semibold text-danger-500 uppercase tracking-wider">Danger Zone</h4>
+            <Button variant="danger" size="sm" icon={<Trash2 className="w-4 h-4" />} onClick={handleClearData}>
+              Clear All Local Data
+            </Button>
+          </motion.div>
 
-        {/* Danger zone */}
-        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="glass rounded-2xl p-5 space-y-4">
-          <h4 className="text-sm font-semibold text-danger-500 uppercase tracking-wider">Danger Zone</h4>
-          <Button variant="danger" size="sm" icon={<Trash2 className="w-4 h-4" />} onClick={handleClearData}>
-            Clear All Local Data
+          {/* Save */}
+          <Button size="lg" icon={<Save className="w-4 h-4" />} onClick={handleSave} className="w-full">
+            Save Settings
           </Button>
-        </motion.div>
-
-        {/* Save */}
-        <Button size="lg" icon={<Save className="w-4 h-4" />} onClick={handleSave} className="w-full">
-          Save Settings
-        </Button>
+        </div>
       </div>
     </div>
   );
