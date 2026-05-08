@@ -1,4 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
+import { signInAnonymously } from 'firebase/auth';
+import { auth } from './utils/firebase';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 import Layout from './components/Layout/Layout';
@@ -26,7 +28,10 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (authenticated) refreshQueueCount();
+    if (authenticated) {
+      refreshQueueCount();
+      signInAnonymously(auth).catch(err => console.error("Firebase Auth failed:", err));
+    }
   }, [authenticated, refreshQueueCount]);
 
   // Auto-sync on reconnect
