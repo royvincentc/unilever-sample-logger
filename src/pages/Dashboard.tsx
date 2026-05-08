@@ -360,10 +360,37 @@ export default function Dashboard({ theme, onSetTheme, queueCount }: DashboardPr
                         </td>
                         <td className="p-4 text-[var(--text-secondary)] text-xs">{new Date(entry.submittedAt).toLocaleDateString()}</td>
                         <td className="p-4">{statusBadge(entry.status)}</td>
-                        <td className="p-4 text-right">
-                          <button className="text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors p-1 rounded hover:bg-[var(--bg-sidebar)]">
-                            <MoreVertical className="w-4 h-4" />
-                          </button>
+                        <td className="py-3 px-4 text-right">
+                          <div className="relative inline-block text-left">
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedEntry(selectedEntry === entry.id ? null : entry.id);
+                              }}
+                              className="p-1 hover:bg-[var(--bg-hover)] rounded-lg transition-colors text-[var(--text-muted)]"
+                            >
+                              <MoreVertical className="w-4 h-4" />
+                            </button>
+                            
+                            {selectedEntry === entry.id && (
+                              <div className="absolute right-0 mt-2 w-48 rounded-xl bg-[var(--bg-sidebar)] border border-[var(--border-subtle)] shadow-xl z-50 py-1">
+                                <button 
+                                  onClick={() => navigate(`/results?sampleId=${entry.id}`)}
+                                  className="w-full text-left px-4 py-2 text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-hover)] flex items-center gap-2"
+                                >
+                                  <FileText className="w-3.5 h-3.5" />
+                                  Log Results
+                                </button>
+                                <button 
+                                  onClick={() => navigate(`/history?id=${entry.id}`)}
+                                  className="w-full text-left px-4 py-2 text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-hover)] flex items-center gap-2"
+                                >
+                                  <Clock className="w-3.5 h-3.5" />
+                                  View Details
+                                </button>
+                              </div>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     )) : (

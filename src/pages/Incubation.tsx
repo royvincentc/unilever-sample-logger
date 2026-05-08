@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -39,24 +39,6 @@ export default function Incubation({ theme, onSetTheme }: Props) {
   const [tasks, setTasks] = useState<IncubationTask[]>([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
-
-  useEffect(() => {
-    loadIncubations();
-    
-    // Background sync to ensure tasks are synced across devices
-    const autoSync = async () => {
-      try {
-        const sheetHistory = await fetchHistoryFromSheet();
-        if (sheetHistory.length > 0) {
-          await importHistoryBatch(sheetHistory);
-          loadIncubations();
-        }
-      } catch (e) {
-        console.error('Incubation sync failed', e);
-      }
-    };
-    autoSync();
-  }, [loadIncubations]);
 
   const loadIncubations = useCallback(async () => {
     const history = await getHistory(100);
@@ -134,6 +116,24 @@ export default function Incubation({ theme, onSetTheme }: Props) {
     setTasks(upcomingTasks);
     setLoading(false);
   }, []);
+
+  useEffect(() => {
+    loadIncubations();
+    
+    // Background sync to ensure tasks are synced across devices
+    const autoSync = async () => {
+      try {
+        const sheetHistory = await fetchHistoryFromSheet();
+        if (sheetHistory.length > 0) {
+          await importHistoryBatch(sheetHistory);
+          loadIncubations();
+        }
+      } catch (e) {
+        console.error('Incubation sync failed', e);
+      }
+    };
+    autoSync();
+  }, [loadIncubations]);
 
   const getStatusBadge = (task: IncubationTask) => {
     if (task.status === 'overdue') {
