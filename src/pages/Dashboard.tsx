@@ -16,6 +16,7 @@ import {
   Activity,
   ListTodo,
   RefreshCw,
+  FileText,
   FlaskConical as Flask,
   Droplets as WaterIcon,
   Package as Box
@@ -66,6 +67,7 @@ export default function Dashboard({ theme, onSetTheme, queueCount }: DashboardPr
 
   const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'success' | 'error'>('idle');
   const [syncError, setSyncError] = useState<string | null>(null);
+  const [selectedEntry, setSelectedEntry] = useState<string | null>(null);
 
   const loadData = useCallback(async () => {
     const history = await getHistory(100);

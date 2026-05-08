@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Save, Wifi, WifiOff, Trash2, Lock, Unlock, ShieldCheck } from 'lucide-react';
+import { Save, Wifi, WifiOff, Trash2, Lock, Unlock, ShieldCheck, LogOut } from 'lucide-react';
 import Header from '../components/Layout/Header';
 import TextInput from '../components/ui/TextInput';
 import Button from '../components/ui/Button';
@@ -204,6 +204,35 @@ export default function Settings({ theme, onSetTheme }: Props) {
           <Button size="lg" icon={<Save className="w-4 h-4" />} onClick={handleSave} className="w-full">
             Save Settings
           </Button>
+
+          {/* Account Section */}
+          <div className="glass rounded-2xl border border-[var(--border-subtle)] overflow-hidden">
+            <div className="p-6">
+              <h3 className="text-sm font-bold text-[var(--text-primary)] uppercase tracking-wider mb-4 flex items-center gap-2">
+                <LogOut className="w-4 h-4 text-danger-500" />
+                Account
+              </h3>
+              <p className="text-xs text-[var(--text-muted)] mb-4">
+                Sign out of your account on this device.
+              </p>
+              <button
+                onClick={() => {
+                  localStorage.removeItem('user');
+                  window.location.href = '/login';
+                }}
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-danger-500/10 text-danger-500 hover:bg-danger-500/20 rounded-xl font-bold transition-all"
+              >
+                <LogOut className="w-4 h-4" />
+                Sign Out from Device
+              </button>
+            </div>
+          </div>
+
+          <div className="text-center py-8">
+            <p className="text-[10px] text-[var(--text-muted)] font-bold uppercase tracking-[0.2em]">
+              Microbiology Lab Logger v2.5.0
+            </p>
+          </div>
         </div>
       </div>
     </div>
