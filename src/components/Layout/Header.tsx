@@ -1,0 +1,54 @@
+import { Sun, Moon, Monitor } from 'lucide-react';
+import { motion } from 'framer-motion';
+
+interface HeaderProps {
+  theme: 'light' | 'dark' | 'system';
+  onSetTheme: (theme: 'light' | 'dark' | 'system') => void;
+  title?: string;
+}
+
+const themeOptions = [
+  { value: 'light' as const, icon: Sun },
+  { value: 'dark' as const, icon: Moon },
+  { value: 'system' as const, icon: Monitor },
+];
+
+export default function Header({ theme, onSetTheme, title }: HeaderProps) {
+  return (
+    <header className="sticky top-0 z-30 px-4 lg:px-8 py-4">
+      <div className="flex items-center justify-between">
+        {title && (
+          <h2 className="text-xl lg:text-2xl font-bold text-[var(--text-primary)]">
+            {title}
+          </h2>
+        )}
+        <div className="ml-auto flex items-center gap-1 p-1 rounded-xl bg-[var(--bg-card-solid)] border border-[var(--border-color)]">
+          {themeOptions.map((opt) => (
+            <motion.button
+              key={opt.value}
+              whileTap={{ scale: 0.9 }}
+              onClick={() => onSetTheme(opt.value)}
+              className={`
+                relative p-2 rounded-lg transition-colors duration-200 cursor-pointer
+                ${
+                  theme === opt.value
+                    ? 'text-primary-500'
+                    : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
+                }
+              `}
+            >
+              {theme === opt.value && (
+                <motion.div
+                  layoutId="theme-active"
+                  className="absolute inset-0 rounded-lg bg-primary-500/10"
+                  transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+                />
+              )}
+              <opt.icon className="w-4 h-4 relative z-10" />
+            </motion.button>
+          ))}
+        </div>
+      </div>
+    </header>
+  );
+}
