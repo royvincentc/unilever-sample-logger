@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FileText, Search, X, CheckCircle2, ChevronRight, FlaskConical, Droplets, Package } from 'lucide-react';
+import { FileText, Search, X, CheckCircle2, ChevronRight, FlaskConical, Droplets, Package, AlertTriangle } from 'lucide-react';
 import Header from '../components/Layout/Header';
 import { getHistory, updateHistory } from '../utils/db';
 import { getUserName } from '../utils/auth';
@@ -101,7 +101,25 @@ export default function Results({ theme, onSetTheme }: Props) {
     <div className="min-h-screen bg-[var(--bg-body)]">
       <Header theme={theme} onSetTheme={onSetTheme} title="Reports & Results" />
       
-      <div className="px-4 lg:px-8 py-2 max-w-[1200px] mx-auto">
+      <div className="px-4 lg:px-8 py-2 max-w-[1200px] mx-auto space-y-6">
+        
+        {/* Warning Banner */}
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-warning-500/10 border border-warning-500/20 rounded-2xl p-4 flex items-center gap-4"
+        >
+          <div className="w-12 h-12 rounded-xl bg-warning-500/20 flex items-center justify-center flex-shrink-0">
+            <AlertTriangle className="w-6 h-6 text-warning-500" />
+          </div>
+          <div>
+            <h3 className="text-sm font-bold text-warning-500 uppercase tracking-wider">Under Construction!</h3>
+            <p className="text-xs text-[var(--text-secondary)] font-medium">
+              All data in this page are temporary and will be deleted every 14 days.
+            </p>
+          </div>
+        </motion.div>
+
         <div className="flex flex-col lg:flex-row gap-6">
           
           {/* Left Column: List of Pending Samples */}
