@@ -77,14 +77,19 @@ export const RAWMATS_SOURCES = [
 // ===== DEFAULT SETTINGS =====
 export const DEFAULT_SETTINGS = {
   webhookUrls: {
-    envi: '',
-    water: '',
-    rawmats: '',
+    envi: 'https://n8n-royvincentc.onrender.com/webhook/envi-submit',
+    water: 'https://n8n-royvincentc.onrender.com/webhook/water-submit',
+    rawmats: 'https://n8n-royvincentc.onrender.com/webhook/rawmats-submit',
   },
   spreadsheetId: '12GkLM06FaO9Qn_E4TDQp852nUvf53mxl6nUI9C9GEdc',
   theme: 'system' as const,
   authMode: 'password' as const,
   pin: '09062025',
+};
+
+export const SPREADSHEETS = {
+  practice: '12GkLM06FaO9Qn_E4TDQp852nUvf53mxl6nUI9C9GEdc',
+  official: '1-pGOoxmZw4qCfK3KnjeRvbK_VbfEAZJUn7GjI01hkXc'
 };
 
 // ===== AUTH CREDENTIALS =====

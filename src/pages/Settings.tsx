@@ -8,6 +8,7 @@ import { useToast } from '../components/ui/Toast';
 import { getSettings, saveSettings } from '../utils/auth';
 import { testWebhookConnection } from '../utils/api';
 import { clearHistory, clearQueue } from '../utils/db';
+import { SPREADSHEETS } from '../data/constants';
 
 interface Props {
   theme: 'light' | 'dark' | 'system';
@@ -79,8 +80,34 @@ export default function Settings({ theme, onSetTheme }: Props) {
         {/* Sheet ID */}
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }} className="glass rounded-2xl p-5 space-y-4">
           <h4 className="text-sm font-semibold text-[var(--text-primary)] uppercase tracking-wider">Google Sheet</h4>
-          <TextInput label="Spreadsheet ID" value={settings.spreadsheetId} onChange={(v) => setSettings({ ...settings, spreadsheetId: v })} />
-          <p className="text-xs text-[var(--text-muted)]">Practice sheet is pre-filled. Swap to official when ready.</p>
+          
+          <div className="flex p-1 bg-[var(--bg-input)] rounded-xl border border-[var(--border-subtle)]">
+            <button
+              onClick={() => setSettings({ ...settings, spreadsheetId: SPREADSHEETS.practice })}
+              className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
+                settings.spreadsheetId === SPREADSHEETS.practice
+                  ? 'bg-primary-500 text-white shadow-md'
+                  : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+              }`}
+            >
+              Practice Sheet
+            </button>
+            <button
+              onClick={() => setSettings({ ...settings, spreadsheetId: SPREADSHEETS.official })}
+              className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
+                settings.spreadsheetId === SPREADSHEETS.official
+                  ? 'bg-primary-500 text-white shadow-md'
+                  : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+              }`}
+            >
+              Official Sheet
+            </button>
+          </div>
+
+          <TextInput label="Custom Spreadsheet ID" value={settings.spreadsheetId} onChange={(v) => setSettings({ ...settings, spreadsheetId: v })} />
+          <p className="text-xs text-[var(--text-muted)] italic">
+            Currently using: {settings.spreadsheetId === SPREADSHEETS.practice ? 'Practice Mode' : settings.spreadsheetId === SPREADSHEETS.official ? 'Production Mode' : 'Custom ID'}
+          </p>
         </motion.div>
 
         {/* PIN */}
