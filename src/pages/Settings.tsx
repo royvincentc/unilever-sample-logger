@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { Save, Wifi, WifiOff, Trash2, Lock, Unlock, ShieldCheck, LogOut } from 'lucide-react';
 import Header from '../components/Layout/Header';
 import TextInput from '../components/ui/TextInput';
@@ -18,6 +19,8 @@ interface Props {
 export default function Settings({ theme, onSetTheme }: Props) {
   const [settings, setSettings] = useState(getSettings());
   const [isLocked, setIsLocked] = useState(true);
+  const navigate = useNavigate();
+  const [isSyncing, setIsSyncing] = useState(false);
   const [password, setPassword] = useState('');
   const [showPasswordPrompt, setShowPasswordPrompt] = useState(false);
   const [testing, setTesting] = useState<string | null>(null);
@@ -218,12 +221,50 @@ export default function Settings({ theme, onSetTheme }: Props) {
               <button
                 onClick={() => {
                   localStorage.removeItem('user');
-                  window.location.href = '/login';
+                  window.location.replace('/login');
+                  setTimeout(() => window.location.reload(), 100);
                 }}
                 className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-danger-500/10 text-danger-500 hover:bg-danger-500/20 rounded-xl font-bold transition-all"
               >
                 <LogOut className="w-4 h-4" />
                 Sign Out from Device
+              </button>
+            </div>
+          </div>
+
+          {/* Sync Utility */}
+          <div className="glass rounded-2xl border border-[var(--border-subtle)] overflow-hidden">
+            <div className="p-6">
+              <h3 className="text-sm font-bold text-[var(--text-primary)] uppercase tracking-wider mb-4 flex items-center gap-2">
+                <RefreshCw className={`w-4 h-4 text-primary-500 ${isSyncing ? 'animate-spin' : ''}`} />
+                Cloud Reconciliation
+              </h3>
+              <p className="text-xs text-[var(--text-muted)] mb-4">
+                If your phone and PC are different, this will force a full reload from the cloud.
+              </p>
+              <button
+                onClick={async () => {
+                  setIsSyncing(true);
+                  try {
+                    const sheetHistory = await fetchHistoryFromSheet();
+                    if (sheetHistory.length > 0) {
+                      await clearHistory();
+                      await importHistoryBatch(sheetHistory);
+                      addToast('Sync Complete! All devices are now matched.', 'success');
+                    } else {
+                      addToast('No data found in cloud.', 'warning');
+                    }
+                  } catch (e) {
+                    addToast('Force Sync failed. Check connection.', 'error');
+                  } finally {
+                    setIsSyncing(false);
+                  }
+                }}
+                disabled={isSyncing}
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-primary-500/10 text-primary-500 hover:bg-primary-500/20 rounded-xl font-bold transition-all disabled:opacity-50"
+              >
+                <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
+                {isSyncing ? 'Syncing...' : 'Sync Everything Now'}
               </button>
             </div>
           </div>
