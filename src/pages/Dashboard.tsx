@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -17,6 +17,8 @@ import {
   ListTodo,
   RefreshCw,
   FileText,
+  ChevronDown,
+  ChevronRight,
   FlaskConical as Flask,
   Droplets as WaterIcon,
   Package as Box
@@ -68,6 +70,15 @@ export default function Dashboard({ theme, onSetTheme, queueCount }: DashboardPr
   const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'success' | 'error'>('idle');
   const [syncError, setSyncError] = useState<string | null>(null);
   const [selectedEntry, setSelectedEntry] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'ENVI' | 'WATER' | 'RawMats'>('ENVI');
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+
+  const toggleGroup = (ctrl: string) => {
+    const newSet = new Set(expandedGroups);
+    if (newSet.has(ctrl)) newSet.delete(ctrl);
+    else newSet.add(ctrl);
+    setExpandedGroups(newSet);
+  };
 
   const loadData = useCallback(async () => {
     const history = await getHistory(100);
@@ -328,80 +339,155 @@ export default function Dashboard({ theme, onSetTheme, queueCount }: DashboardPr
                 </div>
               </div>
               
-              <div className="glass rounded-xl overflow-x-auto border border-[var(--border-subtle)]">
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="border-b border-[var(--border-subtle)] text-[10px] uppercase tracking-wider text-[var(--text-muted)]">
-                      <th className="p-4 font-semibold">ID</th>
-                      <th className="p-4 font-semibold">Sample Name</th>
-                      <th className="p-4 font-semibold">Type</th>
-                      <th className="p-4 font-semibold">Submitted By</th>
-                      <th className="p-4 font-semibold">Date</th>
-                      <th className="p-4 font-semibold">Status</th>
-                      <th className="p-4"></th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[var(--border-subtle)] text-sm">
-                    {recent.length > 0 ? recent.slice(0, 6).map((entry) => (
-                      <tr key={entry.id} className="hover:bg-[var(--bg-hover)] transition-colors group">
-                        <td className="p-4 text-[var(--text-secondary)] font-mono text-xs">{entry.controlNumber}</td>
-                        <td className="p-4 font-medium text-[var(--text-primary)]">{entry.sampleName}</td>
-                        <td className="p-4">
-                          <span className={`px-2 py-1 rounded text-[10px] font-bold tracking-wider
-                            ${entry.sampleType === 'ENVI' ? 'bg-emerald-500/10 text-emerald-500' :
-                              entry.sampleType === 'WATER' ? 'bg-blue-500/10 text-blue-500' :
-                              'bg-violet-500/10 text-violet-500'}`}>
-                            {entry.sampleType}
-                          </span>
-                        </td>
-                        <td className="p-4 flex items-center gap-2 text-[var(--text-secondary)]">
-                          <div className="w-6 h-6 rounded-full bg-primary-500/20 text-primary-500 flex items-center justify-center text-[10px] font-bold">
-                            {(entry.submittedBy || 'U')[0].toUpperCase()}
-                          </div>
-                          {entry.submittedBy || 'Unknown'}
-                        </td>
-                        <td className="p-4 text-[var(--text-secondary)] text-xs">{new Date(entry.submittedAt).toLocaleDateString()}</td>
-                        <td className="p-4">{statusBadge(entry.status)}</td>
-                        <td className="py-3 px-4 text-right">
-                          <div className="relative inline-block text-left">
-                            <button 
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setSelectedEntry(selectedEntry === entry.id ? null : entry.id);
-                              }}
-                              className="p-1 hover:bg-[var(--bg-hover)] rounded-lg transition-colors text-[var(--text-muted)]"
-                            >
-                              <MoreVertical className="w-4 h-4" />
-                            </button>
-                            
-                            {selectedEntry === entry.id && (
-                              <div className="absolute right-0 mt-2 w-48 rounded-xl bg-[var(--bg-sidebar)] border border-[var(--border-subtle)] shadow-xl z-50 py-1">
-                                <button 
-                                  onClick={() => navigate(`/results?sampleId=${entry.id}`)}
-                                  className="w-full text-left px-4 py-2 text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-hover)] flex items-center gap-2"
+              <div className="space-y-4">
+                {/* Type Tabs */}
+                <div className="flex items-center gap-1 bg-[var(--bg-sidebar)] p-1 rounded-xl border border-[var(--border-subtle)] w-fit mb-4">
+                  {(['ENVI', 'WATER', 'RawMats'] as const).map(type => (
+                    <button
+                      key={type}
+                      onClick={() => setActiveTab(type)}
+                      className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+                        activeTab === type 
+                        ? 'bg-primary-500 text-white shadow-lg' 
+                        : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]'
+                      }`}
+                    >
+                      {type === 'RawMats' ? 'RAWMATS' : type}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="glass rounded-xl overflow-hidden border border-[var(--border-subtle)]">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="border-b border-[var(--border-subtle)] text-[10px] uppercase tracking-wider text-[var(--text-muted)]">
+                          <th className="p-4 w-10"></th>
+                          <th className="p-4 font-semibold">Control #</th>
+                          <th className="p-4 font-semibold">Sample Details</th>
+                          <th className="p-4 font-semibold">Submitted By</th>
+                          <th className="p-4 font-semibold">Date & Time</th>
+                          <th className="p-4 font-semibold">Status</th>
+                          <th className="p-4"></th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-[var(--border-subtle)] text-sm">
+                        {(() => {
+                          const filtered = recent.filter(e => e.sampleType === activeTab);
+                          const groups: Record<string, HistoryEntry[]> = {};
+                          filtered.forEach(entry => {
+                            if (!groups[entry.controlNumber]) groups[entry.controlNumber] = [];
+                            groups[entry.controlNumber].push(entry);
+                          });
+
+                          const sortedGroups = Object.entries(groups).sort((a, b) => {
+                            return new Date(b[1][0].submittedAt).getTime() - new Date(a[1][0].submittedAt).getTime();
+                          });
+
+                          return sortedGroups.length > 0 ? sortedGroups.map(([ctrl, entries]) => {
+                            const isExpanded = expandedGroups.has(ctrl);
+                            const first = entries[0];
+                            return (
+                              <React.Fragment key={ctrl}>
+                                <tr 
+                                  className={`hover:bg-[var(--bg-hover)] transition-colors cursor-pointer ${isExpanded ? 'bg-[var(--bg-hover)]/30' : ''}`}
+                                  onClick={() => entries.length > 1 && toggleGroup(ctrl)}
                                 >
-                                  <FileText className="w-3.5 h-3.5" />
-                                  Log Results
-                                </button>
-                                <button 
-                                  onClick={() => navigate(`/history?id=${entry.id}`)}
-                                  className="w-full text-left px-4 py-2 text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-hover)] flex items-center gap-2"
-                                >
-                                  <Clock className="w-3.5 h-3.5" />
-                                  View Details
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    )) : (
-                      <tr>
-                        <td colSpan={7} className="p-8 text-center text-[var(--text-secondary)] text-sm">No recent submissions found.</td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
+                                  <td className="p-4 text-center">
+                                    {entries.length > 1 ? (
+                                      isExpanded ? <ChevronDown className="w-4 h-4 text-primary-500" /> : <ChevronRight className="w-4 h-4 text-[var(--text-muted)]" />
+                                    ) : null}
+                                  </td>
+                                  <td className="p-4 text-[var(--text-secondary)] font-mono text-xs">{ctrl}</td>
+                                  <td className="p-4">
+                                    <div className="flex flex-col">
+                                      <span className="text-sm font-bold text-[var(--text-primary)]">
+                                        {entries.length > 1 ? `${entries.length} Samples` : first.sampleName}
+                                      </span>
+                                      {entries.length > 1 && !isExpanded && (
+                                        <span className="text-[10px] text-[var(--text-muted)] truncate max-w-[200px]">
+                                          {entries.map(e => e.sampleName).join(', ')}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </td>
+                                  <td className="p-4 flex items-center gap-2 text-[var(--text-secondary)]">
+                                    <div className="w-6 h-6 rounded-full bg-primary-500/20 text-primary-500 flex items-center justify-center text-[10px] font-bold">
+                                      {(first.submittedBy || 'U')[0].toUpperCase()}
+                                    </div>
+                                    {first.submittedBy || 'Unknown'}
+                                  </td>
+                                  <td className="p-4">
+                                    <div className="flex flex-col">
+                                      <span className="text-xs text-[var(--text-primary)] font-medium">{new Date(first.submittedAt).toLocaleDateString()}</span>
+                                      <span className="text-[10px] text-[var(--text-muted)]">{new Date(first.submittedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                    </div>
+                                  </td>
+                                  <td className="p-4">{statusBadge(first.status)}</td>
+                                  <td className="p-4 text-right">
+                                    {entries.length === 1 && (
+                                      <div className="relative inline-block text-left">
+                                        <button 
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setSelectedEntry(selectedEntry === first.id ? null : first.id);
+                                          }}
+                                          className="p-1 hover:bg-[var(--bg-hover)] rounded-lg transition-colors text-[var(--text-muted)]"
+                                        >
+                                          <MoreVertical className="w-4 h-4" />
+                                        </button>
+                                        {selectedEntry === first.id && (
+                                          <div className="absolute right-0 mt-2 w-48 rounded-xl bg-[var(--bg-sidebar)] border border-[var(--border-subtle)] shadow-xl z-50 py-1 text-left">
+                                            <button onClick={() => navigate(`/results?sampleId=${first.id}`)} className="w-full px-4 py-2 text-xs font-semibold hover:bg-[var(--bg-hover)] flex items-center gap-2"><FileText className="w-3.5 h-3.5" /> Log Results</button>
+                                            <button onClick={() => navigate(`/history?id=${first.id}`)} className="w-full px-4 py-2 text-xs font-semibold hover:bg-[var(--bg-hover)] flex items-center gap-2"><Clock className="w-3.5 h-3.5" /> View Details</button>
+                                          </div>
+                                        )}
+                                      </div>
+                                    )}
+                                  </td>
+                                </tr>
+                                {isExpanded && entries.map(entry => (
+                                  <tr key={entry.id} className="bg-[var(--bg-body)]/40 border-l-2 border-primary-500">
+                                    <td className="p-4"></td>
+                                    <td className="p-4"></td>
+                                    <td className="p-4" colSpan={3}>
+                                      <div className="flex items-center justify-between">
+                                        <span className="text-xs font-semibold text-[var(--text-secondary)]">{entry.sampleName}</span>
+                                        <span className="text-[10px] text-[var(--text-muted)]">{new Date(entry.submittedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                      </div>
+                                    </td>
+                                    <td className="p-4">{statusBadge(entry.status)}</td>
+                                    <td className="p-4 text-right">
+                                      <div className="relative inline-block text-left">
+                                        <button 
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setSelectedEntry(selectedEntry === entry.id ? null : entry.id);
+                                          }}
+                                          className="p-1 hover:bg-[var(--bg-hover)] rounded-lg transition-colors text-[var(--text-muted)]"
+                                        >
+                                          <MoreVertical className="w-4 h-4" />
+                                        </button>
+                                        {selectedEntry === entry.id && (
+                                          <div className="absolute right-0 mt-2 w-48 rounded-xl bg-[var(--bg-sidebar)] border border-[var(--border-subtle)] shadow-xl z-50 py-1 text-left">
+                                            <button onClick={() => navigate(`/results?sampleId=${entry.id}`)} className="w-full px-4 py-2 text-xs font-semibold hover:bg-[var(--bg-hover)] flex items-center gap-2"><FileText className="w-3.5 h-3.5" /> Log Results</button>
+                                            <button onClick={() => navigate(`/history?id=${entry.id}`)} className="w-full px-4 py-2 text-xs font-semibold hover:bg-[var(--bg-hover)] flex items-center gap-2"><Clock className="w-3.5 h-3.5" /> View Details</button>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </React.Fragment>
+                            );
+                          }) : (
+                            <tr><td colSpan={7} className="p-12 text-center text-[var(--text-secondary)]">No recent submissions for {activeTab}.</td></tr>
+                          );
+                        })()}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
               </div>
             </motion.div>
           </div>
