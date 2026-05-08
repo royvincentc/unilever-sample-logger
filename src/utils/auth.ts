@@ -59,7 +59,16 @@ export function getSettings() {
   try {
     const stored = localStorage.getItem(SETTINGS_KEY);
     if (stored) {
-      return { ...DEFAULT_SETTINGS, ...JSON.parse(stored) };
+      const parsed = JSON.parse(stored);
+      // Ensure nested webhookUrls are merged, not overwritten
+      return { 
+        ...DEFAULT_SETTINGS, 
+        ...parsed,
+        webhookUrls: {
+          ...DEFAULT_SETTINGS.webhookUrls,
+          ...(parsed.webhookUrls || {})
+        }
+      };
     }
   } catch {
     // ignore
