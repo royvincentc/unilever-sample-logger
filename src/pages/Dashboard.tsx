@@ -66,7 +66,11 @@ export default function Dashboard({ theme, onSetTheme, queueCount }: DashboardPr
 
   const loadData = useCallback(async () => {
     const history = await getHistory(100);
-    setRecent(history.slice(0, 10));
+    const currentUser = getUserName();
+    
+    // Filter history for the current user for personal stats
+    const myHistory = history.filter(h => h.submittedBy === currentUser);
+    setRecent(history.slice(0, 10)); // Still show last 10 global recent for the table
 
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -78,7 +82,8 @@ export default function Dashboard({ theme, onSetTheme, queueCount }: DashboardPr
     let pendingRelease = 0;
     const tasks: any[] = [];
 
-    history.forEach(entry => {
+    // Stats and Upcoming are PERSONAL
+    myHistory.forEach(entry => {
       const statusStr = entry.status as string;
       if (statusStr === 'ONGOING' || statusStr === 'ON GOING') ongoing++;
       if (entry.status === 'PENDING RELEASE') pendingRelease++;
@@ -131,6 +136,20 @@ export default function Dashboard({ theme, onSetTheme, queueCount }: DashboardPr
 
   useEffect(() => {
     loadData();
+    
+    // Background sync on load to ensure shared history is real-time
+    const autoSync = async () => {
+      try {
+        const sheetHistory = await fetchHistoryFromSheet();
+        if (sheetHistory.length > 0) {
+          await importHistoryBatch(sheetHistory);
+          loadData(); // Reload UI with fresh data
+        }
+      } catch (e) {
+        console.error('Background sync failed', e);
+      }
+    };
+    autoSync();
   }, [loadData]);
 
   const handleSync = async () => {

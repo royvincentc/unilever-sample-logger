@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import Header from '../components/Layout/Header';
 import { getHistory } from '../utils/db';
+import { getUserName } from '../utils/auth';
 import type { HistoryEntry } from '../types';
 
 interface Props {
@@ -44,6 +45,7 @@ export default function Incubation({ theme, onSetTheme }: Props) {
 
   const loadIncubations = async () => {
     const history = await getHistory(100);
+    const currentUser = getUserName();
     const now = new Date();
     // Normalize to start of day for accurate day differences
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -51,6 +53,8 @@ export default function Incubation({ theme, onSetTheme }: Props) {
     const upcomingTasks: IncubationTask[] = [];
 
     history.forEach((entry) => {
+      // PERSONAL FILTER: Only show tasks for samples submitted by this user
+      if (entry.submittedBy !== currentUser) return;
       // Use dateAnalyzed if available, fallback to dateSampled
       const baseDateStr = entry.dateAnalyzed || entry.dateSampled || entry.submittedAt;
       const baseDate = new Date(baseDateStr);

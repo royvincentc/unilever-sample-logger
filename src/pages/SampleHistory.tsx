@@ -4,6 +4,7 @@ import { Clock, X, FileText } from 'lucide-react';
 import Header from '../components/Layout/Header';
 import StatusBadge from '../components/ui/StatusBadge';
 import { getHistory } from '../utils/db';
+import { getUserName } from '../utils/auth';
 import type { HistoryEntry } from '../types';
 
 interface Props {
@@ -14,7 +15,14 @@ interface Props {
 export default function SampleHistory({ theme, onSetTheme }: Props) {
   const [entries, setEntries] = useState<HistoryEntry[]>([]);
   const [selectedEntry, setSelectedEntry] = useState<HistoryEntry | null>(null);
-  useEffect(() => { getHistory(50).then(setEntries); }, []);
+  
+  useEffect(() => { 
+    const currentUser = getUserName();
+    getHistory(100).then(history => {
+      const myHistory = history.filter(e => e.submittedBy === currentUser);
+      setEntries(myHistory);
+    }); 
+  }, []);
 
   const badge = (type: string) =>
     type === 'ENVI' ? 'from-emerald-500 to-teal-500' :

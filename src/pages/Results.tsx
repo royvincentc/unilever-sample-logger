@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { FileText, Search, X, CheckCircle2, ChevronRight, FlaskConical, Droplets, Package } from 'lucide-react';
 import Header from '../components/Layout/Header';
 import { getHistory, updateHistory } from '../utils/db';
+import { getUserName } from '../utils/auth';
 import type { HistoryEntry } from '../types';
 import { useToast } from '../components/ui/Toast';
 
@@ -38,9 +39,11 @@ export default function Results({ theme, onSetTheme }: Props) {
 
   const loadSamples = async () => {
     const history = await getHistory(100);
-    // Show samples that aren't completed yet
+    const currentUser = getUserName();
+    // Show samples that aren't completed yet and were submitted by this user
     const pending = history.filter(entry => 
-      entry.status !== 'COMPLETED' && entry.status !== 'RELEASED'
+      (entry.status !== 'COMPLETED' && entry.status !== 'RELEASED') &&
+      entry.submittedBy === currentUser
     );
     setPendingSamples(pending);
   };
@@ -53,6 +56,13 @@ export default function Results({ theme, onSetTheme }: Props) {
   const handleSaveResult = async (e: React.FormEvent, results: any) => {
     e.preventDefault();
     if (!selectedSample || !selectedReading) return;
+
+    // Security check: Verify the current user is the owner
+    const currentUser = getUserName();
+    if (selectedSample.submittedBy !== currentUser) {
+      showToast('error', 'Access Denied', 'You can only log results for your own samples');
+      return;
+    }
 
     const isFinal = selectedReading.includes('Final');
     
