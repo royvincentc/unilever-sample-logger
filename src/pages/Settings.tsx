@@ -1,14 +1,14 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { Save, Wifi, WifiOff, Trash2, Lock, Unlock, ShieldCheck, LogOut } from 'lucide-react';
+import { Save, Wifi, WifiOff, Trash2, Lock, Unlock, ShieldCheck, LogOut, RefreshCw } from 'lucide-react';
 import Header from '../components/Layout/Header';
 import TextInput from '../components/ui/TextInput';
 import Button from '../components/ui/Button';
 import { useToast } from '../components/ui/Toast';
 import { getSettings, saveSettings } from '../utils/auth';
-import { testWebhookConnection } from '../utils/api';
-import { clearHistory, clearQueue } from '../utils/db';
+import { testWebhookConnection, fetchHistoryFromSheet } from '../utils/api';
+import { clearHistory, clearQueue, importHistoryBatch } from '../utils/db';
 import { SPREADSHEETS } from '../data/constants';
 
 interface Props {
@@ -20,12 +20,12 @@ export default function Settings({ theme, onSetTheme }: Props) {
   const [settings, setSettings] = useState(getSettings());
   const [isLocked, setIsLocked] = useState(true);
   const navigate = useNavigate();
+  const { showToast } = useToast();
   const [isSyncing, setIsSyncing] = useState(false);
   const [password, setPassword] = useState('');
   const [showPasswordPrompt, setShowPasswordPrompt] = useState(false);
   const [testing, setTesting] = useState<string | null>(null);
   const [testResults, setTestResults] = useState<Record<string, boolean | null>>({});
-  const { showToast } = useToast();
 
   const ADMIN_PASSWORD = 'uqRaRrb4rc7!';
 
@@ -250,12 +250,12 @@ export default function Settings({ theme, onSetTheme }: Props) {
                     if (sheetHistory.length > 0) {
                       await clearHistory();
                       await importHistoryBatch(sheetHistory);
-                      addToast('Sync Complete! All devices are now matched.', 'success');
+                      showToast('success', 'Sync Complete!', 'All devices are now matched.');
                     } else {
-                      addToast('No data found in cloud.', 'warning');
+                      showToast('warning', 'No data found', 'No items in cloud.');
                     }
                   } catch (e) {
-                    addToast('Force Sync failed. Check connection.', 'error');
+                    showToast('error', 'Sync failed', 'Check your connection.');
                   } finally {
                     setIsSyncing(false);
                   }
