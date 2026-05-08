@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -12,6 +12,7 @@ import {
   UploadCloud,
   BarChart3,
   CheckCircle2,
+  MoreVertical,
   Activity,
   ListTodo,
   RefreshCw,
@@ -78,7 +79,8 @@ export default function Dashboard({ theme, onSetTheme, queueCount }: DashboardPr
     const tasks: any[] = [];
 
     history.forEach(entry => {
-      if (entry.status === 'ONGOING' || entry.status === 'ON GOING') ongoing++;
+      const statusStr = entry.status as string;
+      if (statusStr === 'ONGOING' || statusStr === 'ON GOING') ongoing++;
       if (entry.status === 'PENDING RELEASE') pendingRelease++;
       
       // Calculate incubation tasks for active samples
