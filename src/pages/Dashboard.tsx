@@ -24,7 +24,7 @@ import {
   Package as Box
 } from 'lucide-react';
 import Header from '../components/Layout/Header';
-import { getHistory, importHistoryBatch } from '../utils/db';
+import { getHistory, importHistoryBatch, listenToHistory } from '../utils/db';
 import { getUserName } from '../utils/auth';
 import { fetchHistoryFromSheet } from '../utils/api';
 import { useToast } from '../components/ui/Toast';

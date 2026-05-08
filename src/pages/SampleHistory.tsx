@@ -1,9 +1,9 @@
-import { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Clock, X, FileText } from 'lucide-react';
 import Header from '../components/Layout/Header';
 import StatusBadge from '../components/ui/StatusBadge';
-import { getHistory, importHistoryBatch } from '../utils/db';
+import { getHistory, listenToHistory } from '../utils/db';
 import { getUserName } from '../utils/auth';
 import { fetchHistoryFromSheet } from '../utils/api';
 import type { HistoryEntry } from '../types';
@@ -27,12 +27,16 @@ export default function SampleHistory({ theme, onSetTheme }: Props) {
   useEffect(() => { 
     loadHistory();
     
+    const unsubscribe = listenToHistory((allEntries) => {
+      const currentUser = getUserName();
+      setEntries(allEntries.filter(e => e.submittedBy === currentUser));
+    });
+
     // Background sync to ensure history is synced across devices
     const autoSync = async () => {
       try {
         const sheetHistory = await fetchHistoryFromSheet();
         if (sheetHistory.length > 0) {
-          await importHistoryBatch(sheetHistory);
           loadHistory();
         }
       } catch (e) {

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -11,7 +11,7 @@ import {
   Package
 } from 'lucide-react';
 import Header from '../components/Layout/Header';
-import { getHistory, importHistoryBatch } from '../utils/db';
+import { getHistory, listenToHistory, importHistoryBatch } from '../utils/db';
 import { getUserName } from '../utils/auth';
 import { fetchHistoryFromSheet } from '../utils/api';
 import type { HistoryEntry } from '../types';
@@ -119,6 +119,9 @@ export default function Incubation({ theme, onSetTheme }: Props) {
 
   useEffect(() => {
     loadIncubations();
+    const unsubscribe = listenToHistory(() => {
+      loadIncubations();
+    });
     
     // Background sync to ensure tasks are synced across devices
     const autoSync = async () => {
