@@ -3,8 +3,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Clock, X, FileText } from 'lucide-react';
 import Header from '../components/Layout/Header';
 import StatusBadge from '../components/ui/StatusBadge';
-import { getHistory } from '../utils/db';
+import { getHistory, importHistoryBatch } from '../utils/db';
 import { getUserName } from '../utils/auth';
+import { fetchHistoryFromSheet } from '../utils/api';
 import type { HistoryEntry } from '../types';
 
 interface Props {
@@ -16,13 +17,30 @@ export default function SampleHistory({ theme, onSetTheme }: Props) {
   const [entries, setEntries] = useState<HistoryEntry[]>([]);
   const [selectedEntry, setSelectedEntry] = useState<HistoryEntry | null>(null);
   
-  useEffect(() => { 
+  const loadHistory = useCallback(async () => {
     const currentUser = getUserName();
-    getHistory(100).then(history => {
-      const myHistory = history.filter(e => e.submittedBy === currentUser);
-      setEntries(myHistory);
-    }); 
+    const history = await getHistory(100);
+    const myHistory = history.filter(e => e.submittedBy === currentUser);
+    setEntries(myHistory);
   }, []);
+
+  useEffect(() => { 
+    loadHistory();
+    
+    // Background sync to ensure history is synced across devices
+    const autoSync = async () => {
+      try {
+        const sheetHistory = await fetchHistoryFromSheet();
+        if (sheetHistory.length > 0) {
+          await importHistoryBatch(sheetHistory);
+          loadHistory();
+        }
+      } catch (e) {
+        console.error('History sync failed', e);
+      }
+    };
+    autoSync();
+  }, [loadHistory]);
 
   const badge = (type: string) =>
     type === 'ENVI' ? 'from-emerald-500 to-teal-500' :

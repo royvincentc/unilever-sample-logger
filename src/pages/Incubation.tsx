@@ -11,8 +11,9 @@ import {
   Package
 } from 'lucide-react';
 import Header from '../components/Layout/Header';
-import { getHistory } from '../utils/db';
+import { getHistory, importHistoryBatch } from '../utils/db';
 import { getUserName } from '../utils/auth';
+import { fetchHistoryFromSheet } from '../utils/api';
 import type { HistoryEntry } from '../types';
 
 interface Props {
@@ -41,9 +42,23 @@ export default function Incubation({ theme, onSetTheme }: Props) {
 
   useEffect(() => {
     loadIncubations();
-  }, []);
+    
+    // Background sync to ensure tasks are synced across devices
+    const autoSync = async () => {
+      try {
+        const sheetHistory = await fetchHistoryFromSheet();
+        if (sheetHistory.length > 0) {
+          await importHistoryBatch(sheetHistory);
+          loadIncubations();
+        }
+      } catch (e) {
+        console.error('Incubation sync failed', e);
+      }
+    };
+    autoSync();
+  }, [loadIncubations]);
 
-  const loadIncubations = async () => {
+  const loadIncubations = useCallback(async () => {
     const history = await getHistory(100);
     const currentUser = getUserName();
     const now = new Date();
@@ -118,7 +133,7 @@ export default function Incubation({ theme, onSetTheme }: Props) {
     upcomingTasks.sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
     setTasks(upcomingTasks);
     setLoading(false);
-  };
+  }, []);
 
   const getStatusBadge = (task: IncubationTask) => {
     if (task.status === 'overdue') {
