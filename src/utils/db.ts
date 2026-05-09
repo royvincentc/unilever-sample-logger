@@ -53,16 +53,19 @@ function getDB() {
 
 export function listenToHistory(callback: (entries: HistoryEntry[]) => void) {
   const q = query(collection(firestore, 'history'), orderBy('submittedAt', 'desc'), fsLimit(100));
-  return onSnapshot(q, (snapshot) => {
-    const entries: HistoryEntry[] = [];
-    snapshot.forEach((doc) => {
-      entries.push(doc.data() as HistoryEntry);
-    });
-    callback(entries);
-    
-    // Also update local cache for offline start
-    updateLocalCache(entries);
-  });
+  return onSnapshot(q, 
+    (snapshot) => {
+      const entries: HistoryEntry[] = [];
+      snapshot.forEach((doc) => {
+        entries.push(doc.data() as HistoryEntry);
+      });
+      callback(entries);
+      updateLocalCache(entries);
+    },
+    (error) => {
+      console.error("Firestore Listen Error:", error);
+    }
+  );
 }
 
 async function updateLocalCache(entries: HistoryEntry[]) {

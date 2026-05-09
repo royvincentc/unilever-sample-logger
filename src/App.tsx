@@ -3,6 +3,7 @@ import { signInAnonymously } from 'firebase/auth';
 import { auth } from './utils/firebase';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
+import { RefreshCw } from 'lucide-react';
 import Layout from './components/Layout/Layout';
 import LoginPage from './components/auth/LoginPage';
 import { ToastProvider } from './components/ui/Toast';
@@ -56,7 +57,7 @@ export default function App() {
     <ToastProvider>
       <BrowserRouter>
         <Routes>
-          <Route path="/login" element={<LoginPage onLogin={login} onPinLogin={pinLogin} />} />
+          <Route path="/login" element={authenticated ? <Navigate to="/" replace /> : <LoginPage onLogin={login} onPinLogin={pinLogin} />} />
           <Route
             path="/*"
             element={
@@ -77,10 +78,19 @@ export default function App() {
                     </AnimatePresence>
                   </Layout>
                 ) : (
-                  <div className="min-h-screen bg-[var(--bg-body)] flex items-center justify-center">
-                    <div className="flex flex-col items-center gap-4 text-[var(--text-secondary)]">
-                      <div className="w-8 h-8 border-4 border-primary-500 border-t-transparent rounded-full animate-spin"></div>
-                      <p className="text-sm font-medium">Securing Cloud Connection...</p>
+                  <div className="min-h-screen bg-[var(--bg-body)] flex items-center justify-center p-6 text-center">
+                    <div className="flex flex-col items-center gap-4">
+                      <RefreshCw className="w-8 h-8 text-primary-500 animate-spin" />
+                      <div>
+                        <p className="text-sm font-bold text-[var(--text-primary)]">Securing Cloud Connection...</p>
+                        <p className="text-xs text-[var(--text-muted)] mt-1">Establishing a secure session with Unilever QC Cloud</p>
+                      </div>
+                      <button 
+                        onClick={() => window.location.reload()}
+                        className="mt-4 text-xs text-primary-500 hover:underline cursor-pointer"
+                      >
+                        Taking too long? Click here to refresh.
+                      </button>
                     </div>
                   </div>
                 )
