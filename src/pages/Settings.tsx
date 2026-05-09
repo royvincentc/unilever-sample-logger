@@ -11,12 +11,10 @@ import { testWebhookConnection, fetchHistoryFromSheet } from '../utils/api';
 import { clearHistory, clearQueue, importHistoryBatch } from '../utils/db';
 import { SPREADSHEETS } from '../data/constants';
 
-interface Props {
-  theme: 'light' | 'dark' | 'system';
-  onSetTheme: (t: 'light' | 'dark' | 'system') => void;
-}
+import { useTheme } from '../hooks/useTheme';
 
-export default function Settings({ theme, onSetTheme }: Props) {
+export default function Settings() {
+  const { theme, setTheme } = useTheme();
   const [settings, setSettings] = useState(getSettings());
   const [isLocked, setIsLocked] = useState(true);
   const navigate = useNavigate();
@@ -64,7 +62,7 @@ export default function Settings({ theme, onSetTheme }: Props) {
 
   return (
     <div>
-      <Header theme={theme} onSetTheme={onSetTheme} title="Settings" />
+      <Header theme={theme} onSetTheme={setTheme} title="Settings" />
       <div className="px-4 lg:px-8 max-w-2xl space-y-6">
         
         {/* Header with Lock Status */}

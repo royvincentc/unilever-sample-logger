@@ -8,12 +8,10 @@ import { getUserName } from '../utils/auth';
 import type { HistoryEntry } from '../types';
 import { useToast } from '../components/ui/Toast';
 
-interface Props {
-  theme: 'light' | 'dark' | 'system';
-  onSetTheme: (t: 'light' | 'dark' | 'system') => void;
-}
+import { useTheme } from '../hooks/useTheme';
 
-export default function Results({ theme, onSetTheme }: Props) {
+export default function Results() {
+  const { theme, setTheme } = useTheme();
   const [pendingSamples, setPendingSamples] = useState<HistoryEntry[]>([]);
   const [selectedSample, setSelectedSample] = useState<HistoryEntry | null>(null);
   const [selectedReading, setSelectedReading] = useState<string | null>(null);
@@ -99,7 +97,7 @@ export default function Results({ theme, onSetTheme }: Props) {
 
   return (
     <div className="min-h-screen bg-[var(--bg-body)]">
-      <Header theme={theme} onSetTheme={onSetTheme} title="Reports & Results" />
+      <Header theme={theme} onSetTheme={setTheme} title="Reports & Results" />
       
       <div className="px-4 lg:px-8 py-2 max-w-[1200px] mx-auto space-y-6">
         

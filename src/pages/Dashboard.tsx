@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -13,6 +13,7 @@ import {
   BarChart3,
   CheckCircle2,
   MoreVertical,
+  Search,
   Activity,
   ListTodo,
   RefreshCw,
@@ -21,13 +22,16 @@ import {
   ChevronRight,
   FlaskConical as Flask,
   Droplets as WaterIcon,
-  Package as Box
+  Package as Box,
+  WifiOff
 } from 'lucide-react';
 import Header from '../components/Layout/Header';
-import { getHistory, importHistoryBatch, listenToHistory } from '../utils/db';
+import { db, auth } from '../utils/firebase';
+import { getHistory, importHistoryBatch, listenToHistory, getQueueItems } from '../utils/db';
 import { getUserName } from '../utils/auth';
 import { fetchHistoryFromSheet } from '../utils/api';
 import { useToast } from '../components/ui/Toast';
+import { useTheme } from '../hooks/useTheme';
 import type { HistoryEntry } from '../types';
 
 interface DashboardProps {
@@ -53,25 +57,19 @@ const quickActions = [
   { type: 'reports', label: 'View Reports', sub: 'Analytics & Compliance', icon: BarChart3, bg: 'bg-[var(--bg-hover)]', color: 'text-[var(--text-secondary)]' },
 ];
 
-export default function Dashboard({ theme, onSetTheme, queueCount }: DashboardProps) {
+export default function Dashboard() {
+  const { theme, setTheme } = useTheme();
   const navigate = useNavigate();
   const { showToast } = useToast();
   const [recent, setRecent] = useState<HistoryEntry[]>([]);
+  const [queueCount, setQueueCount] = useState(0);
   const [syncing, setSyncing] = useState(false);
-  const [stats, setStats] = useState({
-    dueToday: 0,
-    overdue: 0,
-    upcoming: 0,
-    ongoing: 0,
-    pendingRelease: 0
-  });
-  const [upcomingTasks, setUpcomingTasks] = useState<any[]>([]);
-
   const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'success' | 'error'>('idle');
   const [syncError, setSyncError] = useState<string | null>(null);
   const [selectedEntry, setSelectedEntry] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'ENVI' | 'WATER' | 'RawMats'>('ENVI');
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+  const [searchQuery, setSearchQuery] = useState('');
 
   const toggleGroup = (ctrl: string) => {
     const newSet = new Set(expandedGroups);
@@ -80,16 +78,9 @@ export default function Dashboard({ theme, onSetTheme, queueCount }: DashboardPr
     setExpandedGroups(newSet);
   };
 
-  const loadData = useCallback(async () => {
-    const history = await getHistory(100);
+  const { stats, upcomingTasks } = useMemo(() => {
     const currentUser = getUserName();
-    
-    // Filter history for the current user for personal stats
-    const myHistory = history.filter(h => h.submittedBy === currentUser);
-    setRecent(history.slice(0, 10)); // Still show last 10 global recent for the table
-
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const myHistory = recent.filter(h => h.submittedBy === currentUser);
     
     let dueToday = 0;
     let overdue = 0;
@@ -97,14 +88,14 @@ export default function Dashboard({ theme, onSetTheme, queueCount }: DashboardPr
     let ongoing = 0;
     let pendingRelease = 0;
     const tasks: any[] = [];
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
 
-    // Stats and Upcoming are PERSONAL
     myHistory.forEach(entry => {
       const statusStr = entry.status as string;
       if (statusStr === 'ONGOING' || statusStr === 'ON GOING') ongoing++;
       if (entry.status === 'PENDING RELEASE') pendingRelease++;
       
-      // Calculate incubation tasks for active samples
       if (entry.status !== 'RELEASED' && entry.status !== 'COMPLETED') {
         const baseDate = new Date(entry.dateAnalyzed || entry.dateSampled || entry.submittedAt);
         baseDate.setHours(0, 0, 0, 0);
@@ -114,9 +105,7 @@ export default function Dashboard({ theme, onSetTheme, queueCount }: DashboardPr
           dueDate.setDate(dueDate.getDate() + days);
           
           const diffDays = Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-          
-          // Only show if not finished (checking results object for this reading)
-          const isDone = entry.results && entry.results[name];
+          const isDone = entry.results && (entry.results as any)[name];
           if (isDone) return;
 
           if (diffDays === 0) dueToday++;
@@ -134,46 +123,61 @@ export default function Dashboard({ theme, onSetTheme, queueCount }: DashboardPr
         };
 
         if (entry.sampleType === 'ENVI') {
-          checkTask('Final Reading (48h)', 2, Flask, 'text-emerald-500');
+          checkTask('Final Reading (48h)', 2, FlaskConical, 'text-emerald-500');
         } else if (entry.sampleType === 'WATER') {
-          checkTask('1st Reading (48h)', 2, WaterIcon, 'text-blue-500');
-          checkTask('2nd Reading (7 Days)', 7, WaterIcon, 'text-cyan-500');
-          checkTask('Final Reading (14 Days)', 14, WaterIcon, 'text-indigo-500');
+          checkTask('1st Reading (48h)', 2, Droplets, 'text-blue-500');
+          checkTask('2nd Reading (7 Days)', 7, Droplets, 'text-cyan-500');
+          checkTask('Final Reading (14 Days)', 14, Droplets, 'text-indigo-500');
         } else if (entry.sampleType === 'RawMats') {
-          checkTask('APC Final (7 Days)', 7, Box, 'text-purple-500');
-          checkTask('MY Final (7 Days)', 7, Box, 'text-pink-500');
+          checkTask('APC Final (7 Days)', 7, Package, 'text-purple-500');
+          checkTask('MY Final (7 Days)', 7, Package, 'text-pink-500');
         }
       }
     });
 
-    setStats({ dueToday, overdue, upcoming, ongoing, pendingRelease });
-    setUpcomingTasks(tasks.sort((a,b) => a.dueDate.getTime() - b.dueDate.getTime()).slice(0, 3));
+    return {
+      stats: { dueToday, overdue, upcoming, ongoing, pendingRelease },
+      upcomingTasks: tasks.sort((a,b) => a.dueDate.getTime() - b.dueDate.getTime()).slice(0, 3)
+    };
+  }, [recent]);
+
+  const loadData = useCallback(async () => {
+    setSyncing(true);
+    try {
+      const history = await getHistory(100);
+      setRecent(history);
+      
+      const items = await getQueueItems();
+      setQueueCount(items.filter((i: any) => i.status === 'queued' || i.status === 'failed').length);
+    } catch (error) {
+      console.error('Failed to load data:', error);
+      setSyncError('Failed to load initial data');
+    } finally {
+      setSyncing(false);
+    }
   }, []);
 
   useEffect(() => {
-    loadData();
-    
-    // Background sync on load to ensure shared history is real-time
-    const autoSync = async () => {
-      setSyncStatus('syncing');
-      try {
-        const sheetHistory = await fetchHistoryFromSheet();
-        if (sheetHistory.length > 0) {
-          await importHistoryBatch(sheetHistory);
-          await loadData(); // Reload UI with fresh data
+    let unsubscribeHistory: (() => void) | undefined;
+
+    const unsubscribeAuth = auth.onAuthStateChanged((user) => {
+      if (user) {
+        unsubscribeHistory = listenToHistory((data) => {
+          setRecent(data);
           setSyncStatus('success');
-          setSyncError(null);
-        } else {
-          setSyncStatus('success'); // Empty is still a "success" connection
-        }
-      } catch (e: any) {
-        setSyncStatus('error');
-        setSyncError(e.message || 'Unknown sync error');
-        console.error('Background sync failed', e);
+        });
+      } else {
+        setSyncStatus('idle');
       }
+    });
+
+    loadData();
+    return () => {
+      unsubscribeAuth();
+      if (unsubscribeHistory) unsubscribeHistory();
     };
-    autoSync();
   }, [loadData]);
+
 
   const handleSync = async () => {
     setSyncing(true);
@@ -222,7 +226,7 @@ export default function Dashboard({ theme, onSetTheme, queueCount }: DashboardPr
 
   return (
     <div className="min-h-screen bg-[var(--bg-body)]">
-      <Header theme={theme} onSetTheme={onSetTheme} title="" />
+      <Header theme={theme} onSetTheme={setTheme} title="Results" />
 
       <motion.div variants={container} initial="hidden" animate="show" className="px-4 lg:px-8 py-2 max-w-[1600px] mx-auto">
         <div className="flex flex-col xl:flex-row gap-6">
@@ -233,9 +237,27 @@ export default function Dashboard({ theme, onSetTheme, queueCount }: DashboardPr
             {/* Welcome */}
             <motion.div variants={item}>
               <h1 className="text-2xl lg:text-3xl font-bold text-[var(--text-primary)]">{greeting}, {userName} 👋</h1>
-              <p className="text-sm text-[var(--text-secondary)] mt-1 flex items-center gap-1.5">
-                {dateStr} &bull; {timeStr}
-              </p>
+              <div className="flex items-center gap-3 mt-1">
+                <p className="text-sm text-[var(--text-secondary)]">
+                  {dateStr} &bull; {timeStr}
+                </p>
+                {syncStatus === 'success' ? (
+                  <span className="flex items-center gap-1 text-[10px] text-emerald-500 font-bold uppercase">
+                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    Cloud Active
+                  </span>
+                ) : syncStatus === 'syncing' ? (
+                  <span className="flex items-center gap-1 text-[10px] text-primary-500 font-bold uppercase">
+                    <RefreshCw className="w-2.5 h-2.5 animate-spin" />
+                    Syncing...
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-1 text-[10px] text-warning-500 font-bold uppercase">
+                    <WifiOff className="w-2.5 h-2.5" />
+                    Offline Mode
+                  </span>
+                )}
+              </div>
             </motion.div>
 
             {/* Stats row - Scrollable on mobile, grid on desktop */}
@@ -341,20 +363,34 @@ export default function Dashboard({ theme, onSetTheme, queueCount }: DashboardPr
               
               <div className="space-y-4">
                 {/* Type Tabs */}
-                <div className="flex items-center gap-1 bg-[var(--bg-sidebar)] p-1 rounded-xl border border-[var(--border-subtle)] w-fit mb-4">
-                  {(['ENVI', 'WATER', 'RawMats'] as const).map(type => (
-                    <button
-                      key={type}
-                      onClick={() => setActiveTab(type)}
-                      className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${
-                        activeTab === type 
-                        ? 'bg-primary-500 text-white shadow-lg' 
-                        : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]'
-                      }`}
-                    >
-                      {type === 'RawMats' ? 'RAWMATS' : type}
-                    </button>
-                  ))}
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
+                  <div className="flex items-center gap-1 bg-[var(--bg-sidebar)] p-1 rounded-xl border border-[var(--border-subtle)] w-fit">
+                    {(['ENVI', 'WATER', 'RawMats'] as const).map(type => (
+                      <button
+                        key={type}
+                        onClick={() => setActiveTab(type)}
+                        className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+                          activeTab === type 
+                          ? 'bg-primary-500 text-white shadow-lg shadow-primary-500/20' 
+                          : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]'
+                        }`}
+                      >
+                        {type === 'RawMats' ? 'RAWMATS' : type}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="relative group flex-1 max-w-md">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)] group-focus-within:text-primary-500 transition-colors" />
+                    <input
+                      type="text"
+                      placeholder="Search Control # or Sample Name..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-full bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded-xl py-2.5 pl-10 pr-4 text-sm
+                               focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
+                    />
+                  </div>
                 </div>
 
                 <div className="glass rounded-xl overflow-hidden border border-[var(--border-subtle)]">
@@ -373,12 +409,22 @@ export default function Dashboard({ theme, onSetTheme, queueCount }: DashboardPr
                       </thead>
                       <tbody className="divide-y divide-[var(--border-subtle)] text-sm">
                         {(() => {
+                          const queryLower = searchQuery.toLowerCase();
                           const filtered = recent.filter(e => {
                             const type = (e.sampleType || '').toUpperCase();
                             const current = activeTab.toUpperCase();
-                            if (current === 'RAWMATS') return type === 'RAWMATS' || type === 'RAW MATS' || type === 'RAW MATS & FINISHED GOODS';
-                            return type === current;
+                            const matchesType = current === 'RAWMATS' 
+                              ? (type === 'RAWMATS' || type === 'RAW MATS' || type === 'RAW MATS & FINISHED GOODS')
+                              : type === current;
+                            
+                            const matchesSearch = !searchQuery || 
+                              e.controlNumber.toLowerCase().includes(queryLower) ||
+                              e.sampleName.toLowerCase().includes(queryLower) ||
+                              (e.submittedBy || '').toLowerCase().includes(queryLower);
+
+                            return matchesType && matchesSearch;
                           });
+                          
                           const groups: Record<string, HistoryEntry[]> = {};
                           filtered.forEach(entry => {
                             if (!groups[entry.controlNumber]) groups[entry.controlNumber] = [];
@@ -389,7 +435,10 @@ export default function Dashboard({ theme, onSetTheme, queueCount }: DashboardPr
                             return new Date(b[1][0].submittedAt).getTime() - new Date(a[1][0].submittedAt).getTime();
                           });
 
-                          return sortedGroups.length > 0 ? sortedGroups.map(([ctrl, entries]) => {
+                          // Show only top 15 groups by default unless searching
+                          const visibleGroups = searchQuery ? sortedGroups : sortedGroups.slice(0, 15);
+
+                          return visibleGroups.length > 0 ? visibleGroups.map(([ctrl, entries]) => {
                             const isExpanded = expandedGroups.has(ctrl);
                             const first = entries[0];
                             return (
@@ -537,7 +586,7 @@ export default function Dashboard({ theme, onSetTheme, queueCount }: DashboardPr
                 <button onClick={() => navigate('/incubation')} className="text-[10px] bg-[var(--bg-input)] px-2 py-1 rounded text-[var(--text-secondary)] hover:text-[var(--text-primary)]">View all</button>
               </div>
               <div className="space-y-4">
-                {upcomingTasks.length > 0 ? upcomingTasks.map(task => (
+                {upcomingTasks.length > 0 ? upcomingTasks.map((task: any) => (
                   <div key={task.id} className="flex gap-3">
                     <div className="mt-0.5"><task.icon className={`w-4 h-4 ${task.color}`} /></div>
                     <div className="min-w-0">

@@ -16,10 +16,7 @@ import { getUserName } from '../utils/auth';
 import { fetchHistoryFromSheet } from '../utils/api';
 import type { HistoryEntry } from '../types';
 
-interface Props {
-  theme: 'light' | 'dark' | 'system';
-  onSetTheme: (t: 'light' | 'dark' | 'system') => void;
-}
+import { useTheme } from '../hooks/useTheme';
 
 interface IncubationTask {
   id: string;
@@ -35,7 +32,8 @@ interface IncubationTask {
   bgClass: string;
 }
 
-export default function Incubation({ theme, onSetTheme }: Props) {
+export default function Incubation() {
+  const { theme, setTheme } = useTheme();
   const [tasks, setTasks] = useState<IncubationTask[]>([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
@@ -150,7 +148,7 @@ export default function Incubation({ theme, onSetTheme }: Props) {
 
   return (
     <div className="min-h-screen bg-[var(--bg-body)]">
-      <Header theme={theme} onSetTheme={onSetTheme} title="Incubations" />
+      <Header theme={theme} onSetTheme={setTheme} title="Incubations" />
       
       <div className="px-4 lg:px-8 py-2 max-w-[1200px] mx-auto space-y-6">
         

@@ -8,12 +8,10 @@ import { getUserName } from '../utils/auth';
 import { fetchHistoryFromSheet } from '../utils/api';
 import type { HistoryEntry } from '../types';
 
-interface Props {
-  theme: 'light' | 'dark' | 'system';
-  onSetTheme: (t: 'light' | 'dark' | 'system') => void;
-}
+import { useTheme } from '../hooks/useTheme';
 
-export default function SampleHistory({ theme, onSetTheme }: Props) {
+export default function SampleHistory() {
+  const { theme, setTheme } = useTheme();
   const [entries, setEntries] = useState<HistoryEntry[]>([]);
   const [selectedEntry, setSelectedEntry] = useState<HistoryEntry | null>(null);
   
@@ -53,7 +51,7 @@ export default function SampleHistory({ theme, onSetTheme }: Props) {
 
   return (
     <div>
-      <Header theme={theme} onSetTheme={onSetTheme} title="History" />
+      <Header theme={theme} onSetTheme={setTheme} title="History" />
       <div className="px-4 lg:px-8 max-w-3xl">
         {entries.length === 0 ? (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass rounded-2xl p-12 text-center">

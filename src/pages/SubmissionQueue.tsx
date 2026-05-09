@@ -8,9 +8,9 @@ import { getQueueItems, removeFromQueue, updateQueueItem } from '../utils/db';
 import { sendToWebhook } from '../utils/api';
 import type { QueueItem } from '../types';
 
+import { useTheme } from '../hooks/useTheme';
+
 interface Props {
-  theme: 'light' | 'dark' | 'system';
-  onSetTheme: (t: 'light' | 'dark' | 'system') => void;
   onQueueUpdate: () => void;
 }
 
@@ -21,7 +21,8 @@ const cfg: Record<string, { icon: any; color: string; bg: string; label: string 
   failed:  { icon: AlertCircle, color: 'text-danger-500', bg: 'bg-danger-500/10', label: 'Failed' },
 };
 
-export default function SubmissionQueue({ theme, onSetTheme, onQueueUpdate }: Props) {
+export default function SubmissionQueue({ onQueueUpdate }: Props) {
+  const { theme, setTheme } = useTheme();
   const [items, setItems] = useState<QueueItem[]>([]);
   const [retrying, setRetrying] = useState<string | null>(null);
   const [retryingAll, setRetryingAll] = useState(false);
@@ -63,7 +64,7 @@ export default function SubmissionQueue({ theme, onSetTheme, onQueueUpdate }: Pr
 
   return (
     <div>
-      <Header theme={theme} onSetTheme={onSetTheme} title="Queue" />
+      <Header theme={theme} onSetTheme={setTheme} title="Queue" />
       <div className="px-4 lg:px-8 max-w-3xl space-y-4">
         {pending > 0 && (
           <Button variant="primary" size="sm" loading={retryingAll} icon={<RefreshCw className="w-4 h-4" />} onClick={handleRetryAll}>

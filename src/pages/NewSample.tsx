@@ -15,13 +15,14 @@ import { addToQueue, addToHistory } from '../utils/db';
 import { getUserName } from '../utils/auth';
 import type { SampleType, EnviFormData, WaterFormData, RawMatsFormData, QueueItem, HistoryEntry } from '../types';
 
+import { useTheme } from '../hooks/useTheme';
+
 interface NewSampleProps {
-  theme: 'light' | 'dark' | 'system';
-  onSetTheme: (theme: 'light' | 'dark' | 'system') => void;
   onQueueUpdate: () => void;
 }
 
-export default function NewSample({ theme, onSetTheme, onQueueUpdate }: NewSampleProps) {
+export default function NewSample({ onQueueUpdate }: NewSampleProps) {
+  const { theme, setTheme } = useTheme();
   const [searchParams] = useSearchParams();
   const [selectedType, setSelectedType] = useState<SampleType | null>(null);
   const { showToast } = useToast();
@@ -76,20 +77,25 @@ export default function NewSample({ theme, onSetTheme, onQueueUpdate }: NewSampl
 
     if (result.success) {
       const historyEntry: HistoryEntry = {
-        id: `${finalControlNumber}-${sampleName}`,
+        id: `${finalControlNumber}-${sampleName}-${Date.now()}`,
         sampleType,
         controlNumber: finalControlNumber,
         sampleName,
         dateSampled: formData.dateSampled,
-        dateAnalyzed: (formData as any).dateAnalyzed,
-        rawMatsType: (formData as any).type,
+        dateAnalyzed: (formData as any).dateAnalyzed || formData.dateSampled,
+        rawMatsType: (formData as any).type || null,
         status: (formData as any).status || 'ONGOING',
         submittedAt: new Date().toISOString(),
         submittedBy: getUserName(),
       };
+      
+      // Save locally and to Firestore (background)
       await addToHistory(historyEntry);
+      
+      // UI Reset and Toast
       showToast('success', 'Submitted!', `Control #: ${finalControlNumber}`);
       setSelectedType(null);
+      if (onQueueUpdate) onQueueUpdate();
     } else {
       const queueItem = makeQueueItem(sampleType, formData);
       queueItem.status = 'failed';
@@ -116,7 +122,7 @@ export default function NewSample({ theme, onSetTheme, onQueueUpdate }: NewSampl
 
   return (
     <div>
-      <Header theme={theme} onSetTheme={onSetTheme} title="New Sample" />
+      <Header theme={theme} onSetTheme={setTheme} title="New Sample" />
       <div className="px-4 lg:px-8 max-w-3xl">
         <AnimatePresence mode="wait">
           {!selectedType ? (

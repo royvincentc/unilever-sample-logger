@@ -18,6 +18,17 @@ import {
 const DB_NAME = 'SampleLoggerDB';
 const DB_VERSION = 1;
 
+// Helper to remove undefined values for Firestore
+function cleanForFirestore(obj: any): any {
+  const result: any = {};
+  Object.keys(obj).forEach(key => {
+    if (obj[key] !== undefined) {
+      result[key] = obj[key];
+    }
+  });
+  return result;
+}
+
 let dbPromise: Promise<IDBPDatabase> | null = null;
 
 function getDB() {
@@ -98,13 +109,20 @@ export async function removeFromQueue(id: string): Promise<void> {
 // ===== HISTORY OPERATIONS (Firestore Primary) =====
 
 export async function addToHistory(entry: HistoryEntry): Promise<void> {
-  // 1. Save to Firestore (Primary)
-  const docRef = doc(firestore, 'history', entry.id);
-  await setDoc(docRef, entry);
-  
-  // 2. Save to Local Cache (Secondary)
+  // 1. Save to Local Cache (Always do this first for speed/reliability)
   const db = await getDB();
   await db.put('history', entry);
+
+  // 2. Try to save to Firestore in the background
+  try {
+    const cleanedEntry = cleanForFirestore(entry);
+    const docRef = doc(firestore, 'history', entry.id);
+    await setDoc(docRef, cleanedEntry);
+    console.log(`Successfully saved entry ${entry.id} to Firestore`);
+  } catch (e) {
+    console.error('Firestore save error:', e);
+    // We don't throw here so the user can continue
+  }
 }
 
 export async function updateHistory(entry: HistoryEntry): Promise<void> {

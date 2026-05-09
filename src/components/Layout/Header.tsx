@@ -17,11 +17,21 @@ export default function Header({ theme, onSetTheme, title }: HeaderProps) {
   return (
     <header className="sticky top-0 z-30 px-4 lg:px-8 py-4">
       <div className="flex items-center justify-between">
-        {title && (
-          <h2 className="text-xl lg:text-2xl font-bold text-[var(--text-primary)]">
-            {title}
-          </h2>
-        )}
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-white overflow-hidden p-0.5 flex items-center justify-center shadow-sm lg:hidden">
+            <img src="/unilever-logo.png" alt="Unilever" className="w-full h-full object-contain" />
+          </div>
+          {title ? (
+            <h2 className="text-xl lg:text-2xl font-bold text-[var(--text-primary)]">
+              {title}
+            </h2>
+          ) : (
+            <div className="lg:hidden">
+              <h1 className="text-base font-bold text-[var(--text-primary)] leading-tight">Unilever</h1>
+              <p className="text-[10px] text-[var(--text-muted)] font-bold uppercase tracking-widest">QC Microbiology</p>
+            </div>
+          )}
+        </div>
         <div className="ml-auto flex items-center gap-1 p-1 rounded-xl bg-[var(--bg-card-solid)] border border-[var(--border-color)]">
           {themeOptions.map((opt) => (
             <motion.button
