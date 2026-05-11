@@ -17,6 +17,7 @@ import SampleHistory from './pages/SampleHistory';
 import Incubation from './pages/Incubation';
 import Results from './pages/Results';
 import Settings from './pages/Settings';
+import LiveSheetView from './pages/LiveSheetView';
 
 export default function App() {
   const { theme, setTheme } = useTheme();
@@ -70,6 +71,7 @@ export default function App() {
                         <Route path="new" element={<NewSample onQueueUpdate={refreshQueueCount} />} />
                         <Route path="queue" element={<SubmissionQueue onQueueUpdate={refreshQueueCount} />} />
                         <Route path="history" element={<SampleHistory />} />
+                        <Route path="live" element={<LiveSheetView />} />
                         <Route path="incubation" element={<Incubation />} />
                         <Route path="results" element={<Results />} />
                         <Route path="settings" element={<Settings />} />

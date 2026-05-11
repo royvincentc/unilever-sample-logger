@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import type { QueueItem } from '../types';
-import { addToQueue, getQueueItems, updateQueueItem, removeFromQueue } from '../utils/db';
+import type { QueueItem, HistoryEntry } from '../types';
+import { addToQueue, getQueueItems, updateQueueItem, removeFromQueue, addToHistory } from '../utils/db';
 import { sendToWebhook } from '../utils/api';
 
 export function useSubmissionQueue() {
@@ -43,6 +43,25 @@ export function useSubmissionQueue() {
     const result = await sendToWebhook(endpoint, item.formData as unknown as Record<string, unknown>);
 
     if (result.success) {
+      // Evaluate final control number from n8n response or fallback to local
+      const finalControlNumber = (result.controlNumber && !result.controlNumber.includes('{{')) 
+        ? result.controlNumber 
+        : item.controlNumber || 'UNKNOWN';
+
+      const historyEntry: HistoryEntry = {
+        id: `${finalControlNumber}-${item.sampleName}-${Date.now()}`,
+        sampleType: item.sampleType,
+        controlNumber: finalControlNumber,
+        sampleName: item.sampleName || 'Queued Sample',
+        dateSampled: item.formData.dateSampled,
+        dateAnalyzed: (item.formData as any).dateAnalyzed || item.formData.dateSampled,
+        rawMatsType: (item.formData as any).type || null,
+        status: (item.formData as any).status || 'ONGOING',
+        submittedAt: new Date().toISOString(),
+        submittedBy: item.submittedBy || 'Unknown User',
+      };
+      
+      await addToHistory(historyEntry);
       await removeFromQueue(id);
     } else {
       const failed: QueueItem = {

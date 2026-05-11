@@ -47,6 +47,10 @@ Webhook (POST) → Code (Parse Data) → Google Sheets (Get Rows) → Code (Gene
 - **Path**: `envi-submit`
 - **Response Mode**: Using 'Respond to Webhook' node
 - Copy the **Production URL** — you'll paste this into the SampleLog Settings page
+- **Authentication**: Set up Header Auth!
+  - Under Webhook settings, look for Authentication.
+  - Set it to **Header Auth**.
+  - Create a new credential with the Name `x-api-key` and the Value matching the `VITE_N8N_API_KEY` defined in your application's `.env` file.
 
 #### Node 2: Code — Parse Data
 ```javascript
@@ -166,6 +170,10 @@ Webhook (POST) → Code (Parse Data) → Google Sheets (Get Rows) → Code (Gene
 - **Path**: `water-submit`
 - **Response Mode**: Using 'Respond to Webhook' node
 - Copy the **Production URL** — you'll paste this into the SampleLog Settings page
+- **Authentication**: Set up Header Auth!
+  - Under Webhook settings, look for Authentication.
+  - Set it to **Header Auth**.
+  - Create a new credential with the Name `x-api-key` and the Value matching the `VITE_N8N_API_KEY` defined in your application's `.env` file.
 
 #### Node 2: Code — Parse Data
 - Add a **Code** node, paste this:
@@ -284,6 +292,10 @@ Webhook (POST) → Code (Parse Data) → Google Sheets (Get Rows) → Code (Gene
 - **Path**: `rawmats-submit`
 - **Response Mode**: Using 'Respond to Webhook' node
 - Copy the **Production URL**
+- **Authentication**: Set up Header Auth!
+  - Under Webhook settings, look for Authentication.
+  - Set it to **Header Auth**.
+  - Create a new credential with the Name `x-api-key` and the Value matching the `VITE_N8N_API_KEY` defined in your application's `.env` file.
 
 #### Node 2: Code — Parse Data
 - Add a **Code** node, paste this:
@@ -391,7 +403,39 @@ return [{
 
 ---
 
-## Step 5: Connect the Web App
+## Step 5: Create Live Sheet Sync Workflow (Optional)
+
+If you want the mobile app to show real-time history or a live sheet view directly from Google Sheets without leaving the app:
+
+### Overview
+```
+Webhook (POST) → Google Sheets (Get Rows) → Respond to Webhook
+```
+
+### Step-by-step:
+
+#### Node 1: Webhook Trigger
+- **HTTP Method**: POST
+- **Path**: `get-sheet-data`
+- **Response Mode**: Using 'Respond to Webhook' node
+- Copy the **Production URL**
+- **Authentication**: Set up Header Auth!
+  - Under Webhook settings, look for Authentication.
+  - Set it to **Header Auth**.
+  - Create a new credential with the Name `x-api-key` and the Value matching the `VITE_N8N_API_KEY` defined in your application's `.env` file.
+
+#### Node 2: Google Sheets — Get Existing Rows
+- Add a **Google Sheets** node
+- **Operation**: Select **"Get row(s) in sheet"**
+- **Document**: Switch to **Expression** mode, enter: `{{ $json.body.spreadsheetId }}`
+- **Sheet**: Switch to **Expression** mode, enter: `{{ $json.body.sheetTab }}`
+
+#### Node 3: Respond to Webhook
+- **Response Body**: Leave as default (`Respond With: First Node Item`)
+
+---
+
+## Step 6: Connect the Web App
 
 1. Copy each workflow's **Production Webhook URL** from n8n
 2. Open the SampleLog app → **Settings** page
@@ -399,33 +443,20 @@ return [{
    - ENVI Webhook URL
    - WATER Webhook URL
    - RawMats Webhook URL
+   - Sync / Live Sheet URL (if configured)
 4. Click **Test** next to each to verify connectivity
 5. Click **Save Settings**
+6. Ensure that you have a `.env` file in the root of your application with `VITE_N8N_API_KEY=your_secret_key`
 
 ---
 
-## Step 6: Testing
+## Step 7: Testing
 
 ### Test with the app:
 1. Go to **New Sample** → select a sample type
 2. Fill out the form with test data
 3. Click **Submit**
 4. Check your Google Sheet — the data should appear in the correct tab
-
-### Test with curl (optional):
-```bash
-curl -X POST https://YOUR-N8N-URL/webhook/envi-submit \
-  -H "Content-Type: application/json" \
-  -d '{
-    "dateSampled": "2026-05-08",
-    "timeSampled": "10:00",
-    "category": "FABCON",
-    "selectedSamples": ["Side Pot 1 - Inner Dome", "Side Pot 1 - Body"],
-    "swabbedBy": "CODINERA",
-    "status": "ONGOING",
-    "spreadsheetId": "12GkLM06FaO9Qn_E4TDQp852nUvf53mxl6nUI9C9GEdc"
-  }'
-```
 
 ---
 
@@ -436,6 +467,7 @@ curl -X POST https://YOUR-N8N-URL/webhook/envi-submit \
 | "403 Forbidden" from Google Sheets | Re-authorize Google Sheets credentials in n8n |
 | "Sheet not found" | Ensure sheet tab name matches exactly (e.g., "MAY ENVI") |
 | Webhook returns 404 | Make sure workflow is **Active** (toggle on in n8n) |
+| Webhook returns 401 | Ensure your `VITE_N8N_API_KEY` matches the Header Auth value in n8n |
 | Data in wrong columns | Verify column headers in Row 2 match the field names in the Code node |
 | Connection timeout | Check n8n is accessible from the internet (or use same network) |
 

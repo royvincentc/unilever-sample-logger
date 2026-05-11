@@ -150,6 +150,16 @@ export default function Settings() {
                 <TextInput label="RawMats Webhook URL" value={settings.webhookUrls.rawmats} onChange={(v) => setSettings({ ...settings, webhookUrls: { ...settings.webhookUrls, rawmats: v } })} />
                 <button onClick={() => handleTest(settings.webhookUrls.rawmats, 'rawmats')} className="text-xs text-primary-500 hover:underline mt-1 font-medium">Test</button>
               </div>
+
+              <div className="mt-4 border-t border-[var(--border-subtle)] pt-4">
+                <TextInput label="Sync History Webhook URL" value={settings.webhookUrls.sync || ''} onChange={(v) => setSettings({ ...settings, webhookUrls: { ...settings.webhookUrls, sync: v } })} />
+                <p className="text-xs text-[var(--text-muted)] italic mt-1">Optional: Used for manual cloud reconciliation.</p>
+              </div>
+
+              <div className="mt-4">
+                <TextInput label="Live Sheet Webhook URL" value={settings.webhookUrls.liveSheet || ''} onChange={(v) => setSettings({ ...settings, webhookUrls: { ...settings.webhookUrls, liveSheet: v } })} />
+                <p className="text-xs text-[var(--text-muted)] italic mt-1">Optional: Used for the Live Sheet tab.</p>
+              </div>
             </div>
           </motion.div>
 

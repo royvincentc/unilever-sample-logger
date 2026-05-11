@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { getFirestore, enableIndexedDbPersistence } from "firebase/firestore";
+import { getFirestore, enableMultiTabIndexedDbPersistence } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 
 const firebaseConfig = {
@@ -19,8 +19,8 @@ const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);
 export const auth = getAuth(app);
 
-// Enable Offline Persistence
-enableIndexedDbPersistence(db).catch((err) => {
+// Enable Offline Persistence with multi-tab support
+enableMultiTabIndexedDbPersistence(db).catch((err) => {
     if (err.code === 'failed-precondition') {
         // Multiple tabs open, persistence can only be enabled in one tab at a a time.
         console.warn('Firestore persistence failed: Multiple tabs open');

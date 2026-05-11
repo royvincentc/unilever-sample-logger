@@ -9,7 +9,8 @@ import {
   LogOut,
   Beaker,
   FlaskConical,
-  FileText
+  FileText,
+  FileSpreadsheet
 } from 'lucide-react';
 
 const navItems = [
@@ -17,6 +18,7 @@ const navItems = [
   { to: '/new', icon: PlusCircle, label: 'New Sample' },
   { to: '/queue', icon: ListTodo, label: 'Queue' },
   { to: '/history', icon: Clock, label: 'History' },
+  { to: '/live', icon: FileSpreadsheet, label: 'Live Sheet' },
   { to: '/results', icon: FileText, label: 'Reports' },
   { to: '/incubation', icon: FlaskConical, label: 'Incubations' },
   { to: '/settings', icon: Settings, label: 'Settings' },
@@ -46,7 +48,7 @@ export default function Sidebar({ onLogout, queueCount }: SidebarProps) {
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 px-3 py-4 space-y-1">
+      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
         {navItems.map((item) => (
           <NavLink
             key={item.to}

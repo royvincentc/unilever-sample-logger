@@ -11,7 +11,7 @@ import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { sendToWebhook } from '../utils/api';
 import { generateNextControlNumber } from '../utils/controlNumber';
 import { getSheetTabName } from '../utils/sheetMapping';
-import { addToQueue, addToHistory } from '../utils/db';
+import { addToQueue, addToHistory, getHighestLocalControlNumber } from '../utils/db';
 import { getUserName } from '../utils/auth';
 import type { SampleType, EnviFormData, WaterFormData, RawMatsFormData, QueueItem, HistoryEntry } from '../types';
 
@@ -35,12 +35,14 @@ export default function NewSample({ onQueueUpdate }: NewSampleProps) {
     }
   }, [searchParams]);
 
-  const makeQueueItem = (sampleType: SampleType, formData: EnviFormData | WaterFormData | RawMatsFormData): QueueItem => ({
+  const makeQueueItem = (sampleType: SampleType, formData: EnviFormData | WaterFormData | RawMatsFormData, sampleName: string): QueueItem => ({
     id: Date.now().toString() + Math.random().toString(36).slice(2),
     sampleType,
     formData,
     status: 'queued',
     createdAt: new Date().toISOString(),
+    sampleName,
+    submittedBy: getUserName(),
   });
 
   const submitSample = async (
@@ -48,7 +50,9 @@ export default function NewSample({ onQueueUpdate }: NewSampleProps) {
     formData: EnviFormData | WaterFormData | RawMatsFormData,
     sampleName: string
   ) => {
-    const controlNumber = generateNextControlNumber(sampleType, null, formData.dateSampled);
+    // Await the highest local control number first, then generate next based on it
+    const highestLocal = await getHighestLocalControlNumber(sampleType, formData.dateSampled);
+    const controlNumber = generateNextControlNumber(sampleType, highestLocal, formData.dateSampled);
     const sheetTab = getSheetTabName(formData.dateSampled, sampleType);
     const endpoint = sampleType === 'ENVI' ? 'envi' : sampleType === 'WATER' ? 'water' : 'rawmats';
 
@@ -60,8 +64,10 @@ export default function NewSample({ onQueueUpdate }: NewSampleProps) {
     };
 
     if (!isOnline) {
-      const queueItem = makeQueueItem(sampleType, formData);
+      const queueItem = makeQueueItem(sampleType, formData, sampleName);
       queueItem.controlNumber = controlNumber;
+      // We overwrite formData in queueItem with full payload so retry has everything
+      queueItem.formData = payload as any; 
       await addToQueue(queueItem);
       onQueueUpdate();
       showToast('info', 'Queued', 'You\'re offline — submission queued for later');
@@ -97,10 +103,11 @@ export default function NewSample({ onQueueUpdate }: NewSampleProps) {
       setSelectedType(null);
       if (onQueueUpdate) onQueueUpdate();
     } else {
-      const queueItem = makeQueueItem(sampleType, formData);
+      const queueItem = makeQueueItem(sampleType, formData, sampleName);
       queueItem.status = 'failed';
       queueItem.errorMessage = result.error;
       queueItem.controlNumber = controlNumber;
+      queueItem.formData = payload as any;
       await addToQueue(queueItem);
       onQueueUpdate();
       showToast('error', 'Submission Failed', result.error || 'Moved to queue for retry');
@@ -171,3 +178,5 @@ export default function NewSample({ onQueueUpdate }: NewSampleProps) {
     </div>
   );
 }
+
+

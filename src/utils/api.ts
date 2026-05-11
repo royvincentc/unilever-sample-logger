@@ -30,7 +30,10 @@ export async function sendToWebhook(
   try {
     const response = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'x-api-key': import.meta.env.VITE_N8N_API_KEY || ''
+      },
       body: JSON.stringify({
         ...data,
         spreadsheetId: settings.spreadsheetId,
@@ -76,7 +79,10 @@ export async function testWebhookConnection(url: string): Promise<boolean> {
     // Try a normal POST first
     const response = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'x-api-key': import.meta.env.VITE_N8N_API_KEY || ''
+      },
       body: JSON.stringify({ test: true }),
       signal: controller.signal,
     });
@@ -116,7 +122,10 @@ export async function fetchHistoryFromSheet(): Promise<any[]> {
   try {
     const response = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'x-api-key': import.meta.env.VITE_N8N_API_KEY || ''
+      },
       body: JSON.stringify({ 
         spreadsheetId: settings.spreadsheetId,
         limit: 50 
@@ -130,5 +139,48 @@ export async function fetchHistoryFromSheet(): Promise<any[]> {
   } catch (error) {
     console.error('Sync failed:', error);
     return [];
+  }
+}
+
+/**
+ * Fetch live data from Google Sheets via n8n webhook.
+ */
+export async function fetchLiveSheetData(sheetTab: string): Promise<any[]> {
+  const settings = getSettings();
+  // Provide a default URL or rely on user settings
+  const url = settings.webhookUrls.liveSheet || 'https://n8n-royvincentc.onrender.com/webhook/get-sheet-data';
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        'x-api-key': import.meta.env.VITE_N8N_API_KEY || ''
+      },
+      body: JSON.stringify({ 
+        spreadsheetId: settings.spreadsheetId,
+        sheetTab
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(errorText || `HTTP ${response.status}: ${response.statusText}`);
+    }
+    
+    const text = await response.text();
+    let data = [];
+    if (text) {
+      try {
+        data = JSON.parse(text);
+      } catch (e) {
+        console.warn('n8n returned non-JSON response for live sheet:', text);
+      }
+    }
+
+    return Array.isArray(data) ? data : (data ? [data] : []);
+  } catch (error) {
+    console.error('Live sheet fetch failed:', error);
+    throw error;
   }
 }

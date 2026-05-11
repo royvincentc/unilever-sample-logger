@@ -77,6 +77,8 @@ export interface QueueItem {
   lastAttempt?: string;
   errorMessage?: string;
   controlNumber?: string;
+  sampleName?: string;
+  submittedBy?: string;
 }
 
 // ===== SETTINGS =====
@@ -85,6 +87,8 @@ export interface AppSettings {
     envi: string;
     water: string;
     rawmats: string;
+    sync?: string;
+    liveSheet?: string;
   };
   spreadsheetId: string;
   theme: 'light' | 'dark' | 'system';

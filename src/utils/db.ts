@@ -170,7 +170,47 @@ export async function importHistoryBatch(entries: HistoryEntry[]): Promise<void>
   await batch.commit();
 }
 
+export async function getHighestLocalControlNumber(sampleType: string, dateStr: string): Promise<string | null> {
+  const db = await getDB();
+  const allHistory = await db.getAll('history');
+  const allQueue = await db.getAll('queue');
+  
+  const yearSuffix = new Date(dateStr).getFullYear().toString().slice(-2);
+  let prefix = '';
+  if (sampleType === 'ENVI') prefix = `E${yearSuffix}-`;
+  else if (sampleType === 'WATER') prefix = `W${yearSuffix}-`;
+  else if (sampleType === 'RawMats') prefix = `${yearSuffix}-`;
+
+  const relevantHistory = allHistory.filter(entry => 
+    entry.sampleType === sampleType && 
+    entry.controlNumber && 
+    entry.controlNumber.startsWith(prefix)
+  );
+
+  const relevantQueue = allQueue.filter(entry => 
+    entry.sampleType === sampleType && 
+    entry.controlNumber && 
+    entry.controlNumber.startsWith(prefix)
+  );
+
+  const allRelevant = [
+    ...relevantHistory.map(r => r.controlNumber),
+    ...relevantQueue.map(r => r.controlNumber)
+  ];
+  
+  if (allRelevant.length === 0) return null;
+
+  allRelevant.sort((a, b) => {
+    const aNum = parseInt(a!.split('-').pop() || '0', 10);
+    const bNum = parseInt(b!.split('-').pop() || '0', 10);
+    return bNum - aNum;
+  });
+
+  return allRelevant[0] || null;
+}
+
 export async function clearHistory(): Promise<void> {
   const db = await getDB();
   await db.clear('history');
 }
+
