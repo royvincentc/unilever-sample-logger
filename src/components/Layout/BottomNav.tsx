@@ -4,14 +4,12 @@ import {
   PlusCircle,
   ListTodo,
   Clock,
-  Settings,
-  FileSpreadsheet
+  Settings
 } from 'lucide-react';
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Home' },
   { to: '/history', icon: Clock, label: 'History' },
-  { to: '/live', icon: FileSpreadsheet, label: 'Live' },
   { to: '/new', icon: PlusCircle, label: 'New', primary: true },
   { to: '/queue', icon: ListTodo, label: 'Queue' },
   { to: '/settings', icon: Settings, label: 'Settings' },
@@ -29,7 +27,7 @@ export default function BottomNav({ queueCount }: BottomNavProps) {
                  border-t border-[var(--border-subtle)]
                  pb-[env(safe-area-inset-bottom)]"
     >
-      <div className="flex items-center justify-around px-2 py-1 overflow-x-auto custom-scrollbar">
+      <div className="flex items-center justify-around px-2 py-1 overflow-x-auto hide-scrollbar">
         {navItems.map((item) => (
           <NavLink
             key={item.to}
@@ -38,7 +36,6 @@ export default function BottomNav({ queueCount }: BottomNavProps) {
             className={({ isActive }) => `
               flex flex-col items-center gap-0.5 px-3 py-2 rounded-xl
               transition-all duration-200 relative min-w-[56px]
-              ${item.primary ? '' : ''}
               ${
                 isActive
                   ? 'text-primary-500'

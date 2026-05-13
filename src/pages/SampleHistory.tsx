@@ -16,18 +16,15 @@ export default function SampleHistory() {
   const [selectedEntry, setSelectedEntry] = useState<HistoryEntry | null>(null);
   
   const loadHistory = useCallback(async () => {
-    const currentUser = getUserName();
-    const history = await getHistory(100);
-    const myHistory = history.filter(e => e.submittedBy === currentUser);
-    setEntries(myHistory);
+    const history = await getHistory(5000);
+    setEntries(history);
   }, []);
 
   useEffect(() => { 
     loadHistory();
     
     const unsubscribe = listenToHistory((allEntries) => {
-      const currentUser = getUserName();
-      setEntries(allEntries.filter(e => e.submittedBy === currentUser));
+      setEntries(allEntries);
     });
 
     // Background sync to ensure history is synced across devices
@@ -42,6 +39,8 @@ export default function SampleHistory() {
       }
     };
     autoSync();
+    
+    return () => unsubscribe();
   }, [loadHistory]);
 
   const badge = (type: string) =>

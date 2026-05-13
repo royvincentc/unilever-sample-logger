@@ -18,6 +18,7 @@ import {
   ListTodo,
   RefreshCw,
   FileText,
+  FileSpreadsheet,
   ChevronDown,
   ChevronRight,
   FlaskConical as Flask,
@@ -53,8 +54,8 @@ const quickActions = [
   { type: 'ENVI', label: 'ENVI', sub: 'Environmental Swab Samples', icon: FlaskConical, bg: 'bg-emerald-500/10', color: 'text-emerald-500' },
   { type: 'WATER', label: 'WATER', sub: 'Water Source Samples', icon: Droplets, bg: 'bg-blue-500/10', color: 'text-blue-500' },
   { type: 'RawMats', label: 'RawMats', sub: 'Raw Materials & Finished Goods', icon: Package, bg: 'bg-violet-500/10', color: 'text-violet-500' },
-  { type: 'upload', label: 'Upload Results', sub: 'Import data from instruments', icon: UploadCloud, bg: 'bg-[var(--bg-hover)]', color: 'text-[var(--text-secondary)]' },
-  { type: 'reports', label: 'View Reports', sub: 'Analytics & Compliance', icon: BarChart3, bg: 'bg-[var(--bg-hover)]', color: 'text-[var(--text-secondary)]' },
+  { type: 'incubation', label: 'Incubation', sub: 'Monitor sample growth', icon: Clock, bg: 'bg-warning-500/10', color: 'text-warning-500' },
+  { type: 'live', label: 'Live Sheet', sub: 'View real-time records', icon: FileSpreadsheet, bg: 'bg-primary-500/10', color: 'text-primary-500' },
 ];
 
 export default function Dashboard() {
@@ -144,7 +145,7 @@ export default function Dashboard() {
   const loadData = useCallback(async () => {
     setSyncing(true);
     try {
-      const history = await getHistory(100);
+      const history = await getHistory(5000);
       setRecent(history);
       
       const items = await getQueueItems();
@@ -210,11 +211,10 @@ export default function Dashboard() {
   }).length;
 
   const handleAction = (type: string) => {
-    if (type === 'upload' || type === 'reports') {
-      navigate('/results');
-    } else {
-      navigate(`/new?type=${type}`);
-    }
+    if (type === 'incubation') navigate('/incubation');
+    else if (type === 'live') navigate('/live');
+    else if (type === 'ENVI' || type === 'WATER' || type === 'RawMats') navigate(`/new?type=${type}`);
+    else navigate('/results');
   };
 
   const statusBadge = (status: string) => {

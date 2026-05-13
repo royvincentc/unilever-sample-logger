@@ -16,7 +16,7 @@ import {
 } from 'firebase/firestore';
 
 const DB_NAME = 'SampleLoggerDB';
-const DB_VERSION = 1;
+const DB_VERSION = 2; // Incremented version to ensure fresh DB structure if needed
 
 // Helper to remove undefined values for Firestore
 function cleanForFirestore(obj: any): any {
@@ -35,13 +35,11 @@ function getDB() {
   if (!dbPromise) {
     dbPromise = openDB(DB_NAME, DB_VERSION, {
       upgrade(db) {
-        // We'll keep local queue as a secondary fallback, but Firestore is primary
+        // We strictly only use IndexedDB for the offline queue now. 
+        // History is 100% driven by Firestore to ensure a single source of truth.
         if (!db.objectStoreNames.contains('queue')) {
           const queueStore = db.createObjectStore('queue', { keyPath: 'id' });
           queueStore.createIndex('status', 'status');
-        }
-        if (!db.objectStoreNames.contains('history')) {
-          db.createObjectStore('history', { keyPath: 'id' });
         }
       },
     });
@@ -52,7 +50,7 @@ function getDB() {
 // ===== FIREBASE SYNC HELPERS =====
 
 export function listenToHistory(callback: (entries: HistoryEntry[]) => void) {
-  const q = query(collection(firestore, 'history'), orderBy('submittedAt', 'desc'), fsLimit(100));
+  const q = query(collection(firestore, 'history'), orderBy('submittedAt', 'desc'), fsLimit(5000));
   return onSnapshot(q, 
     (snapshot) => {
       const entries: HistoryEntry[] = [];
@@ -60,7 +58,6 @@ export function listenToHistory(callback: (entries: HistoryEntry[]) => void) {
         entries.push(doc.data() as HistoryEntry);
       });
       callback(entries);
-      updateLocalCache(entries);
     },
     (error) => {
       console.error("Firestore Listen Error:", error);
@@ -68,16 +65,7 @@ export function listenToHistory(callback: (entries: HistoryEntry[]) => void) {
   );
 }
 
-async function updateLocalCache(entries: HistoryEntry[]) {
-  const db = await getDB();
-  const tx = db.transaction('history', 'readwrite');
-  for (const entry of entries) {
-    await tx.store.put(entry);
-  }
-  await tx.done;
-}
-
-// ===== QUEUE OPERATIONS (Local + Firebase Fallback) =====
+// ===== QUEUE OPERATIONS (Local) =====
 export async function addToQueue(item: QueueItem): Promise<void> {
   const db = await getDB();
   await db.put('queue', item);
@@ -109,14 +97,9 @@ export async function removeFromQueue(id: string): Promise<void> {
   await db.delete('queue', id);
 }
 
-// ===== HISTORY OPERATIONS (Firestore Primary) =====
+// ===== HISTORY OPERATIONS (Firestore Primary - SSOT) =====
 
 export async function addToHistory(entry: HistoryEntry): Promise<void> {
-  // 1. Save to Local Cache (Always do this first for speed/reliability)
-  const db = await getDB();
-  await db.put('history', entry);
-
-  // 2. Try to save to Firestore in the background
   try {
     const cleanedEntry = cleanForFirestore(entry);
     const docRef = doc(firestore, 'history', entry.id);
@@ -124,7 +107,7 @@ export async function addToHistory(entry: HistoryEntry): Promise<void> {
     console.log(`Successfully saved entry ${entry.id} to Firestore`);
   } catch (e) {
     console.error('Firestore save error:', e);
-    // We don't throw here so the user can continue
+    throw e;
   }
 }
 
@@ -134,32 +117,20 @@ export async function updateHistory(entry: HistoryEntry): Promise<void> {
 
 export async function getHistory(limitCount = 50): Promise<HistoryEntry[]> {
   try {
-    // Try Firestore first
     const q = query(collection(firestore, 'history'), orderBy('submittedAt', 'desc'), fsLimit(limitCount));
     const snapshot = await getDocs(q);
     const entries: HistoryEntry[] = [];
     snapshot.forEach((doc) => {
       entries.push(doc.data() as HistoryEntry);
     });
-    
-    if (entries.length > 0) {
-      updateLocalCache(entries); // Keep cache fresh
-      return entries;
-    }
+    return entries;
   } catch (e) {
-    console.warn('Firestore fetch failed, using local cache:', e);
+    console.error('Firestore fetch failed:', e);
+    return [];
   }
-
-  // Fallback to local cache
-  const db = await getDB();
-  const all = await db.getAll('history');
-  return all
-    .sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime())
-    .slice(0, limitCount);
 }
 
 export async function importHistoryBatch(entries: HistoryEntry[]): Promise<void> {
-  // Used for Google Sheets sync reconciliation
   const batch = writeBatch(firestore);
   for (const entry of entries) {
     if (entry.id) {
@@ -171,9 +142,12 @@ export async function importHistoryBatch(entries: HistoryEntry[]): Promise<void>
 }
 
 export async function getHighestLocalControlNumber(sampleType: string, dateStr: string): Promise<string | null> {
+  // We query the queue first (local offline items)
   const db = await getDB();
-  const allHistory = await db.getAll('history');
   const allQueue = await db.getAll('queue');
+  
+  // And we query the live history
+  const allHistory = await getHistory(100);
   
   const yearSuffix = new Date(dateStr).getFullYear().toString().slice(-2);
   let prefix = '';
@@ -210,7 +184,7 @@ export async function getHighestLocalControlNumber(sampleType: string, dateStr: 
 }
 
 export async function clearHistory(): Promise<void> {
-  const db = await getDB();
-  await db.clear('history');
+  // Now deprecated as local history is removed
+  console.warn("clearHistory called, but local history cache is deprecated.");
 }
 

@@ -169,16 +169,53 @@ export async function fetchLiveSheetData(sheetTab: string): Promise<any[]> {
     }
     
     const text = await response.text();
-    let data = [];
+    let data: any = [];
     if (text) {
       try {
-        data = JSON.parse(text);
+        const parsed = JSON.parse(text);
+        // n8n often returns { value: [...], Count: X } for multiple items
+        if (parsed && Array.isArray(parsed.value)) {
+          data = parsed.value;
+        } else if (Array.isArray(parsed)) {
+          data = parsed;
+        } else {
+          data = [parsed];
+        }
       } catch (e) {
         console.warn('n8n returned non-JSON response for live sheet:', text);
       }
     }
 
-    return Array.isArray(data) ? data : (data ? [data] : []);
+    if (!Array.isArray(data) || data.length === 0) return [];
+
+    // Find the row that contains the actual headers (e.g. 'CONTROL #')
+    const headerRowIndex = data.findIndex(row => 
+      Object.values(row).some(v => 
+        typeof v === 'string' && (v.toUpperCase().includes('CONTROL #') || v.toUpperCase().includes('DATE') || v.toUpperCase().includes('STATUS'))
+      )
+    );
+
+    if (headerRowIndex !== -1) {
+      const headerRow = data[headerRowIndex];
+      const headerMap: Record<string, string> = {};
+      
+      for (const [key, value] of Object.entries(headerRow)) {
+        headerMap[key] = typeof value === 'string' ? value.trim() : key;
+      }
+      
+      // Map the rest of the rows using the real headers (data after the header row)
+      return data.slice(headerRowIndex + 1).map(row => {
+        const newRow: any = {};
+        for (const [key, value] of Object.entries(row)) {
+          const properKey = headerMap[key] || key;
+          newRow[properKey] = value;
+        }
+        return newRow;
+      });
+    }
+
+    // If headers are already correct, or no header row found
+    return data;
   } catch (error) {
     console.error('Live sheet fetch failed:', error);
     throw error;

@@ -7,7 +7,6 @@ import {
   ListTodo,
   Settings,
   LogOut,
-  Beaker,
   FlaskConical,
   FileText,
   FileSpreadsheet
@@ -38,8 +37,8 @@ export default function Sidebar({ onLogout, queueCount }: SidebarProps) {
     >
       {/* Logo */}
       <div className="flex items-center gap-3 px-6 py-6 border-b border-[var(--border-subtle)]">
-        <div className="w-10 h-10 rounded-xl bg-white overflow-hidden p-1 flex items-center justify-center shadow-sm">
-          <img src="/unilever-logo.png" alt="Unilever" className="w-full h-full object-contain" />
+        <div className="w-10 h-10 rounded-xl bg-[#00529b] overflow-hidden p-1.5 flex items-center justify-center shadow-lg border border-white/20">
+          <img src="/unilever-logo.png" alt="Unilever" className="w-full h-full object-contain brightness-0 invert" />
         </div>
         <div>
           <h1 className="text-base font-bold text-[var(--text-primary)] leading-tight">Unilever Dashboard</h1>

@@ -18,8 +18,8 @@ export default function Header({ theme, onSetTheme, title }: HeaderProps) {
     <header className="sticky top-0 z-30 px-4 lg:px-8 py-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-white overflow-hidden p-0.5 flex items-center justify-center shadow-sm lg:hidden">
-            <img src="/unilever-logo.png" alt="Unilever" className="w-full h-full object-contain" />
+          <div className="w-8 h-8 rounded-lg bg-[#00529b] overflow-hidden p-1 flex items-center justify-center shadow-md lg:hidden border border-white/20">
+            <img src="/unilever-logo.png" alt="Unilever" className="w-full h-full object-contain brightness-0 invert" />
           </div>
           {title ? (
             <h2 className="text-xl lg:text-2xl font-bold text-[var(--text-primary)]">
