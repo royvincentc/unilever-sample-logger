@@ -49,15 +49,27 @@ export async function sendToWebhook(
     let result: any = {};
     if (text) {
       try {
-        result = JSON.parse(text);
+        const parsed = JSON.parse(text);
+        // Handle n8n sometimes returning an array of items, or a single item with a 'json' property
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          result = parsed[0].json || parsed[0];
+        } else if (parsed.json) {
+          result = parsed.json;
+        } else {
+          result = parsed;
+        }
       } catch (e) {
         console.warn('n8n returned non-JSON response:', text);
       }
     }
 
+    // A response is successful if n8n says so, or if it's a non-error object from a successful HTTP call
+    const success = result.success !== undefined ? result.success : true;
+
     return {
-      success: true,
-      controlNumber: result.controlNumber || result.control_number || 'N/A',
+      success,
+      controlNumber: result.controlNumber || result.control_number || result['CONTROL #'] || 'N/A',
+      error: result.error || result.message || (success ? undefined : 'Webhook failed without specific error')
     };
   } catch (error) {
     return {

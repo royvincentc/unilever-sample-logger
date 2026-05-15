@@ -50,67 +50,72 @@ export default function NewSample({ onQueueUpdate }: NewSampleProps) {
     formData: EnviFormData | WaterFormData | RawMatsFormData,
     sampleName: string
   ) => {
-    // Await the highest local control number first, then generate next based on it
-    const highestLocal = await getHighestLocalControlNumber(sampleType, formData.dateSampled);
-    const controlNumber = generateNextControlNumber(sampleType, highestLocal, formData.dateSampled);
-    const sheetTab = getSheetTabName(formData.dateSampled, sampleType);
-    const endpoint = sampleType === 'ENVI' ? 'envi' : sampleType === 'WATER' ? 'water' : 'rawmats';
+    try {
+      // Await the highest local control number first, then generate next based on it
+      const highestLocal = await getHighestLocalControlNumber(sampleType, formData.dateSampled);
+      const controlNumber = generateNextControlNumber(sampleType, highestLocal, formData.dateSampled);
+      const sheetTab = getSheetTabName(formData.dateSampled, sampleType);
+      const endpoint = sampleType === 'ENVI' ? 'envi' : sampleType === 'WATER' ? 'water' : 'rawmats';
 
-    const payload = {
-      ...formData,
-      controlNumber,
-      sheetTab,
-      sampleType,
-    };
-
-    if (!isOnline) {
-      const queueItem = makeQueueItem(sampleType, formData, sampleName);
-      queueItem.controlNumber = controlNumber;
-      // We overwrite formData in queueItem with full payload so retry has everything
-      queueItem.formData = payload as any; 
-      await addToQueue(queueItem);
-      onQueueUpdate();
-      showToast('info', 'Queued', 'You\'re offline — submission queued for later');
-      return;
-    }
-
-    const result = await sendToWebhook(endpoint, payload as unknown as Record<string, unknown>);
-    
-    // Check if webhook returned a raw n8n expression instead of the evaluated control number
-    const finalControlNumber = (result.controlNumber && !result.controlNumber.includes('{{')) 
-      ? result.controlNumber 
-      : controlNumber;
-
-    if (result.success) {
-      const historyEntry: HistoryEntry = {
-        id: `${finalControlNumber}-${sampleName}-${Date.now()}`,
+      const payload = {
+        ...formData,
+        controlNumber,
+        sheetTab,
         sampleType,
-        controlNumber: finalControlNumber,
-        sampleName,
-        dateSampled: formData.dateSampled,
-        dateAnalyzed: (formData as any).dateAnalyzed || formData.dateSampled,
-        rawMatsType: (formData as any).type || null,
-        status: (formData as any).status || 'ONGOING',
-        submittedAt: new Date().toISOString(),
-        submittedBy: getUserName(),
       };
+
+      if (!isOnline) {
+        const queueItem = makeQueueItem(sampleType, formData, sampleName);
+        queueItem.controlNumber = controlNumber;
+        // We overwrite formData in queueItem with full payload so retry has everything
+        queueItem.formData = payload as any; 
+        await addToQueue(queueItem);
+        onQueueUpdate();
+        showToast('info', 'Queued', 'You\'re offline — submission queued for later');
+        return;
+      }
+
+      const result = await sendToWebhook(endpoint, payload as unknown as Record<string, unknown>);
       
-      // Save locally and to Firestore (background)
-      await addToHistory(historyEntry);
-      
-      // UI Reset and Toast
-      showToast('success', 'Submitted!', `Control #: ${finalControlNumber}`);
-      setSelectedType(null);
-      if (onQueueUpdate) onQueueUpdate();
-    } else {
-      const queueItem = makeQueueItem(sampleType, formData, sampleName);
-      queueItem.status = 'failed';
-      queueItem.errorMessage = result.error;
-      queueItem.controlNumber = controlNumber;
-      queueItem.formData = payload as any;
-      await addToQueue(queueItem);
-      onQueueUpdate();
-      showToast('error', 'Submission Failed', result.error || 'Moved to queue for retry');
+      // Check if webhook returned a raw n8n expression or "N/A" instead of the evaluated control number
+      const finalControlNumber = (result.controlNumber && result.controlNumber !== 'N/A' && !result.controlNumber.includes('{{')) 
+        ? result.controlNumber 
+        : controlNumber;
+
+      if (result.success) {
+        const historyEntry: HistoryEntry = {
+          id: `${finalControlNumber}-${sampleName}-${Date.now()}`,
+          sampleType,
+          controlNumber: finalControlNumber,
+          sampleName,
+          dateSampled: formData.dateSampled,
+          dateAnalyzed: (formData as any).dateAnalyzed || formData.dateSampled,
+          rawMatsType: (formData as any).type || null,
+          status: (formData as any).status || 'ONGOING',
+          submittedAt: new Date().toISOString(),
+          submittedBy: getUserName(),
+        };
+        
+        // Save locally and to Firestore (background)
+        await addToHistory(historyEntry);
+        
+        // UI Reset and Toast
+        showToast('success', 'Submitted!', `Control #: ${finalControlNumber}`);
+        setSelectedType(null);
+        if (onQueueUpdate) onQueueUpdate();
+      } else {
+        const queueItem = makeQueueItem(sampleType, formData, sampleName);
+        queueItem.status = 'failed';
+        queueItem.errorMessage = result.error;
+        queueItem.controlNumber = controlNumber;
+        queueItem.formData = payload as any;
+        await addToQueue(queueItem);
+        onQueueUpdate();
+        showToast('error', 'Submission Failed', result.error || 'Moved to queue for retry');
+      }
+    } catch (error) {
+      console.error('Submission error:', error);
+      showToast('error', 'Error', error instanceof Error ? error.message : 'An unexpected error occurred during submission');
     }
   };
 
