@@ -1,3 +1,6 @@
+import CustomDatePicker from './DatePicker';
+import CustomTimePicker from './TimePicker';
+
 interface TextInputProps {
   label: string;
   value: string;
@@ -44,19 +47,13 @@ export function DatePicker({
   id,
 }: Omit<TextInputProps, 'type' | 'placeholder'>) {
   return (
-    <div className="space-y-1.5">
-      <label className="block text-sm font-medium text-[var(--text-secondary)]">
-        {label}
-        {required && <span className="text-danger-500 ml-0.5">*</span>}
-      </label>
-      <input
-        id={id}
-        type="date"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="w-full"
-      />
-    </div>
+    <CustomDatePicker
+      label={label}
+      value={value}
+      onChange={onChange}
+      required={required}
+      id={id}
+    />
   );
 }
 
@@ -69,18 +66,12 @@ export function TimePicker({
   id,
 }: Omit<TextInputProps, 'type' | 'placeholder'>) {
   return (
-    <div className="space-y-1.5">
-      <label className="block text-sm font-medium text-[var(--text-secondary)]">
-        {label}
-        {required && <span className="text-danger-500 ml-0.5">*</span>}
-      </label>
-      <input
-        id={id}
-        type="time"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="w-full"
-      />
-    </div>
+    <CustomTimePicker
+      label={label}
+      value={value}
+      onChange={onChange}
+      required={required}
+      id={id}
+    />
   );
 }
