@@ -54,7 +54,7 @@ export function loginWithPin(pin: string): boolean {
   return false;
 }
 
-export async function loginWithGoogle(): Promise<{ success: boolean; error?: string }> {
+export async function signInWithGooglePopup(): Promise<{ success: boolean; firstName?: string; error?: string }> {
   try {
     const provider = new GoogleAuthProvider();
     provider.setCustomParameters({ prompt: 'select_account' });
@@ -67,19 +67,22 @@ export async function loginWithGoogle(): Promise<{ success: boolean; error?: str
       } else if (user.email) {
         firstName = user.email.split('@')[0];
       }
-      
-      localStorage.setItem(AUTH_KEY, JSON.stringify({ 
-        authenticated: true, 
-        method: 'google',
-        userName: firstName
-      }));
-      return { success: true };
+      return { success: true, firstName };
     }
     return { success: false, error: 'No user data received' };
   } catch (e: any) {
     console.error('Google login error:', e);
-    return { success: false, error: e.message || 'Google Auth Failed' };
+    const errMsg = e.code ? `[${e.code}] ${e.message}` : e.message;
+    return { success: false, error: errMsg || 'Google Auth Failed' };
   }
+}
+
+export function saveGoogleSession(firstName: string): void {
+  localStorage.setItem(AUTH_KEY, JSON.stringify({ 
+    authenticated: true, 
+    method: 'google',
+    userName: firstName
+  }));
 }
 
 export function logout(): void {
