@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Beaker, Mail, Lock, Eye, EyeOff, KeyRound, ShieldAlert } from 'lucide-react';
 import Button from '../ui/Button';
-import { signInWithGooglePopup } from '../../utils/auth';
+import { signInWithGooglePopup, signInWithGoogleRedirect } from '../../utils/auth';
 import { auth } from '../../utils/firebase';
+import { getRedirectResult } from 'firebase/auth';
 
 interface LoginPageProps {
   onLogin: (username: string, password: string) => boolean;
@@ -22,6 +23,34 @@ export default function LoginPage({ onLogin, onPinLogin, onGoogleLogin }: LoginP
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+
+  // Check if we are returning from a Google Sign-In redirect
+  useEffect(() => {
+    const handleRedirectResult = async () => {
+      try {
+        setGoogleLoading(true);
+        const result = await getRedirectResult(auth);
+        if (result && result.user) {
+          const user = result.user;
+          let firstName = 'User';
+          if (user.displayName) {
+            firstName = user.displayName.split(' ')[0];
+          } else if (user.email) {
+            firstName = user.email.split('@')[0];
+          }
+          setTempGoogleUserName(firstName);
+          setMode('google_access_code');
+        }
+      } catch (e: any) {
+        console.error('Google Redirect Error:', e);
+        const errMsg = e.code ? `[Redirect: ${e.code}] ${e.message}` : e.message;
+        setError(errMsg || 'Failed to retrieve redirect sign-in result');
+      } finally {
+        setGoogleLoading(false);
+      }
+    };
+    handleRedirectResult();
+  }, []);
 
   const handlePasswordLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -58,21 +87,51 @@ export default function LoginPage({ onLogin, onPinLogin, onGoogleLogin }: LoginP
   };
 
   const handleGoogleLogin = async () => {
+    // Start the popup promise synchronously BEFORE updating any React state
+    // to bypass browser's strict popup blocker detection!
+    const popupPromise = signInWithGooglePopup();
+    
     setGoogleLoading(true);
     setError('');
+    
     try {
-      const res = await signInWithGooglePopup();
+      const res = await popupPromise;
       if (res.success && res.firstName) {
         setTempGoogleUserName(res.firstName);
         setMode('google_access_code');
+        setGoogleLoading(false);
       } else {
-        setError(res.error || 'Google login failed. Please try again.');
+        if (res.error && res.error.includes('popup-blocked')) {
+          setError('Popup blocked by browser. Redirecting to Google account page...');
+          setTimeout(async () => {
+            try {
+              await signInWithGoogleRedirect();
+            } catch (redirectError: any) {
+              setError(redirectError.message || 'Redirect failed');
+              setGoogleLoading(false);
+            }
+          }, 1500);
+        } else {
+          setError(res.error || 'Google login failed. Please try again.');
+          setGoogleLoading(false);
+        }
       }
     } catch (e: any) {
       console.error(e);
-      setError(e.message || 'An error occurred during Google login.');
-    } finally {
-      setGoogleLoading(false);
+      if (e.message && e.message.includes('popup-blocked')) {
+        setError('Popup blocked by browser. Redirecting to Google account page...');
+        setTimeout(async () => {
+          try {
+            await signInWithGoogleRedirect();
+          } catch (redirectError: any) {
+            setError(redirectError.message || 'Redirect failed');
+            setGoogleLoading(false);
+          }
+        }, 1500);
+      } else {
+        setError(e.message || 'An error occurred during Google login.');
+        setGoogleLoading(false);
+      }
     }
   };
 
@@ -179,7 +238,7 @@ export default function LoginPage({ onLogin, onPinLogin, onGoogleLogin }: LoginP
                 <motion.p
                   initial={{ opacity: 0, x: -10 }}
                   animate={{ opacity: 1, x: 0 }}
-                  className="text-sm text-danger-500 text-center animate-shake"
+                  className="text-sm text-danger-500 text-center"
                 >
                   {error}
                 </motion.p>
@@ -260,7 +319,7 @@ export default function LoginPage({ onLogin, onPinLogin, onGoogleLogin }: LoginP
                 <motion.p
                   initial={{ opacity: 0, y: -4 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="text-sm text-danger-500 text-center animate-shake"
+                  className="text-sm text-danger-500 text-center"
                 >
                   {error}
                 </motion.p>
@@ -290,7 +349,7 @@ export default function LoginPage({ onLogin, onPinLogin, onGoogleLogin }: LoginP
                 <motion.p
                   initial={{ opacity: 0, x: -10 }}
                   animate={{ opacity: 1, x: 0 }}
-                  className="text-sm text-danger-500 text-center animate-shake"
+                  className="text-sm text-danger-500 text-center"
                 >
                   {error}
                 </motion.p>

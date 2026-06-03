@@ -1,7 +1,7 @@
 import { AUTH_USERS, PIN_USERS, DEFAULT_SETTINGS } from '../data/constants';
 import { db as firestore, auth } from './firebase';
 import { doc, setDoc, onSnapshot } from 'firebase/firestore';
-import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
+import { GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult } from 'firebase/auth';
 
 const AUTH_KEY = 'sample_logger_auth';
 const SETTINGS_KEY = 'sample_logger_settings';
@@ -83,6 +83,12 @@ export function saveGoogleSession(firstName: string): void {
     method: 'google',
     userName: firstName
   }));
+}
+
+export async function signInWithGoogleRedirect(): Promise<void> {
+  const provider = new GoogleAuthProvider();
+  provider.setCustomParameters({ prompt: 'select_account' });
+  await signInWithRedirect(auth, provider);
 }
 
 export function logout(): void {
