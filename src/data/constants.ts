@@ -19,6 +19,9 @@ export const WATER_SOURCES = [
   'Chlorine Tank 2',
   'Demin Water',
   'RO Water System',
+  'QCL Deionized Water',
+  'QCL Chlorine Water',
+  'COP Chlorine Water',
 ] as const;
 
 // ===== RAWMATS TYPES =====
