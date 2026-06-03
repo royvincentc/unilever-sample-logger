@@ -24,11 +24,29 @@ export default function LoginPage({ onLogin, onPinLogin, onGoogleLogin }: LoginP
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
 
-  // Check if we are returning from a Google Sign-In redirect
+  // Check if we are returning from a Google Sign-In redirect or already signed into Firebase with Google
   useEffect(() => {
+    // 1. Listen for auth state changes to detect if a Google user is signed in
+    const unsubscribe = auth.onAuthStateChanged((user) => {
+      if (user) {
+        const isGoogle = user.providerData.some((p) => p.providerId === 'google.com') ||
+                         (user.email && !user.isAnonymous);
+        if (isGoogle) {
+          let firstName = 'User';
+          if (user.displayName) {
+            firstName = user.displayName.split(' ')[0];
+          } else if (user.email) {
+            firstName = user.email.split('@')[0];
+          }
+          setTempGoogleUserName(firstName);
+          setMode('google_access_code');
+        }
+      }
+    });
+
+    // 2. Also check redirect result to catch any redirect errors or credentials
     const handleRedirectResult = async () => {
       try {
-        setGoogleLoading(true);
         const result = await getRedirectResult(auth);
         if (result && result.user) {
           const user = result.user;
@@ -45,11 +63,11 @@ export default function LoginPage({ onLogin, onPinLogin, onGoogleLogin }: LoginP
         console.error('Google Redirect Error:', e);
         const errMsg = e.code ? `[Redirect: ${e.code}] ${e.message}` : e.message;
         setError(errMsg || 'Failed to retrieve redirect sign-in result');
-      } finally {
-        setGoogleLoading(false);
       }
     };
+    
     handleRedirectResult();
+    return () => unsubscribe();
   }, []);
 
   const handlePasswordLogin = async (e: React.FormEvent) => {
