@@ -21,7 +21,7 @@ import LiveSheetView from './pages/LiveSheetView';
 
 export default function App() {
   const { theme, setTheme } = useTheme();
-  const { authenticated, login, pinLogin, logout } = useAuth();
+  const { authenticated, login, pinLogin, googleLogin, logout } = useAuth();
   const [queueCount, setQueueCount] = useState(0);
   const [firebaseReady, setFirebaseReady] = useState(false);
 
@@ -58,7 +58,7 @@ export default function App() {
     <ToastProvider>
       <BrowserRouter>
         <Routes>
-          <Route path="/login" element={authenticated ? <Navigate to="/" replace /> : <LoginPage onLogin={login} onPinLogin={pinLogin} />} />
+          <Route path="/login" element={authenticated ? <Navigate to="/" replace /> : <LoginPage onLogin={login} onPinLogin={pinLogin} onGoogleLogin={googleLogin} />} />
           <Route
             path="/*"
             element={

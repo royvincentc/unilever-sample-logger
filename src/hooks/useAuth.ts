@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { isAuthenticated, loginWithPassword, loginWithPin, logout as doLogout } from '../utils/auth';
+import { isAuthenticated, loginWithPassword, loginWithPin, loginWithGoogle, logout as doLogout } from '../utils/auth';
 
 export function useAuth() {
   const [authenticated, setAuthenticated] = useState(() => isAuthenticated());
@@ -16,10 +16,19 @@ export function useAuth() {
     return success;
   }, []);
 
+  const googleLogin = useCallback(async (): Promise<boolean> => {
+    const res = await loginWithGoogle();
+    if (res.success) {
+      setAuthenticated(true);
+      return true;
+    }
+    return false;
+  }, []);
+
   const logout = useCallback(() => {
     doLogout();
     setAuthenticated(false);
   }, []);
 
-  return { authenticated, login, pinLogin, logout };
+  return { authenticated, login, pinLogin, googleLogin, logout };
 }

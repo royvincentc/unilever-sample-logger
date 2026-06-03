@@ -6,9 +6,10 @@ import Button from '../ui/Button';
 interface LoginPageProps {
   onLogin: (username: string, password: string) => boolean;
   onPinLogin: (pin: string) => boolean;
+  onGoogleLogin: () => Promise<boolean>;
 }
 
-export default function LoginPage({ onLogin, onPinLogin }: LoginPageProps) {
+export default function LoginPage({ onLogin, onPinLogin, onGoogleLogin }: LoginPageProps) {
   const [mode, setMode] = useState<'password' | 'pin'>('password');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -16,6 +17,7 @@ export default function LoginPage({ onLogin, onPinLogin }: LoginPageProps) {
   const [pin, setPin] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
 
   const handlePasswordLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,6 +51,22 @@ export default function LoginPage({ onLogin, onPinLogin }: LoginPageProps) {
   const handlePinDelete = () => {
     setPin((p) => p.slice(0, -1));
     setError('');
+  };
+
+  const handleGoogleLogin = async () => {
+    setGoogleLoading(true);
+    setError('');
+    try {
+      const success = await onGoogleLogin();
+      if (!success) {
+        setError('Google login failed. Please try again.');
+      }
+    } catch (e: any) {
+      console.error(e);
+      setError(e.message || 'An error occurred during Google login.');
+    } finally {
+      setGoogleLoading(false);
+    }
   };
 
   return (
@@ -205,6 +223,54 @@ export default function LoginPage({ onLogin, onPinLogin }: LoginPageProps) {
               </div>
             </div>
           )}
+
+          {/* Google Sign In Divider & Button */}
+          <div className="mt-6 pt-6 border-t border-[var(--border-subtle)] space-y-4">
+            <div className="relative flex py-1 items-center">
+              <div className="flex-grow border-t border-[var(--border-subtle)]"></div>
+              <span className="flex-shrink mx-4 text-xs text-[var(--text-muted)] font-medium">Or continue with</span>
+              <div className="flex-grow border-t border-[var(--border-subtle)]"></div>
+            </div>
+            
+            <button
+              type="button"
+              onClick={handleGoogleLogin}
+              disabled={googleLoading}
+              className="
+                w-full flex items-center justify-center gap-3 px-4 py-3
+                bg-[var(--bg-input)] hover:bg-[var(--bg-hover)] active:bg-primary-500/10
+                border border-[var(--border-color)] hover:border-primary-400
+                rounded-2xl text-sm font-semibold text-[var(--text-primary)]
+                transition-all duration-200 cursor-pointer
+                focus:outline-none focus:ring-3 focus:ring-primary-500/15
+                disabled:opacity-50 disabled:cursor-not-allowed
+              "
+            >
+              {googleLoading ? (
+                <div className="w-5 h-5 rounded-full border-2 border-primary-500 border-t-transparent animate-spin" />
+              ) : (
+                <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24">
+                  <path
+                    fill="#EA4335"
+                    d="M12 5.04c1.66 0 3.2.57 4.38 1.69l3.27-3.27C17.67 1.54 14.98 1 12 1 7.35 1 3.37 3.68 1.37 7.6l3.86 3C6.15 7.6 8.85 5.04 12 5.04z"
+                  />
+                  <path
+                    fill="#4285F4"
+                    d="M23.49 12.27c0-.81-.07-1.59-.2-2.27H12v4.51h6.44c-.28 1.48-1.12 2.73-2.38 3.58l3.7 2.87c2.16-2 3.4-4.94 3.4-8.69z"
+                  />
+                  <path
+                    fill="#FBBC05"
+                    d="M5.23 14.73c-.24-.73-.38-1.5-.38-2.3s.14-1.57.38-2.3L1.37 7.13C.5 8.9 0 10.9 0 13s.5 4.1 1.37 5.87l3.86-3.14z"
+                  />
+                  <path
+                    fill="#34A853"
+                    d="M12 23c3.24 0 5.97-1.07 7.96-2.91l-3.7-2.87c-1.03.69-2.35 1.1-3.96 1.1-3.15 0-5.85-2.56-6.8-5.59l-3.86 3C3.68 20.18 7.65 23 12 23z"
+                  />
+                </svg>
+              )}
+              {googleLoading ? 'Connecting...' : 'Google Account'}
+            </button>
+          </div>
         </div>
       </motion.div>
     </div>
