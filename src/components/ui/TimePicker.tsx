@@ -1,6 +1,6 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Clock } from 'lucide-react';
+import { Clock, Plus, Minus } from 'lucide-react';
 
 interface TimePickerProps {
   label: string;
@@ -11,28 +11,29 @@ interface TimePickerProps {
 }
 
 const HOURS = Array.from({ length: 12 }, (_, i) => i + 1);
-const MINUTES = Array.from({ length: 12 }, (_, i) => i * 5);
-const PERIODS = ['AM', 'PM'] as const;
-
-const ITEM_HEIGHT = 44;
-const VISIBLE_ITEMS = 5;
-const COLUMN_HEIGHT = ITEM_HEIGHT * VISIBLE_ITEMS;
-const SCROLL_PADDING = ITEM_HEIGHT * Math.floor(VISIBLE_ITEMS / 2);
+const MINUTES_PRESETS = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55];
 
 function formatMinute(m: number): string {
   return m.toString().padStart(2, '0');
 }
 
 function to12Hour(value: string): { hour: number; minute: number; period: 'AM' | 'PM' } {
-  if (!value) return { hour: 12, minute: 0, period: 'AM' };
+  if (!value) {
+    const now = new Date();
+    let h = now.getHours();
+    const m = now.getMinutes();
+    const period: 'AM' | 'PM' = h >= 12 ? 'PM' : 'AM';
+    if (h === 0) h = 12;
+    else if (h > 12) h -= 12;
+    return { hour: h, minute: m, period };
+  }
   const [hStr, mStr] = value.split(':');
   let h = parseInt(hStr, 10);
   const m = parseInt(mStr, 10);
-  const roundedMinute = Math.round(m / 5) * 5 >= 60 ? 55 : Math.round(m / 5) * 5;
   const period: 'AM' | 'PM' = h >= 12 ? 'PM' : 'AM';
   if (h === 0) h = 12;
   else if (h > 12) h -= 12;
-  return { hour: h, minute: roundedMinute, period };
+  return { hour: h, minute: m, period };
 }
 
 function to24Hour(hour: number, minute: number, period: 'AM' | 'PM'): string {
@@ -48,125 +49,6 @@ function formatDisplayTime(value: string): string {
   return `${hour}:${formatMinute(minute)} ${period}`;
 }
 
-// --- ScrollColumn ---
-interface ScrollColumnProps {
-  items: (string | number)[];
-  selectedIndex: number;
-  onSelect: (index: number) => void;
-  formatItem?: (item: string | number) => string;
-}
-
-function ScrollColumn({ items, selectedIndex, onSelect, formatItem }: ScrollColumnProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const isScrollingRef = useRef(false);
-  const scrollTimeoutRef = useRef<any>(null);
-  const isMountedScrollRef = useRef(false);
-
-  const scrollToIndex = useCallback(
-    (index: number, smooth: boolean) => {
-      const el = containerRef.current;
-      if (!el) return;
-      const targetScroll = index * ITEM_HEIGHT;
-      isScrollingRef.current = true;
-      el.scrollTo({ top: targetScroll, behavior: smooth ? 'smooth' : 'instant' });
-      // Release the programmatic scroll lock after animation settles
-      clearTimeout(scrollTimeoutRef.current);
-      scrollTimeoutRef.current = setTimeout(() => {
-        isScrollingRef.current = false;
-      }, smooth ? 350 : 50);
-    },
-    [],
-  );
-
-  // On mount + when selectedIndex changes from parent, scroll to it
-  useEffect(() => {
-    const smooth = isMountedScrollRef.current;
-    isMountedScrollRef.current = true;
-    scrollToIndex(selectedIndex, smooth);
-  }, [selectedIndex, scrollToIndex]);
-
-  // Detect scroll-end and snap to nearest item
-  const handleScroll = useCallback(() => {
-    if (isScrollingRef.current) return;
-    clearTimeout(scrollTimeoutRef.current);
-    scrollTimeoutRef.current = setTimeout(() => {
-      const el = containerRef.current;
-      if (!el) return;
-      const index = Math.round(el.scrollTop / ITEM_HEIGHT);
-      const clamped = Math.max(0, Math.min(items.length - 1, index));
-      if (clamped !== selectedIndex) {
-        onSelect(clamped);
-      }
-      // Snap precisely
-      scrollToIndex(clamped, true);
-    }, 80);
-  }, [items.length, selectedIndex, onSelect, scrollToIndex]);
-
-  // Cleanup
-  useEffect(() => {
-    return () => clearTimeout(scrollTimeoutRef.current);
-  }, []);
-
-  return (
-    <div
-      className="relative flex-1"
-      style={{ height: COLUMN_HEIGHT }}
-    >
-      {/* Fade mask */}
-      <div
-        className="pointer-events-none absolute inset-0 z-10"
-        style={{
-          maskImage: `linear-gradient(to bottom, transparent 0%, black ${ITEM_HEIGHT}px, black ${COLUMN_HEIGHT - ITEM_HEIGHT}px, transparent 100%)`,
-          WebkitMaskImage: `linear-gradient(to bottom, transparent 0%, black ${ITEM_HEIGHT}px, black ${COLUMN_HEIGHT - ITEM_HEIGHT}px, transparent 100%)`,
-        }}
-      />
-      <div
-        ref={containerRef}
-        onScroll={handleScroll}
-        className="h-full overflow-y-auto no-scrollbar"
-        style={{
-          scrollSnapType: 'y mandatory',
-          maskImage: `linear-gradient(to bottom, transparent 0%, black ${ITEM_HEIGHT}px, black ${COLUMN_HEIGHT - ITEM_HEIGHT}px, transparent 100%)`,
-          WebkitMaskImage: `linear-gradient(to bottom, transparent 0%, black ${ITEM_HEIGHT}px, black ${COLUMN_HEIGHT - ITEM_HEIGHT}px, transparent 100%)`,
-        }}
-      >
-        {/* Top padding */}
-        <div style={{ height: SCROLL_PADDING }} />
-
-        {items.map((item, i) => {
-          const isSelected = i === selectedIndex;
-          const display = formatItem ? formatItem(item) : String(item);
-          return (
-            <div
-              key={i}
-              className="flex items-center justify-center cursor-pointer select-none transition-all duration-200"
-              style={{
-                height: ITEM_HEIGHT,
-                scrollSnapAlign: 'center',
-                fontSize: isSelected ? 20 : 16,
-                fontWeight: isSelected ? 600 : 400,
-                color: isSelected ? 'var(--text-primary)' : 'var(--text-muted)',
-                opacity: isSelected ? 1 : 0.5,
-                transform: isSelected ? 'scale(1.08)' : 'scale(0.95)',
-              }}
-              onClick={() => {
-                onSelect(i);
-                scrollToIndex(i, true);
-              }}
-            >
-              {display}
-            </div>
-          );
-        })}
-
-        {/* Bottom padding */}
-        <div style={{ height: SCROLL_PADDING }} />
-      </div>
-    </div>
-  );
-}
-
-// --- TimePicker ---
 export default function TimePicker({
   label,
   value,
@@ -175,6 +57,7 @@ export default function TimePicker({
   id,
 }: TimePickerProps) {
   const [open, setOpen] = useState(false);
+  const [activeField, setActiveField] = useState<'hour' | 'minute'>('hour');
 
   // Temp selections while picker is open
   const parsed = to12Hour(value);
@@ -188,21 +71,18 @@ export default function TimePicker({
     setTempHour(p.hour);
     setTempMinute(p.minute);
     setTempPeriod(p.period);
+    setActiveField('hour');
     setOpen(true);
   };
 
-  const handleConfirm = () => {
+  const handleConfirm = useCallback(() => {
     onChange(to24Hour(tempHour, tempMinute, tempPeriod));
     setOpen(false);
-  };
+  }, [tempHour, tempMinute, tempPeriod, onChange]);
 
-  const handleCancel = () => {
+  const handleCancel = useCallback(() => {
     setOpen(false);
-  };
-
-  const hourIndex = HOURS.indexOf(tempHour);
-  const minuteIndex = MINUTES.indexOf(tempMinute);
-  const periodIndex = PERIODS.indexOf(tempPeriod);
+  }, []);
 
   // Prevent body scroll when time picker is open
   useEffect(() => {
@@ -223,6 +103,41 @@ export default function TimePicker({
       };
     }
   }, [open]);
+
+  // Keyboard navigation
+  useEffect(() => {
+    if (!open) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        handleCancel();
+      } else if (e.key === 'Enter') {
+        handleConfirm();
+      } else if (e.key === 'ArrowLeft') {
+        setActiveField('hour');
+      } else if (e.key === 'ArrowRight') {
+        setActiveField('minute');
+      } else if (e.key.toLowerCase() === 'a') {
+        setTempPeriod('AM');
+      } else if (e.key.toLowerCase() === 'p') {
+        setTempPeriod('PM');
+      } else if (/^[0-9]$/.test(e.key)) {
+        const num = parseInt(e.key, 10);
+        if (activeField === 'hour') {
+          setTempHour((prev) => {
+            const next = prev >= 10 ? num : prev * 10 + num;
+            return next >= 1 && next <= 12 ? next : num || 12;
+          });
+        } else {
+          setTempMinute((prev) => {
+            const next = (prev % 10) * 10 + num;
+            return next >= 0 && next <= 59 ? next : num;
+          });
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [open, activeField, handleConfirm, handleCancel]);
 
   return (
     <div className="space-y-1.5">
@@ -284,7 +199,7 @@ export default function TimePicker({
             {/* Card */}
             <motion.div
               className="
-                relative z-10 w-full max-w-[340px]
+                relative z-10 w-full max-w-[325px]
                 rounded-2xl border border-[var(--border-color)]
                 bg-[var(--bg-card-solid)]
                 shadow-xl overflow-hidden
@@ -295,70 +210,190 @@ export default function TimePicker({
               transition={{ type: 'spring', stiffness: 400, damping: 28 }}
             >
               {/* Header */}
-              <div className="px-6 pt-5 pb-2 text-center">
-                <h3 className="text-lg font-semibold text-[var(--text-primary)]">
+              <div className="px-5 pt-4 pb-2 text-center border-b border-[var(--border-subtle)]">
+                <h3 className="text-base font-semibold text-[var(--text-primary)]">
                   Select Time
                 </h3>
-                <p className="text-sm text-[var(--text-muted)] mt-0.5">
-                  {tempHour}:{formatMinute(tempMinute)} {tempPeriod}
-                </p>
               </div>
 
-              {/* Drum picker area */}
-              <div className="relative px-4 py-2">
-                {/* Selection highlight band */}
-                <div
-                  className="
-                    absolute left-4 right-4 rounded-xl
-                    bg-[var(--bg-hover)] border border-[var(--border-subtle)]
-                  "
-                  style={{
-                    height: ITEM_HEIGHT,
-                    top: `calc(50% - ${ITEM_HEIGHT / 2}px)`,
-                  }}
-                />
+              {/* Time Display Section */}
+              <div className="flex items-center justify-center gap-3 my-4 px-4">
+                {/* Hour Box */}
+                <button
+                  type="button"
+                  onClick={() => setActiveField('hour')}
+                  className={`
+                    text-3xl font-bold px-4 py-2 rounded-xl transition-all duration-200 cursor-pointer
+                    ${activeField === 'hour' 
+                      ? 'bg-primary-500/10 text-primary-500 ring-2 ring-primary-500' 
+                      : 'bg-[var(--bg-input)] text-[var(--text-primary)] border border-[var(--border-color)] hover:border-primary-400'
+                    }
+                  `}
+                >
+                  {tempHour.toString().padStart(2, '0')}
+                </button>
 
-                {/* Columns */}
-                <div className="relative flex gap-1">
-                  {/* Hour */}
-                  <ScrollColumn
-                    items={HOURS}
-                    selectedIndex={hourIndex >= 0 ? hourIndex : 0}
-                    onSelect={(i) => setTempHour(HOURS[i])}
-                  />
+                <span className="text-2xl font-bold text-[var(--text-muted)] animate-pulse">:</span>
 
-                  {/* Separator */}
-                  <div
-                    className="flex items-center justify-center text-[var(--text-muted)] font-bold text-xl select-none"
-                    style={{ width: 16, height: COLUMN_HEIGHT }}
+                {/* Minute Box */}
+                <button
+                  type="button"
+                  onClick={() => setActiveField('minute')}
+                  className={`
+                    text-3xl font-bold px-4 py-2 rounded-xl transition-all duration-200 cursor-pointer
+                    ${activeField === 'minute' 
+                      ? 'bg-primary-500/10 text-primary-500 ring-2 ring-primary-500' 
+                      : 'bg-[var(--bg-input)] text-[var(--text-primary)] border border-[var(--border-color)] hover:border-primary-400'
+                    }
+                  `}
+                >
+                  {tempMinute.toString().padStart(2, '0')}
+                </button>
+
+                {/* AM/PM toggle button */}
+                <div className="flex flex-col gap-1 ml-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setTempPeriod('AM')}
+                    className={`
+                      px-2.5 py-0.5 text-xs font-bold rounded transition-all duration-150 cursor-pointer
+                      ${tempPeriod === 'AM' 
+                        ? 'bg-primary-500 text-white shadow-sm' 
+                        : 'bg-[var(--bg-input)] text-[var(--text-muted)] border border-[var(--border-color)] hover:text-[var(--text-primary)]'
+                      }
+                    `}
                   >
-                    :
-                  </div>
-
-                  {/* Minute */}
-                  <ScrollColumn
-                    items={MINUTES}
-                    selectedIndex={minuteIndex >= 0 ? minuteIndex : 0}
-                    onSelect={(i) => setTempMinute(MINUTES[i])}
-                    formatItem={(m) => formatMinute(m as number)}
-                  />
-
-                  {/* Period */}
-                  <ScrollColumn
-                    items={PERIODS as unknown as string[]}
-                    selectedIndex={periodIndex >= 0 ? periodIndex : 0}
-                    onSelect={(i) => setTempPeriod(PERIODS[i])}
-                  />
+                    AM
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTempPeriod('PM')}
+                    className={`
+                      px-2.5 py-0.5 text-xs font-bold rounded transition-all duration-150 cursor-pointer
+                      ${tempPeriod === 'PM' 
+                        ? 'bg-primary-500 text-white shadow-sm' 
+                        : 'bg-[var(--bg-input)] text-[var(--text-muted)] border border-[var(--border-color)] hover:text-[var(--text-primary)]'
+                      }
+                    `}
+                  >
+                    PM
+                  </button>
                 </div>
               </div>
 
-              {/* Buttons */}
-              <div className="flex gap-3 px-6 pt-2 pb-5">
+              {/* Selector view panel with animation */}
+              <div className="px-5 pb-4 min-h-[200px] flex flex-col justify-center">
+                <AnimatePresence mode="wait">
+                  {activeField === 'hour' ? (
+                    <motion.div
+                      key="hour-picker"
+                      initial={{ opacity: 0, x: -15 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: 15 }}
+                      transition={{ duration: 0.15 }}
+                      className="grid grid-cols-4 gap-2 py-1"
+                    >
+                      {HOURS.map((h) => {
+                        const isSelected = h === tempHour;
+                        return (
+                          <button
+                            key={h}
+                            type="button"
+                            onClick={() => {
+                              setTempHour(h);
+                              setActiveField('minute');
+                            }}
+                            className={`
+                              aspect-square flex items-center justify-center text-base font-semibold rounded-xl transition-all duration-150 cursor-pointer
+                              ${isSelected 
+                                ? 'bg-primary-500 text-white shadow-md scale-105' 
+                                : 'bg-[var(--bg-input)] text-[var(--text-primary)] hover:bg-[var(--bg-hover)]'
+                              }
+                            `}
+                          >
+                            {h}
+                          </button>
+                        );
+                      })}
+                    </motion.div>
+                  ) : (
+                    <motion.div
+                      key="minute-picker"
+                      initial={{ opacity: 0, x: 15 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -15 }}
+                      transition={{ duration: 0.15 }}
+                      className="space-y-4 py-1"
+                    >
+                      {/* Presets Grid */}
+                      <div className="grid grid-cols-4 gap-2">
+                        {MINUTES_PRESETS.map((m) => {
+                          const isSelected = m === tempMinute;
+                          return (
+                            <button
+                              key={m}
+                              type="button"
+                              onClick={() => setTempMinute(m)}
+                              className={`
+                                py-1.5 text-xs font-semibold rounded-lg transition-all duration-150 cursor-pointer
+                                ${isSelected 
+                                  ? 'bg-primary-500 text-white shadow-sm scale-105' 
+                                  : 'bg-[var(--bg-input)] text-[var(--text-primary)] hover:bg-[var(--bg-hover)]'
+                                }
+                              `}
+                            >
+                              {m.toString().padStart(2, '0')}
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {/* Slider and Fine adjustment */}
+                      <div className="space-y-2 pt-2 border-t border-[var(--border-subtle)]">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-[var(--text-muted)] font-medium">Fine Tune:</span>
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => setTempMinute((m) => (m === 0 ? 59 : m - 1))}
+                              className="p-1 rounded bg-[var(--bg-input)] hover:bg-[var(--bg-hover)] text-[var(--text-primary)] transition-colors cursor-pointer"
+                            >
+                              <Minus className="w-3.5 h-3.5" />
+                            </button>
+                            <span className="text-sm font-semibold text-primary-500 w-8 text-center">{tempMinute.toString().padStart(2, '0')}</span>
+                            <button
+                              type="button"
+                              onClick={() => setTempMinute((m) => (m === 59 ? 0 : m + 1))}
+                              className="p-1 rounded bg-[var(--bg-input)] hover:bg-[var(--bg-hover)] text-[var(--text-primary)] transition-colors cursor-pointer"
+                            >
+                              <Plus className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="px-1 flex items-center h-6">
+                          <input
+                            type="range"
+                            min="0"
+                            max="59"
+                            value={tempMinute}
+                            onChange={(e) => setTempMinute(parseInt(e.target.value, 10))}
+                            className="w-full accent-primary-500 cursor-pointer"
+                          />
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-3 px-5 pb-5 border-t border-[var(--border-subtle)] pt-3">
                 <button
                   type="button"
                   onClick={handleCancel}
                   className="
-                    flex-1 py-2.5 rounded-xl text-sm font-medium
+                    flex-1 py-2 rounded-xl text-sm font-medium
                     text-[var(--text-secondary)]
                     hover:bg-[var(--bg-hover)]
                     transition-colors duration-200
@@ -371,7 +406,7 @@ export default function TimePicker({
                   type="button"
                   onClick={handleConfirm}
                   className="
-                    flex-1 py-2.5 rounded-xl text-sm font-medium
+                    flex-1 py-2 rounded-xl text-sm font-medium
                     bg-primary-500 hover:bg-primary-600
                     text-white shadow-md hover:shadow-lg
                     transition-all duration-200
@@ -385,12 +420,6 @@ export default function TimePicker({
           </motion.div>
         )}
       </AnimatePresence>
-
-      {/* Hide native scrollbar utility */}
-      <style>{`
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-      `}</style>
     </div>
   );
 }
