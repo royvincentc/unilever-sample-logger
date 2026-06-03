@@ -32,7 +32,7 @@ export interface EnviFormData {
 }
 
 // ===== WATER =====
-export type WaterSource = 'Chlorine Tank 1' | 'Chlorine Tank 2' | 'Demin Water' | 'RO Water System';
+export type WaterSource = 'Chlorine Tank 1' | 'Chlorine Tank 2' | 'Demin Water' | 'RO Water System' | 'QCL Deionized Water' | 'QCL Chlorine Water' | 'COP Chlorine Water';
 
 export interface WaterFormData {
   dateSampled: string;

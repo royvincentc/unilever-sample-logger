@@ -6,7 +6,7 @@ import Header from '../components/Layout/Header';
 import TextInput from '../components/ui/TextInput';
 import Button from '../components/ui/Button';
 import { useToast } from '../components/ui/Toast';
-import { getSettings, saveSettings } from '../utils/auth';
+import { getSettings, saveSettings, saveSheetPreference, listenToSheetPreference } from '../utils/auth';
 import { testWebhookConnection, fetchHistoryFromSheet } from '../utils/api';
 import { clearHistory, clearQueue, importHistoryBatch } from '../utils/db';
 import { SPREADSHEETS } from '../data/constants';
@@ -28,6 +28,13 @@ export default function Settings() {
   const ADMIN_PASSWORD = 'uqRaRrb4rc7!';
 
   useEffect(() => { setSettings(getSettings()); }, []);
+
+  useEffect(() => {
+    const unsubscribe = listenToSheetPreference((spreadsheetId) => {
+      setSettings((prev: any) => ({ ...prev, spreadsheetId }));
+    });
+    return () => unsubscribe();
+  }, []);
 
   const handleUnlock = () => {
     if (password === ADMIN_PASSWORD) {
@@ -173,7 +180,7 @@ export default function Settings() {
             <div className={isLocked ? 'opacity-60 pointer-events-none grayscale-[0.5]' : ''}>
               <div className="flex p-1 bg-[var(--bg-input)] rounded-xl border border-[var(--border-subtle)]">
                 <button
-                  onClick={() => setSettings({ ...settings, spreadsheetId: SPREADSHEETS.practice })}
+                  onClick={() => { setSettings({ ...settings, spreadsheetId: SPREADSHEETS.practice }); saveSheetPreference(SPREADSHEETS.practice); }}
                   className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
                     settings.spreadsheetId === SPREADSHEETS.practice
                       ? 'bg-primary-500 text-white shadow-md'
@@ -183,7 +190,7 @@ export default function Settings() {
                   Practice Sheet
                 </button>
                 <button
-                  onClick={() => setSettings({ ...settings, spreadsheetId: SPREADSHEETS.official })}
+                  onClick={() => { setSettings({ ...settings, spreadsheetId: SPREADSHEETS.official }); saveSheetPreference(SPREADSHEETS.official); }}
                   className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
                     settings.spreadsheetId === SPREADSHEETS.official
                       ? 'bg-primary-500 text-white shadow-md'

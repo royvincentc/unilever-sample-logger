@@ -115,6 +115,17 @@ export async function updateHistory(entry: HistoryEntry): Promise<void> {
   await addToHistory(entry);
 }
 
+export async function deleteFromHistory(id: string): Promise<void> {
+  try {
+    const docRef = doc(firestore, 'history', id);
+    await deleteDoc(docRef);
+    console.log(`Deleted entry ${id} from Firestore`);
+  } catch (e) {
+    console.error('Firestore delete error:', e);
+    throw e;
+  }
+}
+
 export async function getHistory(limitCount = 50): Promise<HistoryEntry[]> {
   try {
     const q = query(collection(firestore, 'history'), orderBy('submittedAt', 'desc'), fsLimit(limitCount));

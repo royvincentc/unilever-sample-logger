@@ -1,4 +1,6 @@
 import { AUTH_USERS, PIN_USERS, DEFAULT_SETTINGS } from '../data/constants';
+import { db as firestore } from './firebase';
+import { doc, setDoc, onSnapshot } from 'firebase/firestore';
 
 const AUTH_KEY = 'sample_logger_auth';
 const SETTINGS_KEY = 'sample_logger_settings';
@@ -80,4 +82,38 @@ export function saveSettings(settings: Partial<typeof DEFAULT_SETTINGS>): void {
   const current = getSettings();
   const updated = { ...current, ...settings };
   localStorage.setItem(SETTINGS_KEY, JSON.stringify(updated));
+}
+
+// Cloud-synced sheet preference
+const SHEET_PREF_DOC = 'app_config/sheet_preference';
+
+export async function saveSheetPreference(spreadsheetId: string): Promise<void> {
+  try {
+    const docRef = doc(firestore, 'app_config', 'sheet_preference');
+    await setDoc(docRef, { spreadsheetId, updatedAt: new Date().toISOString() });
+  } catch (e) {
+    console.error('Failed to save sheet preference to cloud:', e);
+  }
+  // Also save locally for immediate access
+  const current = getSettings();
+  current.spreadsheetId = spreadsheetId;
+  localStorage.setItem('sample_logger_settings', JSON.stringify(current));
+}
+
+export function listenToSheetPreference(callback: (spreadsheetId: string) => void) {
+  const docRef = doc(firestore, 'app_config', 'sheet_preference');
+  return onSnapshot(docRef, (snapshot) => {
+    if (snapshot.exists()) {
+      const data = snapshot.data();
+      if (data.spreadsheetId) {
+        // Update local settings to match cloud
+        const current = getSettings();
+        if (current.spreadsheetId !== data.spreadsheetId) {
+          current.spreadsheetId = data.spreadsheetId;
+          localStorage.setItem('sample_logger_settings', JSON.stringify(current));
+          callback(data.spreadsheetId);
+        }
+      }
+    }
+  });
 }

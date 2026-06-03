@@ -8,18 +8,21 @@ import {
   CheckCircle2,
   CalendarDays,
   Droplets,
-  Package
+  Package,
+  Trash2
 } from 'lucide-react';
 import Header from '../components/Layout/Header';
-import { getHistory, listenToHistory, importHistoryBatch } from '../utils/db';
+import { getHistory, listenToHistory, importHistoryBatch, deleteFromHistory } from '../utils/db';
 import { getUserName } from '../utils/auth';
 import { fetchHistoryFromSheet } from '../utils/api';
 import type { HistoryEntry } from '../types';
+import { useToast } from '../components/ui/Toast';
 
 import { useTheme } from '../hooks/useTheme';
 
 interface IncubationTask {
   id: string;
+  entryId: string;
   sampleName: string;
   controlNumber: string;
   sampleType: string;
@@ -37,6 +40,17 @@ export default function Incubation() {
   const [tasks, setTasks] = useState<IncubationTask[]>([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  const { showToast } = useToast();
+
+  const handleDeleteIncubation = async (task: IncubationTask) => {
+    if (!confirm(`Delete incubation for ${task.controlNumber} - ${task.readingName}?`)) return;
+    try {
+      await deleteFromHistory(task.entryId);
+      showToast('success', 'Deleted', `${task.controlNumber} removed`);
+    } catch {
+      showToast('error', 'Error', 'Failed to delete');
+    }
+  };
 
   const loadIncubations = useCallback(async () => {
     const history = await getHistory(100);
@@ -82,6 +96,7 @@ export default function Incubation() {
 
         upcomingTasks.push({
           id: `${entry.id}-${readingName}`,
+          entryId: entry.id,
           sampleName: entry.sampleName || '',
           controlNumber: entry.controlNumber || '',
           sampleType: entry.sampleType || '',
@@ -208,12 +223,21 @@ export default function Incubation() {
                   </div>
                   <div className="flex flex-col items-end gap-2 flex-shrink-0">
                     {getStatusBadge(task)}
-                    <button
-                      onClick={() => navigate(`/results?sampleId=${task.id.split('-')[0]}&readingName=${encodeURIComponent(task.readingName)}`)}
-                      className="text-[10px] font-bold uppercase text-primary-500 hover:text-primary-400 bg-primary-500/10 px-3 py-1.5 rounded opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
-                    >
-                      Log Result
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => navigate(`/results?sampleId=${task.id.split('-')[0]}&readingName=${encodeURIComponent(task.readingName)}`)}
+                        className="text-[10px] font-bold uppercase text-primary-500 hover:text-primary-400 bg-primary-500/10 px-3 py-1.5 rounded opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                      >
+                        Log Result
+                      </button>
+                      <button
+                        onClick={() => handleDeleteIncubation(task)}
+                        className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-danger-500 hover:bg-danger-500/10 transition-colors cursor-pointer"
+                        title="Delete incubation"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))

@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Clock, X, FileText } from 'lucide-react';
+import { Clock, X, FileText, Trash2 } from 'lucide-react';
 import Header from '../components/Layout/Header';
 import StatusBadge from '../components/ui/StatusBadge';
-import { getHistory, listenToHistory } from '../utils/db';
+import { useToast } from '../components/ui/Toast';
+import { getHistory, listenToHistory, deleteFromHistory } from '../utils/db';
 import { getUserName } from '../utils/auth';
 import { fetchHistoryFromSheet } from '../utils/api';
 import type { HistoryEntry } from '../types';
@@ -14,6 +15,18 @@ export default function SampleHistory() {
   const { theme, setTheme } = useTheme();
   const [entries, setEntries] = useState<HistoryEntry[]>([]);
   const [selectedEntry, setSelectedEntry] = useState<HistoryEntry | null>(null);
+  const { showToast } = useToast();
+
+  const handleDelete = async (entry: HistoryEntry, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirm(`Delete ${entry.controlNumber}?`)) return;
+    try {
+      await deleteFromHistory(entry.id);
+      showToast('success', 'Deleted', `${entry.controlNumber} removed`);
+    } catch {
+      showToast('error', 'Error', 'Failed to delete entry');
+    }
+  };
   
   const loadHistory = useCallback(async () => {
     const history = await getHistory(5000);
@@ -74,7 +87,18 @@ export default function SampleHistory() {
                     <p className="text-xs text-[var(--text-muted)] truncate">{e.sampleName} · {new Date(e.submittedAt).toLocaleDateString()}</p>
                   </div>
                 </div>
-                <StatusBadge status={e.status} />
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <StatusBadge status={e.status} />
+                  {e.status === 'ONGOING' && (
+                    <button
+                      onClick={(ev) => handleDelete(e, ev)}
+                      className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-danger-500 hover:bg-danger-500/10 transition-colors"
+                      title="Delete"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
               </button>
             ))}
           </div>
