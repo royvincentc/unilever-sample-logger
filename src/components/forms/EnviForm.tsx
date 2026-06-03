@@ -183,7 +183,7 @@ export default function EnviForm({ onSubmit, onBack }: EnviFormProps) {
             <Dropdown label="Swabbed By" value={form.swabbedBy} options={PERSONNEL} onChange={(v) => setForm({ ...form, swabbedBy: v })} required />
             <DatePicker label="Date Analyzed" value={form.dateAnalyzed} onChange={(v) => setForm({ ...form, dateAnalyzed: v })} />
             <Dropdown label="Analyzed By" value={form.analyzedBy} options={PERSONNEL} onChange={(v) => setForm({ ...form, analyzedBy: v })} />
-            <Dropdown label="Status" value={form.status} options={STATUS_OPTIONS} onChange={(v) => setForm({ ...form, status: v as any })} required />
+            <Dropdown label="Status" value={form.status} options={STATUS_OPTIONS} onChange={(v) => setForm({ ...form, status: v as any })} />
           </div>
         </motion.div>
 
