@@ -2,7 +2,7 @@
 export type SampleType = 'ENVI' | 'WATER' | 'RawMats';
 
 // ===== STATUS =====
-export type SampleStatus = 'ONGOING' | 'PENDING RELEASE' | 'RELEASED' | 'COMPLETED';
+export type SampleStatus = 'ONGOING' | 'PENDING RELEASE' | 'RELEASED' | 'COMPLETED' | '';
 
 // ===== ENVI =====
 export type EnviCategory =
@@ -29,6 +29,7 @@ export interface EnviFormData {
   dateAnalyzed: string;
   analyzedBy: string;
   status: SampleStatus;
+  remarks?: string;
 }
 
 // ===== WATER =====
@@ -42,6 +43,7 @@ export interface WaterFormData {
   dateAnalyzed: string;
   analyzedBy: string;
   status: SampleStatus;
+  remarks?: string;
 }
 
 // ===== RAWMATS =====
@@ -63,6 +65,7 @@ export interface RawMatsFormData {
   dateAnalyzed: string;
   analyzedBy: string;
   status: SampleStatus;
+  remarks?: string;
 }
 
 // ===== SUBMISSION QUEUE =====

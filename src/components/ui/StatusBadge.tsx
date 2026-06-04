@@ -21,6 +21,11 @@ const statusConfig: Record<SampleStatus, { bg: string; text: string; dot: string
     text: 'text-emerald-600',
     dot: 'bg-emerald-500',
   },
+  '': {
+    bg: 'bg-gray-500/10',
+    text: 'text-gray-500',
+    dot: 'bg-gray-400',
+  },
 };
 
 export default function StatusBadge({ status }: { status: SampleStatus | string }) {

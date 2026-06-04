@@ -9,7 +9,8 @@ import {
   LogOut,
   FlaskConical,
   FileText,
-  FileSpreadsheet
+  FileSpreadsheet,
+  CalendarDays
 } from 'lucide-react';
 
 const navItems = [
@@ -20,6 +21,7 @@ const navItems = [
   { to: '/live', icon: FileSpreadsheet, label: 'Live Sheet' },
   { to: '/results', icon: FileText, label: 'Reports' },
   { to: '/incubation', icon: FlaskConical, label: 'Incubations' },
+  { to: '/calendar', icon: CalendarDays, label: 'Calendar' },
   { to: '/settings', icon: Settings, label: 'Settings' },
 ];
 

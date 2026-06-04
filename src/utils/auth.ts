@@ -1,7 +1,7 @@
 import { AUTH_USERS, PIN_USERS, DEFAULT_SETTINGS } from '../data/constants';
 import { db as firestore, auth } from './firebase';
-import { doc, setDoc, onSnapshot } from 'firebase/firestore';
-import { GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult } from 'firebase/auth';
+import { doc, setDoc, getDoc, onSnapshot } from 'firebase/firestore';
+import { GoogleAuthProvider, signInWithPopup, signInWithRedirect } from 'firebase/auth';
 
 const AUTH_KEY = 'sample_logger_auth';
 const SETTINGS_KEY = 'sample_logger_settings';
@@ -54,7 +54,7 @@ export function loginWithPin(pin: string): boolean {
   return false;
 }
 
-export async function signInWithGooglePopup(): Promise<{ success: boolean; firstName?: string; error?: string }> {
+export async function signInWithGooglePopup(): Promise<{ success: boolean; firstName?: string; uid?: string; error?: string }> {
   try {
     const provider = new GoogleAuthProvider();
     provider.setCustomParameters({ prompt: 'select_account' });
@@ -67,7 +67,7 @@ export async function signInWithGooglePopup(): Promise<{ success: boolean; first
       } else if (user.email) {
         firstName = user.email.split('@')[0];
       }
-      return { success: true, firstName };
+      return { success: true, firstName, uid: user.uid };
     }
     return { success: false, error: 'No user data received' };
   } catch (e: any) {
@@ -89,6 +89,44 @@ export async function signInWithGoogleRedirect(): Promise<void> {
   const provider = new GoogleAuthProvider();
   provider.setCustomParameters({ prompt: 'select_account' });
   await signInWithRedirect(auth, provider);
+}
+
+// ===== GOOGLE USER PROFILE (Firestore) =====
+
+export interface GoogleUserProfile {
+  name: string;
+  pin: string;
+  uid: string;
+  createdAt: string;
+}
+
+export async function saveGoogleUserProfile(uid: string, name: string, pin: string): Promise<void> {
+  try {
+    const docRef = doc(firestore, 'users', uid);
+    await setDoc(docRef, {
+      name,
+      pin,
+      uid,
+      createdAt: new Date().toISOString(),
+    }, { merge: true });
+  } catch (e) {
+    console.error('Failed to save Google user profile:', e);
+    throw e;
+  }
+}
+
+export async function getGoogleUserProfile(uid: string): Promise<GoogleUserProfile | null> {
+  try {
+    const docRef = doc(firestore, 'users', uid);
+    const snapshot = await getDoc(docRef);
+    if (snapshot.exists()) {
+      return snapshot.data() as GoogleUserProfile;
+    }
+    return null;
+  } catch (e) {
+    console.error('Failed to fetch Google user profile:', e);
+    return null;
+  }
 }
 
 export function logout(): void {

@@ -18,6 +18,7 @@ import Incubation from './pages/Incubation';
 import Results from './pages/Results';
 import Settings from './pages/Settings';
 import LiveSheetView from './pages/LiveSheetView';
+import Calendar from './pages/Calendar';
 
 export default function App() {
   const { theme, setTheme } = useTheme();
@@ -74,7 +75,8 @@ export default function App() {
                         <Route path="live" element={<LiveSheetView />} />
                         <Route path="incubation" element={<Incubation />} />
                         <Route path="results" element={<Results />} />
-                        <Route path="settings" element={<Settings />} />
+                        <Route path="settings" element={<Settings onLogout={logout} />} />
+                        <Route path="calendar" element={<Calendar />} />
                         <Route path="*" element={<Navigate to="/" replace />} />
                       </Routes>
                     </AnimatePresence>

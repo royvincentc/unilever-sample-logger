@@ -87,22 +87,16 @@ export default function Dropdown({
     return () => document.removeEventListener('mousedown', handleClick);
   }, []);
 
-  // Prevent body scroll when dropdown is open on mobile web
+  // Prevent body scroll when dropdown is open on mobile — use overflow:hidden only
+  // (position:fixed causes a visible scroll-to-top jump, which we avoid here)
   useEffect(() => {
     if (open) {
       const scrollY = window.scrollY;
-      document.body.style.position = 'fixed';
-      document.body.style.top = `-${scrollY}px`;
-      document.body.style.left = '0';
-      document.body.style.right = '0';
       document.body.style.overflow = 'hidden';
+      document.body.dataset.scrollY = String(scrollY);
       return () => {
-        document.body.style.position = '';
-        document.body.style.top = '';
-        document.body.style.left = '';
-        document.body.style.right = '';
         document.body.style.overflow = '';
-        window.scrollTo(0, scrollY);
+        delete document.body.dataset.scrollY;
       };
     }
   }, [open]);

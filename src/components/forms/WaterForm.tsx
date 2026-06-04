@@ -31,7 +31,8 @@ export default function WaterForm({ onSubmit, onBack }: WaterFormProps) {
     sampledBy: '',
     dateAnalyzed: '',
     analyzedBy: '',
-    status: 'ONGOING',
+    status: '',
+    remarks: '',
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -106,6 +107,19 @@ export default function WaterForm({ onSubmit, onBack }: WaterFormProps) {
             <DatePicker label="Date Analyzed" value={form.dateAnalyzed} onChange={(v) => setForm({ ...form, dateAnalyzed: v })} />
             <Dropdown label="Analyzed By" value={form.analyzedBy} options={PERSONNEL} onChange={(v) => setForm({ ...form, analyzedBy: v })} />
             <Dropdown label="Status" value={form.status} options={STATUS_OPTIONS} onChange={(v) => setForm({ ...form, status: v as any })} />
+          </div>
+          <div className="space-y-1.5">
+            <label className="block text-sm font-medium text-[var(--text-secondary)]">Remarks</label>
+            <textarea
+              value={form.remarks || ''}
+              onChange={(e) => setForm({ ...form, remarks: e.target.value })}
+              placeholder="Optional remarks or notes..."
+              rows={3}
+              className="w-full px-4 py-3 rounded-xl bg-[var(--bg-input)] border border-[var(--border-color)]
+                         text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)]
+                         focus:outline-none focus:ring-2 focus:ring-primary-500/40 focus:border-primary-500
+                         transition-all duration-200 resize-none"
+            />
           </div>
         </motion.div>
 

@@ -13,7 +13,7 @@ import { SPREADSHEETS } from '../data/constants';
 
 import { useTheme } from '../hooks/useTheme';
 
-export default function Settings() {
+export default function Settings({ onLogout }: { onLogout?: () => void }) {
   const { theme, setTheme } = useTheme();
   const [settings, setSettings] = useState(getSettings());
   const [isLocked, setIsLocked] = useState(true);
@@ -235,9 +235,12 @@ export default function Settings() {
               </p>
               <button
                 onClick={() => {
-                  localStorage.removeItem('user');
-                  window.location.replace('/login');
-                  setTimeout(() => window.location.reload(), 100);
+                  if (onLogout) {
+                    onLogout();
+                  } else {
+                    localStorage.removeItem('sample_logger_auth');
+                    window.location.replace('/login');
+                  }
                 }}
                 className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-danger-500/10 text-danger-500 hover:bg-danger-500/20 rounded-xl font-bold transition-all"
               >

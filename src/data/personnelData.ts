@@ -12,6 +12,7 @@ export const PERSONNEL = [
   'CANOY',
   'GOLORAN',
   'VILLAVER',
+  'PF4',
 ] as const;
 
 // Personnel for RawMats "Received By" — includes MARK
@@ -27,4 +28,5 @@ export const PERSONNEL_WITH_MARK = [
   'CANOY',
   'GOLORAN',
   'VILLAVER',
+  'PF4',
 ] as const;

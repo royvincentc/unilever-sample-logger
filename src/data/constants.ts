@@ -85,7 +85,7 @@ export const DEFAULT_SETTINGS = {
     rawmats: 'https://n8n-royvincentc.onrender.com/webhook/rawmats-submit',
     sync: 'https://n8n-royvincentc.onrender.com/webhook/sync-history',
   },
-  spreadsheetId: '12GkLM06FaO9Qn_E4TDQp852nUvf53mxl6nUI9C9GEdc',
+  spreadsheetId: '1-pGOoxmZw4qCfK3KnjeRvbK_VbfEAZJUn7GjI01hkXc',
   theme: 'system' as const,
   authMode: 'password' as const,
   pin: '09062025',
