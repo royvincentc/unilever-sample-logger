@@ -14,7 +14,7 @@ type LoginMode = 'password' | 'pin' | 'google_access_code' | 'google_setup';
 
 interface LoginPageProps {
   onLogin: (username: string, password: string) => boolean;
-  onPinLogin: (pin: string) => boolean;
+  onPinLogin: (pin: string) => Promise<boolean> | boolean;
   onGoogleLogin: (firstName: string) => void;
 }
 
@@ -122,8 +122,8 @@ export default function LoginPage({ onLogin, onPinLogin, onGoogleLogin }: LoginP
     setPin(newPin);
     setError('');
     if (newPin.length === 8) {
-      setTimeout(() => {
-        const success = onPinLogin(newPin);
+      setTimeout(async () => {
+        const success = await onPinLogin(newPin);
         if (!success) {
           setError('Invalid PIN');
           setPin('');

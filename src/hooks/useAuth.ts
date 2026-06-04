@@ -10,8 +10,8 @@ export function useAuth() {
     return success;
   }, []);
 
-  const pinLogin = useCallback((pin: string): boolean => {
-    const success = loginWithPin(pin);
+  const pinLogin = useCallback(async (pin: string): Promise<boolean> => {
+    const success = await loginWithPin(pin);
     if (success) setAuthenticated(true);
     return success;
   }, []);

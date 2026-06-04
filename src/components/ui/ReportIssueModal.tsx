@@ -113,7 +113,7 @@ export default function ReportIssueModal() {
                       <AlertTriangle className="w-5 h-5 text-warning-500" />
                       Report an Issue
                     </h3>
-                    <p className="text-xs text-[var(--text-secondary)] mt-0.5">Let Vince know what broke</p>
+                    <p className="text-xs text-[var(--text-secondary)] mt-0.5">Let Roy know what broke</p>
                   </div>
                   <button
                     onClick={handleClose}

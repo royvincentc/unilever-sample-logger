@@ -35,12 +35,12 @@ export default function App() {
     const unsubscribe = auth.onAuthStateChanged((user) => {
       if (user) {
         setFirebaseReady(true);
-      } else if (authenticated) {
+      } else {
         signInAnonymously(auth).catch(err => console.error("Firebase Auth failed:", err));
       }
     });
     return () => unsubscribe();
-  }, [authenticated]);
+  }, []);
 
   useEffect(() => {
     if (authenticated && firebaseReady) refreshQueueCount();

@@ -1,6 +1,6 @@
 import { AUTH_USERS, PIN_USERS, DEFAULT_SETTINGS } from '../data/constants';
 import { db as firestore, auth } from './firebase';
-import { doc, setDoc, getDoc, onSnapshot } from 'firebase/firestore';
+import { doc, setDoc, getDoc, onSnapshot, collection, query, where, getDocs, limit } from 'firebase/firestore';
 import { GoogleAuthProvider, signInWithPopup, signInWithRedirect } from 'firebase/auth';
 
 const AUTH_KEY = 'sample_logger_auth';
@@ -41,7 +41,8 @@ export function loginWithPassword(username: string, password: string): boolean {
   return false;
 }
 
-export function loginWithPin(pin: string): boolean {
+export async function loginWithPin(pin: string): Promise<boolean> {
+  // 1. Check static PIN users first
   const user = PIN_USERS.find(u => u.pin === pin);
   if (user) {
     localStorage.setItem(AUTH_KEY, JSON.stringify({ 
@@ -51,6 +52,28 @@ export function loginWithPin(pin: string): boolean {
     }));
     return true;
   }
+
+  // 2. Query Firestore users collection for matching PIN
+  try {
+    const q = query(
+      collection(firestore, 'users'),
+      where('pin', '==', pin),
+      limit(1)
+    );
+    const snapshot = await getDocs(q);
+    if (!snapshot.empty) {
+      const userData = snapshot.docs[0].data();
+      localStorage.setItem(AUTH_KEY, JSON.stringify({ 
+        authenticated: true, 
+        method: 'pin',
+        userName: userData.name || 'User'
+      }));
+      return true;
+    }
+  } catch (e) {
+    console.error('Firestore PIN login failed:', e);
+  }
+
   return false;
 }
 
