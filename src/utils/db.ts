@@ -199,3 +199,49 @@ export async function clearHistory(): Promise<void> {
   console.warn("clearHistory called, but local history cache is deprecated.");
 }
 
+export interface IssueReport {
+  id: string;
+  subject: string;
+  description: string;
+  severity: 'low' | 'medium' | 'high' | 'critical';
+  reporterName: string;
+  reporterEmail?: string;
+  pagePath: string;
+  submittedAt: string;
+  userAgent: string;
+}
+
+export async function submitIssueReport(report: IssueReport): Promise<void> {
+  try {
+    const cleanedReport = cleanForFirestore(report);
+    const docRef = doc(firestore, 'issue_reports', report.id);
+    await setDoc(docRef, cleanedReport);
+    console.log(`Saved issue report ${report.id} to Firestore`);
+
+    // Forward to n8n webhook
+    const n8nUrl = 'https://n8n-royvincentc.onrender.com/webhook/report-issue';
+    try {
+      const response = await fetch(n8nUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': import.meta.env.VITE_N8N_API_KEY || ''
+        },
+        body: JSON.stringify({
+          ...report,
+          forwardEmails: ['vincecodinera@gmail.com', 'royvincentc@pm.me']
+        })
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      console.log('Successfully forwarded report to n8n');
+    } catch (e) {
+      console.warn('n8n forwarding failed, stored in Firestore only:', e);
+    }
+  } catch (e) {
+    console.error('Firestore issue save error:', e);
+    throw e;
+  }
+}
+

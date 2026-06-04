@@ -345,6 +345,9 @@ export default function LoginPage({ onLogin, onPinLogin, onGoogleLogin }: LoginP
           </motion.div>
           <h1 className="text-2xl font-bold text-[var(--text-primary)]">SampleLog</h1>
           <p className="text-sm text-[var(--text-secondary)] mt-1">QC Microbiology Lab</p>
+          <p className="text-[10px] text-[var(--text-muted)] mt-1.5 opacity-50 tracking-wide">
+            developed &amp; maintained by R. Codinera
+          </p>
         </div>
 
         {/* Card */}

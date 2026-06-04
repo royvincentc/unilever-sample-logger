@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import Sidebar from './Sidebar';
 import BottomNav from './BottomNav';
 import OfflineBanner from '../ui/OfflineBanner';
+import ReportIssueModal from '../ui/ReportIssueModal';
 import { useOnlineStatus } from '../../hooks/useOnlineStatus';
 
 interface LayoutProps {
@@ -23,6 +24,9 @@ export default function Layout({ children, onLogout, queueCount }: LayoutProps) 
       <main className="lg:ml-64 pb-24 lg:pb-8 min-h-screen">
         {children}
       </main>
+
+      {/* Floating Issue Report Button & Modal */}
+      <ReportIssueModal />
     </div>
   );
 }

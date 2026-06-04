@@ -604,6 +604,13 @@ export default function Dashboard() {
 
           </div>
         </div>
+
+        {/* Watermark */}
+        <div className="flex justify-end mt-8 pb-4 opacity-30 select-none">
+          <span className="text-[10px] text-[var(--text-muted)] tracking-wide">
+            developed &amp; maintained by R. Codinera
+          </span>
+        </div>
       </motion.div>
     </div>
   );
