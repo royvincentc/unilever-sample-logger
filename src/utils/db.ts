@@ -55,7 +55,11 @@ export function listenToHistory(callback: (entries: HistoryEntry[]) => void) {
     (snapshot) => {
       const entries: HistoryEntry[] = [];
       snapshot.forEach((doc) => {
-        entries.push(doc.data() as HistoryEntry);
+        const entry = doc.data() as HistoryEntry;
+        if (entry.sampleType === 'RawMats' && entry.controlNumber) {
+          entry.controlNumber = entry.controlNumber.replace(/^RM-?/i, '');
+        }
+        entries.push(entry);
       });
       callback(entries);
     },
@@ -101,6 +105,9 @@ export async function removeFromQueue(id: string): Promise<void> {
 
 export async function addToHistory(entry: HistoryEntry): Promise<void> {
   try {
+    if (entry.sampleType === 'RawMats' && entry.controlNumber) {
+      entry.controlNumber = entry.controlNumber.replace(/^RM-?/i, '');
+    }
     const cleanedEntry = cleanForFirestore(entry);
     const docRef = doc(firestore, 'history', entry.id);
     await setDoc(docRef, cleanedEntry);
@@ -132,7 +139,11 @@ export async function getHistory(limitCount = 50): Promise<HistoryEntry[]> {
     const snapshot = await getDocs(q);
     const entries: HistoryEntry[] = [];
     snapshot.forEach((doc) => {
-      entries.push(doc.data() as HistoryEntry);
+      const entry = doc.data() as HistoryEntry;
+      if (entry.sampleType === 'RawMats' && entry.controlNumber) {
+        entry.controlNumber = entry.controlNumber.replace(/^RM-?/i, '');
+      }
+      entries.push(entry);
     });
     return entries;
   } catch (e) {
@@ -166,28 +177,33 @@ export async function getHighestLocalControlNumber(sampleType: string, dateStr: 
   else if (sampleType === 'WATER') prefix = `W${yearSuffix}-`;
   else if (sampleType === 'RawMats') prefix = `${yearSuffix}-`;
 
+  const cleanCn = (cn: string | undefined) => {
+    if (!cn) return '';
+    return sampleType === 'RawMats' ? cn.replace(/^RM-?/i, '') : cn;
+  };
+
   const relevantHistory = allHistory.filter(entry => 
     entry.sampleType === sampleType && 
     entry.controlNumber && 
-    entry.controlNumber.startsWith(prefix)
+    cleanCn(entry.controlNumber).startsWith(prefix)
   );
 
   const relevantQueue = allQueue.filter(entry => 
     entry.sampleType === sampleType && 
     entry.controlNumber && 
-    entry.controlNumber.startsWith(prefix)
+    cleanCn(entry.controlNumber).startsWith(prefix)
   );
 
   const allRelevant = [
-    ...relevantHistory.map(r => r.controlNumber),
-    ...relevantQueue.map(r => r.controlNumber)
+    ...relevantHistory.map(r => cleanCn(r.controlNumber)),
+    ...relevantQueue.map(r => cleanCn(r.controlNumber))
   ];
   
   if (allRelevant.length === 0) return null;
 
   allRelevant.sort((a, b) => {
-    const aNum = parseInt(a!.split('-').pop() || '0', 10);
-    const bNum = parseInt(b!.split('-').pop() || '0', 10);
+    const aNum = parseInt(a.split('-').pop() || '0', 10);
+    const bNum = parseInt(b.split('-').pop() || '0', 10);
     return bNum - aNum;
   });
 

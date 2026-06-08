@@ -78,9 +78,13 @@ export default function NewSample({ onQueueUpdate }: NewSampleProps) {
       const result = await sendToWebhook(endpoint, payload as unknown as Record<string, unknown>);
       
       // Check if webhook returned a raw n8n expression or "N/A" instead of the evaluated control number
-      const finalControlNumber = (result.controlNumber && result.controlNumber !== 'N/A' && !result.controlNumber.includes('{{')) 
+      let finalControlNumber = (result.controlNumber && result.controlNumber !== 'N/A' && !result.controlNumber.includes('{{')) 
         ? result.controlNumber 
         : controlNumber;
+
+      if (sampleType === 'RawMats') {
+        finalControlNumber = finalControlNumber.replace(/^RM-?/i, '');
+      }
 
       if (result.success) {
         const historyEntry: HistoryEntry = {

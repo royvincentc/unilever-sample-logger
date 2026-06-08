@@ -54,10 +54,26 @@ export default function LiveSheetView() {
     const normalized: Record<string, any> = {};
     for (const key in rawRow) {
       const cleanKey = key.toLowerCase().replace(/[^a-z0-9]/g, '');
-      normalized[cleanKey] = rawRow[key];
+      let val = rawRow[key];
+      if (selectedType === 'RawMats' && (cleanKey === 'control' || cleanKey === 'controlnumber' || cleanKey === 'control')) {
+        if (typeof val === 'string') {
+          val = val.replace(/^RM-?/i, '');
+        }
+      }
+      normalized[cleanKey] = val;
     }
     // Also keep the original row as fallback
-    return { ...rawRow, ...normalized };
+    const result = { ...rawRow, ...normalized };
+    if (selectedType === 'RawMats') {
+      const origControl = result.control || result.controlnumber || result['CONTROL #'];
+      if (typeof origControl === 'string') {
+        const cleaned = origControl.replace(/^RM-?/i, '');
+        result.control = cleaned;
+        result.controlnumber = cleaned;
+        result['CONTROL #'] = cleaned;
+      }
+    }
+    return result;
   };
 
   const getStatusColor = (status: string) => {

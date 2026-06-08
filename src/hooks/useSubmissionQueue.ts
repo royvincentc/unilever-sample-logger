@@ -44,9 +44,13 @@ export function useSubmissionQueue() {
 
     if (result.success) {
       // Evaluate final control number from n8n response or fallback to local
-      const finalControlNumber = (result.controlNumber && !result.controlNumber.includes('{{')) 
+      let finalControlNumber = (result.controlNumber && !result.controlNumber.includes('{{')) 
         ? result.controlNumber 
         : item.controlNumber || 'UNKNOWN';
+
+      if (item.sampleType === 'RawMats') {
+        finalControlNumber = finalControlNumber.replace(/^RM-?/i, '');
+      }
 
       const historyEntry: HistoryEntry = {
         id: `${finalControlNumber}-${item.sampleName}-${Date.now()}`,
