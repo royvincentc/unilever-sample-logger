@@ -1,5 +1,5 @@
 import { openDB, type IDBPDatabase } from 'idb';
-import type { QueueItem, HistoryEntry } from '../types';
+import type { QueueItem, HistoryEntry, SampleType } from '../types';
 import { db as firestore } from './firebase';
 import { 
   collection, 
@@ -14,6 +14,8 @@ import {
   deleteDoc,
   writeBatch
 } from 'firebase/firestore';
+import { fetchLiveSheetData } from './api';
+import { getSheetTabName, getPreviousMonthSheetTabName } from './sheetMapping';
 
 const DB_NAME = 'SampleLoggerDB';
 const DB_VERSION = 2; // Incremented version to ensure fresh DB structure if needed
@@ -259,5 +261,63 @@ export async function submitIssueReport(report: IssueReport): Promise<void> {
     console.error('Firestore issue save error:', e);
     throw e;
   }
+}
+
+async function getHighestControlNumberFromSheet(sheetTab: string, sampleType: SampleType): Promise<string | null> {
+  try {
+    const rows = await fetchLiveSheetData(sheetTab);
+    if (!rows || rows.length === 0) return null;
+
+    let lastNum = 0;
+    let foundYear = '';
+
+    for (const row of rows) {
+      // Check all possible control number column names
+      const controlCol = String(row.control || row.controlnumber || row['CONTROL #'] || '').trim();
+      const match = controlCol.match(/(?:RM)?-?(\d+)-(\d+)/i);
+      if (match) {
+        foundYear = match[1];
+        const num = parseInt(match[2], 10);
+        if (num > lastNum) {
+          lastNum = num;
+        }
+      }
+    }
+
+    if (lastNum > 0) {
+      return `${foundYear || '26'}-${String(lastNum).padStart(3, '0')}`;
+    }
+    return null;
+  } catch (e) {
+    console.warn(`Failed to fetch control number from sheet tab ${sheetTab}:`, e);
+    return null;
+  }
+}
+
+export async function getHighestControlNumberFromSheets(
+  sampleType: SampleType,
+  dateStr: string
+): Promise<string | null> {
+  const currentTab = getSheetTabName(dateStr, sampleType);
+  const highestCurrent = await getHighestControlNumberFromSheet(currentTab, sampleType);
+  if (highestCurrent) return highestCurrent;
+
+  // Try the previous month if current month is empty
+  const prevTab = getPreviousMonthSheetTabName(dateStr, sampleType);
+  const highestPrev = await getHighestControlNumberFromSheet(prevTab, sampleType);
+  return highestPrev;
+}
+
+export async function getHighestControlNumberForSubmission(
+  sampleType: SampleType,
+  dateStr: string,
+  isOnline: boolean
+): Promise<string | null> {
+  if (isOnline) {
+    const sheetNum = await getHighestControlNumberFromSheets(sampleType, dateStr);
+    if (sheetNum) return sheetNum;
+  }
+  // Fallback to local db/history if offline or if sheet has absolutely no records
+  return getHighestLocalControlNumber(sampleType, dateStr);
 }
 

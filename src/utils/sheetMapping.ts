@@ -21,6 +21,16 @@ export function getSheetTabName(dateStr: string, sampleType: 'ENVI' | 'WATER' | 
 }
 
 /**
+ * Get the sheet tab name for the previous month.
+ */
+export function getPreviousMonthSheetTabName(dateStr: string, sampleType: 'ENVI' | 'WATER' | 'RawMats'): string {
+  const date = new Date(dateStr);
+  date.setMonth(date.getMonth() - 1);
+  const prevDateStr = date.toISOString().split('T')[0];
+  return getSheetTabName(prevDateStr, sampleType);
+}
+
+/**
  * Get the 2-digit year from a date string
  */
 export function getYearShort(dateStr: string): string {

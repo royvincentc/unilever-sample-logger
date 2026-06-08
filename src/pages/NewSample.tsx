@@ -11,7 +11,7 @@ import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { sendToWebhook } from '../utils/api';
 import { generateNextControlNumber } from '../utils/controlNumber';
 import { getSheetTabName } from '../utils/sheetMapping';
-import { addToQueue, addToHistory, getHighestLocalControlNumber } from '../utils/db';
+import { addToQueue, addToHistory, getHighestControlNumberForSubmission } from '../utils/db';
 import { getUserName } from '../utils/auth';
 import type { SampleType, EnviFormData, WaterFormData, RawMatsFormData, QueueItem, HistoryEntry } from '../types';
 
@@ -51,9 +51,9 @@ export default function NewSample({ onQueueUpdate }: NewSampleProps) {
     sampleName: string
   ) => {
     try {
-      // Await the highest local control number first, then generate next based on it
-      const highestLocal = await getHighestLocalControlNumber(sampleType, formData.dateSampled);
-      const controlNumber = generateNextControlNumber(sampleType, highestLocal, formData.dateSampled);
+      // Await the highest control number from the sheets (or local fallback), then generate next based on it
+      const highestControl = await getHighestControlNumberForSubmission(sampleType, formData.dateSampled, isOnline);
+      const controlNumber = generateNextControlNumber(sampleType, highestControl, formData.dateSampled);
       const sheetTab = getSheetTabName(formData.dateSampled, sampleType);
       const endpoint = sampleType === 'ENVI' ? 'envi' : sampleType === 'WATER' ? 'water' : 'rawmats';
 
