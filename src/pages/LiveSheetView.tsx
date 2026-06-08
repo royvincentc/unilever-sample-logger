@@ -207,9 +207,9 @@ export default function LiveSheetView() {
                             <Calendar className="w-3 h-3" /> Collected
                           </span>
                           <p className="text-[11px] font-semibold text-[var(--text-secondary)]">
-                            {row.datecollected || row.datesampled || row.dateswabbed || row['DATE COLLECTED'] || '-'}
+                            {row.datecollected || row.datesampled || row.dateswabbed || row.datereceivedsampled || row['DATE COLLECTED'] || row['DATE RECEIVED/SAMPLED'] || '-'}
                             <span className="block text-[10px] text-[var(--text-muted)] font-normal">
-                              {row.timecollected || row.timesampled || row.timeswabbed || row['TIME COLLECTED'] || ''}
+                              {row.timecollected || row.timesampled || row.timeswabbed || row.time || row['TIME COLLECTED'] || row['TIME'] || ''}
                             </span>
                           </p>
                         </div>
