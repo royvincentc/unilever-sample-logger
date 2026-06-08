@@ -89,7 +89,7 @@ export default function SampleHistory() {
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
                   <StatusBadge status={e.status} />
-                  {e.status === 'ONGOING' && (
+                  {(e.status === 'ONGOING' || e.status === 'ON GOING') && (
                     <button
                       onClick={(ev) => handleDelete(e, ev)}
                       className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-danger-500 hover:bg-danger-500/10 transition-colors"
@@ -108,12 +108,22 @@ export default function SampleHistory() {
       {/* Detail Modal */}
       <AnimatePresence>
         {selectedEntry && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <motion.div 
+            key="history-modal-backdrop"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setSelectedEntry(null)}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm cursor-pointer"
+          >
             <motion.div 
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="w-full max-w-md max-h-[85vh] bg-[var(--bg-body)] border border-[var(--border-subtle)] rounded-2xl shadow-xl flex flex-col overflow-hidden"
+              key="history-modal-card"
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              transition={{ type: 'spring', duration: 0.35 }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-md max-h-[85vh] bg-[var(--bg-body)] border border-[var(--border-subtle)] rounded-2xl shadow-xl flex flex-col overflow-hidden cursor-default"
             >
               {/* Header */}
               <div className="px-5 py-4 border-b border-[var(--border-subtle)] bg-[var(--bg-sidebar)] flex items-center justify-between sticky top-0">
@@ -195,7 +205,7 @@ export default function SampleHistory() {
                 </div>
               </div>
             </motion.div>
-          </div>
+          </motion.div>
         )}
       </AnimatePresence>
     </div>

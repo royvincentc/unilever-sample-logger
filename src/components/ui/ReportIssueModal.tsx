@@ -85,133 +85,131 @@ export default function ReportIssueModal() {
       {/* Modal Overlay and Content */}
       <AnimatePresence>
         {isOpen && (
-          <>
-            {/* Backdrop */}
+          <motion.div
+            key="issue-modal-backdrop"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={handleClose}
+            className="fixed inset-0 bg-black/60 backdrop-blur-xs z-[90]"
+          />
+        )}
+        {isOpen && (
+          <div key="issue-modal-wrapper" className="fixed inset-0 flex items-center justify-center p-4 z-[100] pointer-events-none">
             <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={handleClose}
-              className="fixed inset-0 bg-black/60 backdrop-blur-xs z-[90]"
-            />
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              transition={{ type: 'spring', duration: 0.4 }}
+              className="bg-[var(--bg-card-solid)] border border-[var(--border-subtle)]
+                         w-full max-w-md rounded-2xl shadow-2xl overflow-hidden
+                         pointer-events-auto"
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-subtle)] bg-[var(--bg-hover)]/30">
+                <div>
+                  <h3 className="font-bold text-[var(--text-primary)] text-base flex items-center gap-2">
+                    <AlertTriangle className="w-5 h-5 text-warning-500" />
+                    Report an Issue
+                  </h3>
+                  <p className="text-xs text-[var(--text-secondary)] mt-0.5">Let Roy know what broke</p>
+                </div>
+                <button
+                  onClick={handleClose}
+                  className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors cursor-pointer"
+                  disabled={loading}
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
 
-            {/* Modal Card */}
-            <div className="fixed inset-0 flex items-center justify-center p-4 z-[100] pointer-events-none">
-              <motion.div
-                initial={{ opacity: 0, scale: 0.9, y: 20 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.9, y: 20 }}
-                transition={{ type: 'spring', duration: 0.4 }}
-                className="bg-[var(--bg-card-solid)] border border-[var(--border-subtle)]
-                           w-full max-w-md rounded-2xl shadow-2xl overflow-hidden
-                           pointer-events-auto"
-              >
-                {/* Header */}
-                <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-subtle)] bg-[var(--bg-hover)]/30">
-                  <div>
-                    <h3 className="font-bold text-[var(--text-primary)] text-base flex items-center gap-2">
-                      <AlertTriangle className="w-5 h-5 text-warning-500" />
-                      Report an Issue
-                    </h3>
-                    <p className="text-xs text-[var(--text-secondary)] mt-0.5">Let Roy know what broke</p>
-                  </div>
-                  <button
-                    onClick={handleClose}
-                    className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors cursor-pointer"
+              {/* Form */}
+              <form onSubmit={handleSubmit} className="p-6 space-y-4">
+                {/* Subject */}
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider">
+                    Subject <span className="text-danger-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Briefly describe the issue..."
+                    value={subject}
+                    onChange={(e) => setSubject(e.target.value)}
                     disabled={loading}
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
+                    autoFocus
+                  />
                 </div>
 
-                {/* Form */}
-                <form onSubmit={handleSubmit} className="p-6 space-y-4">
-                  {/* Subject */}
-                  <div className="space-y-1.5">
-                    <label className="block text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider">
-                      Subject <span className="text-danger-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="Briefly describe the issue..."
-                      value={subject}
-                      onChange={(e) => setSubject(e.target.value)}
-                      disabled={loading}
-                      autoFocus
-                    />
-                  </div>
+                {/* Severity */}
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider">
+                    Severity Level
+                  </label>
+                  <select
+                    value={severity}
+                    onChange={(e) => setSeverity(e.target.value as any)}
+                    disabled={loading}
+                  >
+                    <option value="low">Low (UI glitch, minor text error)</option>
+                    <option value="medium">Medium (Annoyance, slow load, styling)</option>
+                    <option value="high">High (Feature not working, logic error)</option>
+                    <option value="critical">Critical (App crash, cannot submit data)</option>
+                  </select>
+                </div>
 
-                  {/* Severity */}
-                  <div className="space-y-1.5">
-                    <label className="block text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider">
-                      Severity Level
-                    </label>
-                    <select
-                      value={severity}
-                      onChange={(e) => setSeverity(e.target.value as any)}
-                      disabled={loading}
-                    >
-                      <option value="low">Low (UI glitch, minor text error)</option>
-                      <option value="medium">Medium (Annoyance, slow load, styling)</option>
-                      <option value="high">High (Feature not working, logic error)</option>
-                      <option value="critical">Critical (App crash, cannot submit data)</option>
-                    </select>
-                  </div>
+                {/* Description */}
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider">
+                    Description <span className="text-danger-500">*</span>
+                  </label>
+                  <textarea
+                    required
+                    rows={4}
+                    placeholder="Please details what happened, what you clicked, or any error messages you saw..."
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    disabled={loading}
+                  />
+                </div>
 
-                  {/* Description */}
-                  <div className="space-y-1.5">
-                    <label className="block text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider">
-                      Description <span className="text-danger-500">*</span>
-                    </label>
-                    <textarea
-                      required
-                      rows={4}
-                      placeholder="Please details what happened, what you clicked, or any error messages you saw..."
-                      value={description}
-                      onChange={(e) => setDescription(e.target.value)}
-                      disabled={loading}
-                    />
+                {/* Context Info (Read-only) */}
+                <div className="rounded-xl bg-[var(--bg-hover)]/30 border border-[var(--border-subtle)] p-3 text-[11px] text-[var(--text-muted)] space-y-1">
+                  <div className="flex justify-between">
+                    <span>Reporter:</span>
+                    <span className="font-semibold text-[var(--text-secondary)]">{userName}</span>
                   </div>
+                  <div className="flex justify-between">
+                    <span>Active Screen:</span>
+                    <span className="font-mono text-[var(--text-secondary)] truncate max-w-[200px]" title={location.pathname}>
+                      {location.pathname}
+                    </span>
+                  </div>
+                </div>
 
-                  {/* Context Info (Read-only) */}
-                  <div className="rounded-xl bg-[var(--bg-hover)]/30 border border-[var(--border-subtle)] p-3 text-[11px] text-[var(--text-muted)] space-y-1">
-                    <div className="flex justify-between">
-                      <span>Reporter:</span>
-                      <span className="font-semibold text-[var(--text-secondary)]">{userName}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Active Screen:</span>
-                      <span className="font-mono text-[var(--text-secondary)] truncate max-w-[200px]" title={location.pathname}>
-                        {location.pathname}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Buttons */}
-                  <div className="flex gap-3 pt-2">
-                    <button
-                      type="button"
-                      onClick={handleClose}
-                      className="flex-1 py-2.5 rounded-xl border border-[var(--border-color)] text-sm font-semibold
-                                 text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] transition-all cursor-pointer"
-                      disabled={loading}
-                    >
-                      Cancel
-                    </button>
-                    <Button
-                      type="submit"
-                      variant="primary"
-                      loading={loading}
-                      className="flex-1"
-                    >
-                      Send Report
-                    </Button>
-                  </div>
-                </form>
-              </motion.div>
-            </div>
-          </>
+                {/* Buttons */}
+                <div className="flex gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={handleClose}
+                    className="flex-1 py-2.5 rounded-xl border border-[var(--border-color)] text-sm font-semibold
+                               text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] transition-all cursor-pointer"
+                    disabled={loading}
+                  >
+                    Cancel
+                  </button>
+                  <Button
+                    type="submit"
+                    variant="primary"
+                    loading={loading}
+                    className="flex-1"
+                  >
+                    Send Report
+                  </Button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
     </>

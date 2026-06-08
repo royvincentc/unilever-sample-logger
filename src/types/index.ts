@@ -2,7 +2,7 @@
 export type SampleType = 'ENVI' | 'WATER' | 'RawMats';
 
 // ===== STATUS =====
-export type SampleStatus = 'ONGOING' | 'PENDING RELEASE' | 'RELEASED' | 'COMPLETED' | '';
+export type SampleStatus = 'ONGOING' | 'ON GOING' | 'PENDING RELEASE' | 'RELEASED' | 'COMPLETED' | '';
 
 // ===== ENVI =====
 export type EnviCategory =

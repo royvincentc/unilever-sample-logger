@@ -270,191 +270,195 @@ export default function DatePicker({
         {createPortal(
           <AnimatePresence>
             {open && (
-              <>
-                {/* Invisible backdrop */}
-                <div
-                  style={{ position: 'fixed', inset: 0, zIndex: 9998 }}
-                  onClick={() => setOpen(false)}
-                />
-                <motion.div
-                  ref={panelRef}
-                  initial={{ opacity: 0, y: -8, scale: 0.96 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: -8, scale: 0.96 }}
-                  transition={{ duration: 0.18, ease: [0.4, 0, 0.2, 1] }}
-                  style={panelStyle}
-                  className="rounded-xl border border-[var(--border-color)]
-                             bg-[var(--bg-card-solid)] shadow-xl overflow-hidden"
-                  onTouchMove={(e) => e.stopPropagation()}
-                >
-                  {/* Header: month/year navigation */}
-                  <div className="flex items-center justify-between px-3 pt-3 pb-2">
-                    <button
-                      type="button"
-                      onClick={() => navigateMonth(-1)}
-                      className="p-1.5 rounded-lg hover:bg-[var(--bg-hover)] transition-colors
-                                 text-[var(--text-secondary)] cursor-pointer"
-                    >
-                      <ChevronLeft className="w-4 h-4" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setShowYearPicker(!showYearPicker)}
-                      className="text-sm font-semibold text-[var(--text-primary)]
-                                 hover:bg-[var(--bg-hover)] px-3 py-1 rounded-lg
-                                 transition-colors cursor-pointer"
-                    >
-                      {MONTHS[viewMonth]} {viewYear}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => navigateMonth(1)}
-                      className="p-1.5 rounded-lg hover:bg-[var(--bg-hover)] transition-colors
-                                 text-[var(--text-secondary)] cursor-pointer"
-                    >
-                      <ChevronRight className="w-4 h-4" />
-                    </button>
-                  </div>
+              <motion.div
+                key="datepicker-backdrop"
+                style={{ position: 'fixed', inset: 0, zIndex: 9998 }}
+                onClick={() => setOpen(false)}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+              />
+            )}
+            {open && (
+              <motion.div
+                key="datepicker-panel"
+                ref={panelRef}
+                initial={{ opacity: 0, y: -8, scale: 0.96 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -8, scale: 0.96 }}
+                transition={{ duration: 0.18, ease: [0.4, 0, 0.2, 1] }}
+                style={panelStyle}
+                className="rounded-xl border border-[var(--border-color)]
+                           bg-[var(--bg-card-solid)] shadow-xl overflow-hidden"
+                onTouchMove={(e) => e.stopPropagation()}
+              >
+                {/* Header: month/year navigation */}
+                <div className="flex items-center justify-between px-3 pt-3 pb-2">
+                  <button
+                    type="button"
+                    onClick={() => navigateMonth(-1)}
+                    className="p-1.5 rounded-lg hover:bg-[var(--bg-hover)] transition-colors
+                               text-[var(--text-secondary)] cursor-pointer"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowYearPicker(!showYearPicker)}
+                    className="text-sm font-semibold text-[var(--text-primary)]
+                               hover:bg-[var(--bg-hover)] px-3 py-1 rounded-lg
+                               transition-colors cursor-pointer"
+                  >
+                    {MONTHS[viewMonth]} {viewYear}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => navigateMonth(1)}
+                    className="p-1.5 rounded-lg hover:bg-[var(--bg-hover)] transition-colors
+                               text-[var(--text-secondary)] cursor-pointer"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
 
-                  <AnimatePresence mode="wait">
-                    {showYearPicker ? (
-                      <motion.div
-                        key="year-picker"
-                        initial={{ opacity: 0, scale: 0.95 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.95 }}
-                        transition={{ duration: 0.15 }}
-                        className="px-3 pb-3"
-                      >
-                        <div className="grid grid-cols-4 gap-1.5">
-                          {yearRange.map((y) => {
-                            const isSelected = y === viewYear;
-                            const isCurrent = y === today.year;
-                            return (
-                              <button
-                                key={y}
-                                type="button"
-                                onClick={() => selectYear(y)}
-                                className={`
-                                  py-2 text-sm rounded-lg transition-all duration-150 cursor-pointer
-                                  ${
-                                    isSelected
-                                      ? 'bg-primary-500 text-white font-semibold shadow-sm'
-                                      : isCurrent
-                                        ? 'text-primary-500 font-medium hover:bg-[var(--bg-hover)]'
-                                        : 'text-[var(--text-primary)] hover:bg-[var(--bg-hover)]'
-                                  }
-                                `}
-                              >
-                                {y}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </motion.div>
-                    ) : (
-                      <motion.div
-                        key="calendar"
-                        initial={{ opacity: 0, scale: 0.95 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.95 }}
-                        transition={{ duration: 0.15 }}
-                        className="px-3 pb-3"
-                      >
-                        {/* Days of week header */}
-                        <div className="grid grid-cols-7 mb-1">
-                          {DAYS.map((day, i) => (
-                            <div
-                              key={i}
-                              className="flex items-center justify-center h-8 text-xs
-                                         font-medium text-[var(--text-muted)]"
+                <AnimatePresence mode="wait">
+                  {showYearPicker ? (
+                    <motion.div
+                      key="year-picker"
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.95 }}
+                      transition={{ duration: 0.15 }}
+                      className="px-3 pb-3"
+                    >
+                      <div className="grid grid-cols-4 gap-1.5">
+                        {yearRange.map((y) => {
+                          const isSelected = y === viewYear;
+                          const isCurrent = y === today.year;
+                          return (
+                            <button
+                              key={y}
+                              type="button"
+                              onClick={() => selectYear(y)}
+                              className={`
+                                py-2 text-sm rounded-lg transition-all duration-150 cursor-pointer
+                                ${
+                                  isSelected
+                                    ? 'bg-primary-500 text-white font-semibold shadow-sm'
+                                    : isCurrent
+                                      ? 'text-primary-500 font-medium hover:bg-[var(--bg-hover)]'
+                                      : 'text-[var(--text-primary)] hover:bg-[var(--bg-hover)]'
+                                }
+                              `}
                             >
-                              {day}
-                            </div>
-                          ))}
-                        </div>
-
-                        {/* Calendar grid with slide animation */}
-                        <div className="relative overflow-hidden" style={{ height: 240 }}>
-                          <AnimatePresence initial={false} custom={direction} mode="popLayout">
-                            <motion.div
-                              key={`${viewYear}-${viewMonth}`}
-                              custom={direction}
-                              variants={slideVariants}
-                              initial="enter"
-                              animate="center"
-                              exit="exit"
-                              transition={{
-                                x: { type: 'spring', stiffness: 350, damping: 32 },
-                                opacity: { duration: 0.18 },
-                              }}
-                              className="grid grid-cols-7 gap-y-0.5"
-                            >
-                              {calendarDays.map((cell, i) => {
-                                const isCurrentMonth = cell.currentMonth;
-                                const isToday =
-                                  isCurrentMonth &&
-                                  cell.day === today.day &&
-                                  viewMonth === today.month &&
-                                  viewYear === today.year;
-                                const isSelected =
-                                  isCurrentMonth &&
-                                  parsedValue !== null &&
-                                  cell.day === parsedValue.day &&
-                                  viewMonth === parsedValue.month &&
-                                  viewYear === parsedValue.year;
-
-                                return (
-                                  <button
-                                    key={i}
-                                    type="button"
-                                    onClick={() => {
-                                      if (isCurrentMonth) selectDate(cell.day);
-                                    }}
-                                    disabled={!isCurrentMonth}
-                                    className={`
-                                      flex items-center justify-center h-8 w-full text-sm
-                                      rounded-lg transition-all duration-150
-                                      ${
-                                        isSelected
-                                          ? 'bg-primary-500 text-white font-semibold shadow-sm'
-                                          : isToday
-                                            ? 'ring-1.5 ring-primary-400 text-primary-500 font-medium'
-                                            : isCurrentMonth
-                                              ? 'text-[var(--text-primary)] hover:bg-[var(--bg-hover)] cursor-pointer'
-                                              : 'text-[var(--text-muted)] opacity-30 cursor-default'
-                                      }
-                                      ${isCurrentMonth ? 'cursor-pointer' : ''}
-                                    `}
-                                  >
-                                    {cell.day}
-                                  </button>
-                                );
-                              })}
-                            </motion.div>
-                          </AnimatePresence>
-                        </div>
-
-                        {/* Today shortcut */}
-                        <div className="mt-1.5 pt-2 border-t border-[var(--border-subtle)] flex justify-center">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              onChange(toDateString(today.year, today.month, today.day));
-                              setOpen(false);
-                            }}
-                            className="text-xs font-medium text-primary-500 hover:text-primary-600
-                                       px-3 py-1.5 rounded-lg hover:bg-primary-500/10
-                                       transition-colors cursor-pointer"
+                              {y}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </motion.div>
+                  ) : (
+                    <motion.div
+                      key="calendar"
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.95 }}
+                      transition={{ duration: 0.15 }}
+                      className="px-3 pb-3"
+                    >
+                      {/* Days of week header */}
+                      <div className="grid grid-cols-7 mb-1">
+                        {DAYS.map((day, i) => (
+                          <div
+                            key={i}
+                            className="flex items-center justify-center h-8 text-xs
+                                       font-medium text-[var(--text-muted)]"
                           >
-                            Today
-                          </button>
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </motion.div>
-              </>
+                            {day}
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Calendar grid with slide animation */}
+                      <div className="relative overflow-hidden" style={{ height: 240 }}>
+                        <AnimatePresence initial={false} custom={direction} mode="popLayout">
+                          <motion.div
+                            key={`${viewYear}-${viewMonth}`}
+                            custom={direction}
+                            variants={slideVariants}
+                            initial="enter"
+                            animate="center"
+                            exit="exit"
+                            transition={{
+                              x: { type: 'spring', stiffness: 350, damping: 32 },
+                              opacity: { duration: 0.18 },
+                            }}
+                            className="grid grid-cols-7 gap-y-0.5"
+                          >
+                            {calendarDays.map((cell, i) => {
+                              const isCurrentMonth = cell.currentMonth;
+                              const isToday =
+                                isCurrentMonth &&
+                                cell.day === today.day &&
+                                viewMonth === today.month &&
+                                viewYear === today.year;
+                              const isSelected =
+                                isCurrentMonth &&
+                                parsedValue !== null &&
+                                cell.day === parsedValue.day &&
+                                viewMonth === parsedValue.month &&
+                                viewYear === parsedValue.year;
+
+                              return (
+                                <button
+                                  key={i}
+                                  type="button"
+                                  onClick={() => {
+                                    if (isCurrentMonth) selectDate(cell.day);
+                                  }}
+                                  disabled={!isCurrentMonth}
+                                  className={`
+                                    flex items-center justify-center h-8 w-full text-sm
+                                    rounded-lg transition-all duration-150
+                                    ${
+                                      isSelected
+                                        ? 'bg-primary-500 text-white font-semibold shadow-sm'
+                                        : isToday
+                                          ? 'ring-1.5 ring-primary-400 text-primary-500 font-medium'
+                                          : isCurrentMonth
+                                            ? 'text-[var(--text-primary)] hover:bg-[var(--bg-hover)] cursor-pointer'
+                                            : 'text-[var(--text-muted)] opacity-30 cursor-default'
+                                    }
+                                    ${isCurrentMonth ? 'cursor-pointer' : ''}
+                                  `}
+                                >
+                                  {cell.day}
+                                </button>
+                              );
+                            })}
+                          </motion.div>
+                        </AnimatePresence>
+                      </div>
+
+                      {/* Today shortcut */}
+                      <div className="mt-1.5 pt-2 border-t border-[var(--border-subtle)] flex justify-center">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            onChange(toDateString(today.year, today.month, today.day));
+                            setOpen(false);
+                          }}
+                          className="text-xs font-medium text-primary-500 hover:text-primary-600
+                                     px-3 py-1.5 rounded-lg hover:bg-primary-500/10
+                                     transition-colors cursor-pointer"
+                        >
+                          Today
+                        </button>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </motion.div>
             )}
           </AnimatePresence>,
           document.body,

@@ -135,46 +135,50 @@ export default function Dropdown({
         {createPortal(
           <AnimatePresence>
             {open && (
-              <>
-                {/* Invisible backdrop to catch taps and prevent interaction behind */}
-                <div
-                  style={{ position: 'fixed', inset: 0, zIndex: 9998 }}
-                  onClick={() => setOpen(false)}
-                />
-                <motion.div
-                  ref={menuRef}
-                  initial={{ opacity: 0, y: -8, scale: 0.96 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: -8, scale: 0.96 }}
-                  transition={{ duration: 0.15, ease: 'easeOut' }}
-                  style={menuStyle}
-                  className="rounded-xl border border-[var(--border-color)]
-                             bg-[var(--bg-card-solid)] shadow-xl overflow-y-auto
-                             overscroll-contain"
-                  onTouchMove={(e) => e.stopPropagation()}
-                >
-                  {(options as string[]).map((opt) => (
-                    <button
-                      key={opt}
-                      type="button"
-                      onClick={() => {
-                        onChange(opt);
-                        setOpen(false);
-                      }}
-                      className={`
-                        w-full flex items-center gap-2 px-4 py-2.5 text-sm text-left
-                        transition-colors duration-150 cursor-pointer
-                        hover:bg-[var(--bg-hover)]
-                        ${value === opt ? 'text-primary-500 font-medium bg-primary-50/50' : 'text-[var(--text-primary)]'}
-                        first:rounded-t-xl last:rounded-b-xl
-                      `}
-                    >
-                      {value === opt && <Check className="w-4 h-4 flex-shrink-0" />}
-                      <span className={value === opt ? '' : 'ml-6'}>{opt}</span>
-                    </button>
-                  ))}
-                </motion.div>
-              </>
+              <motion.div
+                key="dropdown-backdrop"
+                style={{ position: 'fixed', inset: 0, zIndex: 9998 }}
+                onClick={() => setOpen(false)}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+              />
+            )}
+            {open && (
+              <motion.div
+                key="dropdown-menu"
+                ref={menuRef}
+                initial={{ opacity: 0, y: -8, scale: 0.96 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -8, scale: 0.96 }}
+                transition={{ duration: 0.15, ease: 'easeOut' }}
+                style={menuStyle}
+                className="rounded-xl border border-[var(--border-color)]
+                           bg-[var(--bg-card-solid)] shadow-xl overflow-y-auto
+                           overscroll-contain"
+                onTouchMove={(e) => e.stopPropagation()}
+              >
+                {(options as string[]).map((opt) => (
+                  <button
+                    key={opt}
+                    type="button"
+                    onClick={() => {
+                      onChange(opt);
+                      setOpen(false);
+                    }}
+                    className={`
+                      w-full flex items-center gap-2 px-4 py-2.5 text-sm text-left
+                      transition-colors duration-150 cursor-pointer
+                      hover:bg-[var(--bg-hover)]
+                      ${value === opt ? 'text-primary-500 font-medium bg-primary-50/50' : 'text-[var(--text-primary)]'}
+                      first:rounded-t-xl last:rounded-b-xl
+                    `}
+                  >
+                    {value === opt && <Check className="w-4 h-4 flex-shrink-0" />}
+                    <span className={value === opt ? '' : 'ml-6'}>{opt}</span>
+                  </button>
+                ))}
+              </motion.div>
             )}
           </AnimatePresence>,
           document.body

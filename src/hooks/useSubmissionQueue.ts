@@ -56,7 +56,7 @@ export function useSubmissionQueue() {
         dateSampled: item.formData.dateSampled,
         dateAnalyzed: (item.formData as any).dateAnalyzed || item.formData.dateSampled,
         rawMatsType: (item.formData as any).type || null,
-        status: (item.formData as any).status || 'ONGOING',
+        status: (item.formData as any).status || 'ON GOING',
         submittedAt: new Date().toISOString(),
         submittedBy: item.submittedBy || 'Unknown User',
       };

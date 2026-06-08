@@ -8,7 +8,7 @@ export const MONTH_ABBR = [
 
 // ===== STATUS OPTIONS =====
 export const STATUS_OPTIONS: SampleStatus[] = [
-  'ONGOING',
+  'ON GOING',
   'PENDING RELEASE',
   'RELEASED',
 ];

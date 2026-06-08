@@ -100,7 +100,7 @@ export default function Results() {
     const updatedEntry: HistoryEntry = {
       ...selectedSample,
       results: newResults,
-      status: isFinal ? 'COMPLETED' : 'ONGOING'
+      status: isFinal ? 'COMPLETED' : 'ON GOING'
     };
 
     await updateHistory(updatedEntry);
@@ -313,7 +313,7 @@ export default function Results() {
 
 // --- Specialized Form Components ---
 
-const analysts = ['ROY', 'DLW', 'AR', 'NP', 'RK'];
+const analysts = ['ROY', 'DLW', 'AR', 'NP', 'RK', 'JUEN-PATA', 'CODINERA / VILLAVER', 'CODINERA / CANOY'];
 
 function EnviResultForm({ sample, reading, onSave }: { sample: HistoryEntry, reading: string, onSave: (e: React.FormEvent, data: any) => void }) {
   const baseDate = sample.dateAnalyzed || sample.dateSampled || sample.submittedAt;

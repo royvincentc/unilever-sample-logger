@@ -6,6 +6,11 @@ const statusConfig: Record<SampleStatus, { bg: string; text: string; dot: string
     text: 'text-warning-600',
     dot: 'bg-warning-500',
   },
+  'ON GOING': {
+    bg: 'bg-warning-500/10',
+    text: 'text-warning-600',
+    dot: 'bg-warning-500',
+  },
   'PENDING RELEASE': {
     bg: 'bg-primary-500/10',
     text: 'text-primary-600',

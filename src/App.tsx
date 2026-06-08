@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { signInAnonymously } from 'firebase/auth';
 import { auth } from './utils/firebase';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { AnimatePresence } from 'framer-motion';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { AnimatePresence, motion } from 'framer-motion';
 import { RefreshCw } from 'lucide-react';
 import Layout from './components/Layout/Layout';
 import LoginPage from './components/auth/LoginPage';
@@ -19,6 +19,101 @@ import Results from './pages/Results';
 import Settings from './pages/Settings';
 import LiveSheetView from './pages/LiveSheetView';
 import Calendar from './pages/Calendar';
+
+function PageTransition({ children }: { children: React.ReactNode }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -10 }}
+      transition={{ duration: 0.2, ease: 'easeInOut' }}
+    >
+      {children}
+    </motion.div>
+  );
+}
+
+interface AppContentProps {
+  authenticated: boolean;
+  firebaseReady: boolean;
+  logout: () => void;
+  login: any;
+  pinLogin: any;
+  googleLogin: any;
+  queueCount: number;
+  refreshQueueCount: () => void;
+}
+
+function AppContent({
+  authenticated,
+  firebaseReady,
+  logout,
+  login,
+  pinLogin,
+  googleLogin,
+  queueCount,
+  refreshQueueCount,
+}: AppContentProps) {
+  const location = useLocation();
+
+  return (
+    <Routes>
+      <Route
+        path="/login"
+        element={
+          authenticated ? (
+            <Navigate to="/" replace />
+          ) : (
+            <LoginPage onLogin={login} onPinLogin={pinLogin} onGoogleLogin={googleLogin} />
+          )
+        }
+      />
+      <Route
+        path="/*"
+        element={
+          authenticated ? (
+            firebaseReady ? (
+              <Layout onLogout={logout} queueCount={queueCount}>
+                <AnimatePresence mode="wait">
+                  <Routes location={location} key={location.pathname}>
+                    <Route index element={<PageTransition><Dashboard /></PageTransition>} />
+                    <Route path="new" element={<PageTransition><NewSample onQueueUpdate={refreshQueueCount} /></PageTransition>} />
+                    <Route path="queue" element={<PageTransition><SubmissionQueue onQueueUpdate={refreshQueueCount} /></PageTransition>} />
+                    <Route path="history" element={<PageTransition><SampleHistory /></PageTransition>} />
+                    <Route path="live" element={<PageTransition><LiveSheetView /></PageTransition>} />
+                    <Route path="incubation" element={<PageTransition><Incubation /></PageTransition>} />
+                    <Route path="results" element={<PageTransition><Results /></PageTransition>} />
+                    <Route path="settings" element={<PageTransition><Settings onLogout={logout} /></PageTransition>} />
+                    <Route path="calendar" element={<PageTransition><Calendar /></PageTransition>} />
+                    <Route path="*" element={<Navigate to="/" replace />} />
+                  </Routes>
+                </AnimatePresence>
+              </Layout>
+            ) : (
+              <div className="min-h-screen bg-[var(--bg-body)] flex items-center justify-center p-6 text-center">
+                <div className="flex flex-col items-center gap-4">
+                  <RefreshCw className="w-8 h-8 text-primary-500 animate-spin" />
+                  <div>
+                    <p className="text-sm font-bold text-[var(--text-primary)]">Securing Cloud Connection...</p>
+                    <p className="text-xs text-[var(--text-muted)] mt-1">Establishing a secure session with Unilever QC Cloud</p>
+                  </div>
+                  <button
+                    onClick={() => window.location.reload()}
+                    className="mt-4 text-xs text-primary-500 hover:underline cursor-pointer"
+                  >
+                    Taking too long? Click here to refresh.
+                  </button>
+                </div>
+              </div>
+            )
+          ) : (
+            <Navigate to="/login" replace />
+          )
+        }
+      />
+    </Routes>
+  );
+}
 
 export default function App() {
   const { theme, setTheme } = useTheme();
@@ -58,52 +153,16 @@ export default function App() {
   return (
     <ToastProvider>
       <BrowserRouter>
-        <Routes>
-          <Route path="/login" element={authenticated ? <Navigate to="/" replace /> : <LoginPage onLogin={login} onPinLogin={pinLogin} onGoogleLogin={googleLogin} />} />
-          <Route
-            path="/*"
-            element={
-              authenticated ? (
-                firebaseReady ? (
-                  <Layout onLogout={logout} queueCount={queueCount}>
-                    <AnimatePresence mode="wait">
-                      <Routes>
-                        <Route index element={<Dashboard />} />
-                        <Route path="new" element={<NewSample onQueueUpdate={refreshQueueCount} />} />
-                        <Route path="queue" element={<SubmissionQueue onQueueUpdate={refreshQueueCount} />} />
-                        <Route path="history" element={<SampleHistory />} />
-                        <Route path="live" element={<LiveSheetView />} />
-                        <Route path="incubation" element={<Incubation />} />
-                        <Route path="results" element={<Results />} />
-                        <Route path="settings" element={<Settings onLogout={logout} />} />
-                        <Route path="calendar" element={<Calendar />} />
-                        <Route path="*" element={<Navigate to="/" replace />} />
-                      </Routes>
-                    </AnimatePresence>
-                  </Layout>
-                ) : (
-                  <div className="min-h-screen bg-[var(--bg-body)] flex items-center justify-center p-6 text-center">
-                    <div className="flex flex-col items-center gap-4">
-                      <RefreshCw className="w-8 h-8 text-primary-500 animate-spin" />
-                      <div>
-                        <p className="text-sm font-bold text-[var(--text-primary)]">Securing Cloud Connection...</p>
-                        <p className="text-xs text-[var(--text-muted)] mt-1">Establishing a secure session with Unilever QC Cloud</p>
-                      </div>
-                      <button 
-                        onClick={() => window.location.reload()}
-                        className="mt-4 text-xs text-primary-500 hover:underline cursor-pointer"
-                      >
-                        Taking too long? Click here to refresh.
-                      </button>
-                    </div>
-                  </div>
-                )
-              ) : (
-                <Navigate to="/login" replace />
-              )
-            }
-          />
-        </Routes>
+        <AppContent
+          authenticated={authenticated}
+          firebaseReady={firebaseReady}
+          logout={logout}
+          login={login}
+          pinLogin={pinLogin}
+          googleLogin={googleLogin}
+          queueCount={queueCount}
+          refreshQueueCount={refreshQueueCount}
+        />
       </BrowserRouter>
     </ToastProvider>
   );

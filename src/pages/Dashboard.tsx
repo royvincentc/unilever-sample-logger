@@ -288,7 +288,7 @@ export default function Dashboard() {
                   <FlaskConical className="w-4 h-4 text-warning-500" />
                   <span className="text-[10px] font-bold uppercase tracking-wider">Incubating</span>
                 </div>
-                <p className="text-2xl font-bold text-[var(--text-primary)]">{recent.filter(r => r.status === 'ONGOING').length}</p>
+                <p className="text-2xl font-bold text-[var(--text-primary)]">{recent.filter(r => r.status === 'ONGOING' || r.status === 'ON GOING').length}</p>
               </div>
               <div className="glass rounded-xl p-4 min-w-[140px] flex-shrink-0 lg:col-span-1 border border-[var(--border-subtle)]">
                 <div className="flex items-center gap-2 text-[var(--text-secondary)] mb-2">

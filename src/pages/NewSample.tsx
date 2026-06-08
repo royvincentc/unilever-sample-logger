@@ -91,7 +91,7 @@ export default function NewSample({ onQueueUpdate }: NewSampleProps) {
           dateSampled: formData.dateSampled,
           dateAnalyzed: (formData as any).dateAnalyzed || formData.dateSampled,
           rawMatsType: (formData as any).type || null,
-          status: (formData as any).status || 'ONGOING',
+          status: (formData as any).status || 'ON GOING',
           submittedAt: new Date().toISOString(),
           submittedBy: getUserName(),
         };
