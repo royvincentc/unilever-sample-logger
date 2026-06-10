@@ -233,3 +233,71 @@ export async function fetchLiveSheetData(sheetTab: string): Promise<any[]> {
     throw error;
   }
 }
+
+/**
+ * Fetch the live header row (schema) for a given sheet tab via n8n.
+ * Returns an array of column header strings in sheet order, e.g.
+ * ['CONTROL #', 'SAMPLE', 'QTY', 'UNIT', …]
+ *
+ * Uses the schema webhook URL if configured, otherwise falls back to
+ * the liveSheet webhook URL (both return the same raw row data).
+ */
+export async function fetchSheetSchema(
+  sheetTab: string
+): Promise<string[]> {
+  const settings = getSettings();
+  const url = settings.webhookUrls.schema || settings.webhookUrls.liveSheet || '';
+
+  if (!url) {
+    console.warn('No schema webhook URL configured. Returning empty schema.');
+    return [];
+  }
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': import.meta.env.VITE_N8N_API_KEY || ''
+      },
+      body: JSON.stringify({
+        spreadsheetId: settings.spreadsheetId,
+        sheetTab,
+        schemaOnly: true,
+      }),
+    });
+
+    if (!response.ok) return [];
+
+    const text = await response.text();
+    if (!text) return [];
+
+    let rows: any[] = [];
+    try {
+      const parsed = JSON.parse(text);
+      if (Array.isArray(parsed?.value)) rows = parsed.value;
+      else if (Array.isArray(parsed)) rows = parsed;
+      else rows = [parsed];
+    } catch {
+      return [];
+    }
+
+    // Find the header row — the row that contains 'CONTROL' somewhere
+    for (const row of rows) {
+      const vals = Object.values(row);
+      const isHeaderRow = vals.some(
+        v => typeof v === 'string' && v.toUpperCase().includes('CONTROL')
+      );
+      if (isHeaderRow) {
+        return vals
+          .filter((v): v is string => typeof v === 'string' && v.trim() !== '')
+          .map(v => (v as string).trim());
+      }
+    }
+
+    return [];
+  } catch (error) {
+    console.error('fetchSheetSchema failed:', error);
+    return [];
+  }
+}

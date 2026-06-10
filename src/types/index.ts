@@ -92,11 +92,33 @@ export interface AppSettings {
     rawmats: string;
     sync?: string;
     liveSheet?: string;
+    schema?: string; // n8n get-sheet-schema endpoint
   };
   spreadsheetId: string;
   theme: 'light' | 'dark' | 'system';
   authMode: 'password' | 'pin';
   pin: string;
+  columnMappings?: {
+    envi?: ColumnMapping[];
+    water?: ColumnMapping[];
+    rawmats?: ColumnMapping[];
+  };
+}
+
+// ===== COLUMN MAPPING =====
+// Maps the webapp's internal "logical" field name to whatever the
+// current Google Sheet column header actually says.
+export interface ColumnMapping {
+  logicalName: string; // e.g. 'WATER SOURCE' — what the app calls it
+  sheetColumn: string; // e.g. 'WATER SUPPLY' — current name in the sheet
+}
+
+// Represents the live schema fetched from the sheet header row.
+export interface SheetSchema {
+  sampleType: SampleType;
+  sheetTab: string;
+  headers: string[];      // All column headers in order
+  fetchedAt: string;      // ISO timestamp
 }
 
 // ===== HISTORY =====

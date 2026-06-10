@@ -13,6 +13,7 @@ import { generateNextControlNumber } from '../utils/controlNumber';
 import { getSheetTabName } from '../utils/sheetMapping';
 import { addToQueue, addToHistory, getHighestControlNumberForSubmission } from '../utils/db';
 import { getUserName } from '../utils/auth';
+import { useSheetSchema, remapPayloadToLiveColumns } from '../hooks/useSheetSchema';
 import type { SampleType, EnviFormData, WaterFormData, RawMatsFormData, QueueItem, HistoryEntry } from '../types';
 
 import { useTheme } from '../hooks/useTheme';
@@ -25,8 +26,13 @@ export default function NewSample({ onQueueUpdate }: NewSampleProps) {
   const { theme, setTheme } = useTheme();
   const [searchParams] = useSearchParams();
   const [selectedType, setSelectedType] = useState<SampleType | null>(null);
+  const [currentDate] = useState(new Date().toISOString().split('T')[0]);
   const { showToast } = useToast();
   const isOnline = useOnlineStatus();
+
+  // Pre-fetch live column schema when a sample type is selected so the
+  // payload keys are remapped to whatever the current sheet headers say.
+  const { schema } = useSheetSchema(selectedType, currentDate, isOnline);
 
   useEffect(() => {
     const type = searchParams.get('type') as SampleType | null;
@@ -57,17 +63,30 @@ export default function NewSample({ onQueueUpdate }: NewSampleProps) {
       const sheetTab = getSheetTabName(formData.dateSampled, sampleType);
       const endpoint = sampleType === 'ENVI' ? 'envi' : sampleType === 'WATER' ? 'water' : 'rawmats';
 
-      const payload = {
-        ...formData,
+      const basePayload: Record<string, unknown> = {
+        ...(formData as unknown as Record<string, unknown>),
         controlNumber,
         sheetTab,
         sampleType,
       };
 
+      // Remap payload field names to live sheet column headers.
+      // This makes submission resilient to column renames in Google Sheets.
+      const liveHeaders = schema?.headers ?? [];
+      const payload = liveHeaders.length > 0
+        ? {
+            ...remapPayloadToLiveColumns(basePayload, liveHeaders),
+            // Always preserve meta fields n8n needs (not sheet columns)
+            controlNumber,
+            sheetTab,
+            sampleType,
+          }
+        : basePayload;
+
       if (!isOnline) {
         const queueItem = makeQueueItem(sampleType, formData, sampleName);
         queueItem.controlNumber = controlNumber;
-        // We overwrite formData in queueItem with full payload so retry has everything
+        // Store the remapped payload so retry sends the right column names too
         queueItem.formData = payload as any; 
         await addToQueue(queueItem);
         onQueueUpdate();

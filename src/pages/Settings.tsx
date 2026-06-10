@@ -1,16 +1,16 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { Save, Wifi, WifiOff, Trash2, Lock, Unlock, ShieldCheck, LogOut, RefreshCw } from 'lucide-react';
+import { Save, Wifi, WifiOff, Trash2, Lock, Unlock, ShieldCheck, LogOut, RefreshCw, AlertTriangle, CheckCircle2, Table2 } from 'lucide-react';
 import Header from '../components/Layout/Header';
 import TextInput from '../components/ui/TextInput';
 import Button from '../components/ui/Button';
 import { useToast } from '../components/ui/Toast';
 import { getSettings, saveSettings, saveSheetPreference, listenToSheetPreference } from '../utils/auth';
-import { testWebhookConnection, fetchHistoryFromSheet } from '../utils/api';
+import { testWebhookConnection, fetchHistoryFromSheet, fetchSheetSchema } from '../utils/api';
 import { clearHistory, clearQueue, importHistoryBatch } from '../utils/db';
 import { SPREADSHEETS } from '../data/constants';
-
+import { getSheetTabName } from '../utils/sheetMapping';
 import { useTheme } from '../hooks/useTheme';
 
 export default function Settings({ onLogout }: { onLogout?: () => void }) {
@@ -24,6 +24,17 @@ export default function Settings({ onLogout }: { onLogout?: () => void }) {
   const [showPasswordPrompt, setShowPasswordPrompt] = useState(false);
   const [testing, setTesting] = useState<string | null>(null);
   const [testResults, setTestResults] = useState<Record<string, boolean | null>>({});
+  const [schemaData, setSchemaData] = useState<Record<string, string[]>>({});
+  const [schemaLoading, setSchemaLoading] = useState<string | null>(null);
+
+  // Expected logical field names per sample type (used to detect renames)
+  const EXPECTED_FIELDS: Record<string, string[]> = {
+    ENVI: ['CONTROL #', 'SAMPLE', 'QTY', 'UNIT', 'DATE SWABBED', 'TIME SWABBED', 'SWABBED BY', 'DATE ANALYZED', 'ANALYZED BY', 'STATUS', 'REMARKS'],
+    WATER: ['CONTROL #', 'WATER SOURCE', 'QTY', 'UNIT', 'DATE SAMPLED', 'TIME', 'SAMPLED BY', 'DATE ANALYZED', 'ANALYZED BY', 'STATUS', 'REMARKS'],
+    RawMats: ['CONTROL #', 'TYPE', 'RFAF', 'MIXING BATCH #', 'CUC #', 'SAMPLE', 'SOURCE', 'QTY', 'UNIT', 'DATE RECEIVED/SAMPLED', 'TIME', 'RECEIVED BY', 'DATE ANALYZED', 'ANALYZED BY', 'STATUS', 'REMARKS'],
+  };
+
+  const today = new Date().toISOString().split('T')[0];
 
   const ADMIN_PASSWORD = 'uqRaRrb4rc7!';
 
@@ -50,6 +61,25 @@ export default function Settings({ onLogout }: { onLogout?: () => void }) {
   const handleSave = () => {
     saveSettings(settings);
     showToast('success', 'Settings Saved');
+  };
+
+  // Fetch the live column headers from the sheet for a given sample type
+  const handleFetchSchema = async (sampleType: 'ENVI' | 'WATER' | 'RawMats') => {
+    const sheetTab = getSheetTabName(today, sampleType);
+    setSchemaLoading(sampleType);
+    try {
+      const headers = await fetchSheetSchema(sheetTab);
+      if (headers.length > 0) {
+        setSchemaData(prev => ({ ...prev, [sampleType]: headers }));
+        showToast('success', 'Schema Loaded', `${headers.length} columns found in ${sheetTab}`);
+      } else {
+        showToast('warning', 'No Headers Found', 'Check your schema webhook URL or sheet tab name');
+      }
+    } catch {
+      showToast('error', 'Schema Fetch Failed', 'Could not read sheet headers');
+    } finally {
+      setSchemaLoading(null);
+    }
   };
 
   const handleTest = async (url: string, key: 'envi' | 'water' | 'rawmats') => {
@@ -167,6 +197,11 @@ export default function Settings({ onLogout }: { onLogout?: () => void }) {
                 <TextInput label="Live Sheet Webhook URL" value={settings.webhookUrls.liveSheet || ''} onChange={(v) => setSettings({ ...settings, webhookUrls: { ...settings.webhookUrls, liveSheet: v } })} />
                 <p className="text-xs text-[var(--text-muted)] italic mt-1">Optional: Used for the Live Sheet tab.</p>
               </div>
+
+              <div className="mt-4">
+                <TextInput label="Schema Webhook URL" value={(settings.webhookUrls as any).schema || ''} onChange={(v) => setSettings({ ...settings, webhookUrls: { ...settings.webhookUrls, schema: v } as any })} />
+                <p className="text-xs text-[var(--text-muted)] italic mt-1">Same as Live Sheet URL — used to read column headers for auto-mapping.</p>
+              </div>
             </div>
           </motion.div>
 
@@ -208,6 +243,95 @@ export default function Settings({ onLogout }: { onLogout?: () => void }) {
                 </p>
               </div>
             </div>
+          </motion.div>
+
+          {/* Column Mapping Health Check */}
+          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="glass rounded-2xl p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Table2 className="w-4 h-4 text-primary-500" />
+                <h4 className="text-sm font-semibold text-[var(--text-primary)] uppercase tracking-wider">Column Mapping Health</h4>
+              </div>
+              <span className="text-xs text-[var(--text-muted)]">Detects renamed columns</span>
+            </div>
+            <p className="text-xs text-[var(--text-secondary)]">
+              Click <strong>Check</strong> next to each sample type to read live column headers from your Google Sheet and verify nothing has been renamed.
+            </p>
+            {(['ENVI', 'WATER', 'RawMats'] as const).map((type) => {
+              const liveHeaders = schemaData[type] ?? [];
+              const expected = EXPECTED_FIELDS[type];
+              const mismatches = expected.filter(f => {
+                if (liveHeaders.length === 0) return false;
+                return !liveHeaders.some(h =>
+                  h === f ||
+                  h.toUpperCase() === f.toUpperCase() ||
+                  h.toLowerCase().includes(f.toLowerCase().split(' ')[0])
+                );
+              });
+              return (
+                <div key={type} className="border border-[var(--border-subtle)] rounded-xl p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-wider">{type}</span>
+                      {liveHeaders.length > 0 && mismatches.length === 0 && (
+                        <span className="flex items-center gap-1 text-xs text-emerald-400">
+                          <CheckCircle2 className="w-3.5 h-3.5" /> All columns matched
+                        </span>
+                      )}
+                      {liveHeaders.length > 0 && mismatches.length > 0 && (
+                        <span className="flex items-center gap-1 text-xs text-amber-400">
+                          <AlertTriangle className="w-3.5 h-3.5" /> {mismatches.length} possible rename(s)
+                        </span>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => handleFetchSchema(type)}
+                      disabled={schemaLoading === type}
+                      className="flex items-center gap-1.5 text-xs font-semibold text-primary-500 hover:text-primary-400 disabled:opacity-50 transition-colors"
+                    >
+                      <RefreshCw className={`w-3 h-3 ${schemaLoading === type ? 'animate-spin' : ''}`} />
+                      {schemaLoading === type ? 'Checking…' : 'Check'}
+                    </button>
+                  </div>
+
+                  {/* Live headers as colour-coded pills */}
+                  {liveHeaders.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {liveHeaders.map((h) => {
+                        const isExpected = expected.some(f =>
+                          h === f ||
+                          h.toUpperCase() === f.toUpperCase() ||
+                          h.toLowerCase().includes(f.toLowerCase().split(' ')[0])
+                        );
+                        return (
+                          <span
+                            key={h}
+                            className={`px-2 py-0.5 rounded-md text-[11px] font-medium border ${
+                              isExpected
+                                ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-300'
+                                : 'bg-amber-500/10 border-amber-500/20 text-amber-300'
+                            }`}
+                          >
+                            {h}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* Mismatch warnings */}
+                  {mismatches.length > 0 && (
+                    <div className="mt-2 space-y-1">
+                      {mismatches.map(f => (
+                        <p key={f} className="text-[11px] text-amber-400">
+                          ⚠ <strong>{f}</strong> not found — column may have been renamed. n8n will still try keyword-matching.
+                        </p>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </motion.div>
 
           {/* Danger zone */}
