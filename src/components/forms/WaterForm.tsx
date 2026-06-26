@@ -3,8 +3,10 @@ import { motion } from 'framer-motion';
 import { Send, ArrowLeft } from 'lucide-react';
 import { DatePicker, TimePicker } from '../ui/TextInput';
 import Dropdown from '../ui/Dropdown';
+import ComboBox from '../ui/ComboBox';
 import Button from '../ui/Button';
 import { PERSONNEL } from '../../data/personnelData';
+import { getWaterSamplers } from '../../hooks/usePersonnel';
 import { STATUS_OPTIONS, WATER_SOURCES } from '../../data/constants';
 import type { WaterFormData, WaterSource } from '../../types';
 
@@ -103,7 +105,14 @@ export default function WaterForm({ onSubmit, onBack }: WaterFormProps) {
         <motion.div variants={fadeUp} className="glass rounded-2xl p-5 space-y-4">
           <h4 className="text-sm font-semibold text-[var(--text-primary)] uppercase tracking-wider">Details</h4>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Dropdown label="Sampled By" value={form.sampledBy} options={PERSONNEL} onChange={(v) => setForm({ ...form, sampledBy: v })} required />
+            <ComboBox
+              label="Sampled By"
+              value={form.sampledBy}
+              options={getWaterSamplers()}
+              onChange={(v) => setForm({ ...form, sampledBy: v })}
+              customPlaceholder="Type sampler name..."
+              required
+            />
             <DatePicker label="Date Analyzed" value={form.dateAnalyzed} onChange={(v) => setForm({ ...form, dateAnalyzed: v })} />
             <Dropdown label="Analyzed By" value={form.analyzedBy} options={PERSONNEL} onChange={(v) => setForm({ ...form, analyzedBy: v })} />
             <Dropdown label="Status" value={form.status} options={STATUS_OPTIONS} onChange={(v) => setForm({ ...form, status: v as any })} />

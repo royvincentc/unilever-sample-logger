@@ -8,7 +8,7 @@ import WaterForm from '../components/forms/WaterForm';
 import RawMatsForm from '../components/forms/RawMatsForm';
 import { useToast } from '../components/ui/Toast';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
-import { sendToWebhook } from '../utils/api';
+import { sendToWebhook, analyseSheetForSubmission } from '../utils/api';
 import { generateNextControlNumber } from '../utils/controlNumber';
 import { getSheetTabName } from '../utils/sheetMapping';
 import { addToQueue, addToHistory, getHighestControlNumberForSubmission } from '../utils/db';
@@ -57,17 +57,43 @@ export default function NewSample({ onQueueUpdate }: NewSampleProps) {
     sampleName: string
   ) => {
     try {
-      // Await the highest control number from the sheets (or local fallback), then generate next based on it
-      const highestControl = await getHighestControlNumberForSubmission(sampleType, formData.dateSampled, isOnline);
-      const controlNumber = generateNextControlNumber(sampleType, highestControl, formData.dateSampled);
       const sheetTab = getSheetTabName(formData.dateSampled, sampleType);
       const endpoint = sampleType === 'ENVI' ? 'envi' : sampleType === 'WATER' ? 'water' : 'rawmats';
+
+      // For WATER and RawMats: one sheet read returns both the incomplete row
+      // control number AND the highest existing number — no double fetch.
+      let controlNumber: string;
+      let isUpdate = false;
+
+      if (isOnline && (sampleType === 'WATER' || sampleType === 'RawMats')) {
+        const { incompleteControlNumber, highestControlNumber } =
+          await analyseSheetForSubmission(sampleType as 'WATER' | 'RawMats', sheetTab);
+
+        if (incompleteControlNumber) {
+          // Reuse the pre-existing blank row's control number
+          const year = formData.dateSampled.slice(2, 4);
+          if (sampleType === 'WATER' && !incompleteControlNumber.startsWith('W')) {
+            controlNumber = `W${year}-${incompleteControlNumber.split('-').pop()!.padStart(3, '0')}`;
+          } else {
+            controlNumber = incompleteControlNumber;
+          }
+          isUpdate = true;
+        } else {
+          // No blank row found — generate the next sequential control number
+          controlNumber = generateNextControlNumber(sampleType, highestControlNumber, formData.dateSampled);
+        }
+      } else {
+        // ENVI or offline — fall back to local DB lookup
+        const highestControl = await getHighestControlNumberForSubmission(sampleType, formData.dateSampled, isOnline);
+        controlNumber = generateNextControlNumber(sampleType, highestControl, formData.dateSampled);
+      }
 
       const basePayload: Record<string, unknown> = {
         ...(formData as unknown as Record<string, unknown>),
         controlNumber,
         sheetTab,
         sampleType,
+        isUpdate,
       };
 
       // Remap payload field names to live sheet column headers.
@@ -80,6 +106,7 @@ export default function NewSample({ onQueueUpdate }: NewSampleProps) {
             controlNumber,
             sheetTab,
             sampleType,
+            isUpdate,
           }
         : basePayload;
 

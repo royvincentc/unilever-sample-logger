@@ -336,59 +336,59 @@ let lastNum = 0;
 for (const item of existingRows) {
   const rowData = item.json;
   const controlCol = rowData['CONTROL #'] || '';
-  const sampleVal = rowData['SAMPLE'] || '';
+  const typeVal   = (rowData['TYPE']   || '').toString().trim();
+  const sampleVal = (rowData['SAMPLE'] || '').toString().trim();
 
-  // Track highest control number in the sheet (regex handles legacy RM-26-XXX, RM26-XXX, and clean 26-XXX)
+  // Track highest control number in the sheet
+  // Handles: RM-26-001, RM26-001, 26-001
   const match = controlCol.match(/(?:RM)?-?(\d+)-(\d+)/i);
   if (match) {
     const num = parseInt(match[2], 10);
     if (num > lastNum) lastNum = num;
   }
 
-  // Find first row where CONTROL # is pre-filled but SAMPLE is empty (confirm no data in Column F)
-  if (!targetRow && controlCol.toString().trim() !== '' && sampleVal.toString().trim() === '') {
+  // Target a row if it has a CONTROL # but TYPE *or* SAMPLE is blank
+  if (!targetRow && controlCol.toString().trim() !== '' && (typeVal === '' || sampleVal === '')) {
     targetRow = item;
   }
 }
 
-// Use existing empty row's control number if available, otherwise generate new
+// Use existing incomplete row's control number, otherwise generate new
 let controlNumber;
 if (targetRow) {
-  const rawControl = targetRow.json['CONTROL #'] || '';
-  controlNumber = rawControl.replace(/^RM-?/i, '');
+  const rawControl = (targetRow.json['CONTROL #'] || '').toString();
+  controlNumber = rawControl.replace(/^RM-?/i, '').trim();
 }
 if (!controlNumber) {
   if (lastNum > 0) {
-    // If the sheet already has control numbers, increment from the highest one
-    const nextNum = lastNum + 1;
-    controlNumber = `${inputData.year}-${String(nextNum).padStart(3, '0')}`;
+    controlNumber = `${inputData.year}-${String(lastNum + 1).padStart(3, '0')}`;
   } else if (inputData.controlNumber) {
-    // If the sheet is empty, fall back to the webapp's calculated sequence to carry over across months
-    controlNumber = inputData.controlNumber.replace(/^RM-?/i, '');
+    controlNumber = inputData.controlNumber.toString().replace(/^RM-?/i, '').trim();
   } else {
-    // Default fallback
     controlNumber = `${inputData.year}-001`;
   }
 }
 
 return [{
   json: {
-    'CONTROL #':      controlNumber,
-    'TYPE':           inputData.type,
-    'RFAF':           inputData.rfaf || '',
-    'MIXING BATCH #': inputData.mixingBatchNo || '',
-    'CUC #':          inputData.cucNo || '',
-    'SAMPLE':         inputData.sample,
-    'SOURCE':         inputData.source,
-    'QTY':            inputData.qty || '',
-    'UNIT':           inputData.unit || '',
-    'DATE RECEIVED/SAMPLED': inputData.dateSampled,
-    'TIME':           inputData.timeSampled,
-    'RECEIVED BY':    inputData.receivedBy || '',
-    'DATE ANALYZED':  inputData.dateAnalyzed || '',
-    'ANALYZED BY':    inputData.analyzedBy || '',
-    'STATUS':         'ON GOING',
-    'REMARKS':        inputData.remarks || '',
+    'CONTROL #':             controlNumber,
+    'RFAF':                  inputData.rfaf           || '',
+    'MIXING BATCH #':        inputData.mixingBatchNo  || '',
+    'CUC #':                 inputData.cucNo          || '',
+    'TYPE':                  inputData.type           || '',
+    'SAMPLE':                inputData.sample         || '',
+    'SOURCE':                inputData.source         || '',
+    'QTY':                   inputData.qty            || '',
+    'UNIT':                  inputData.unit           || '',
+    'DATE RECEIVED/SAMPLED': inputData.dateSampled    || '',
+    'TIME':                  inputData.timeSampled    || '',
+    'RECEIVED BY':           inputData.receivedBy     || '',
+    'DATE ANALYZED':         inputData.dateAnalyzed   || '',
+    'ANALYZED BY':           inputData.analyzedBy     || '',
+    'STATUS':                inputData.status         || 'ON GOING',
+    'DATE RELEASED':         '',
+    'RELEASED BY':           '',
+    'REMARKS':               inputData.remarks        || '',
   }
 }];
 ```

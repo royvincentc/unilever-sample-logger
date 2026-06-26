@@ -80,6 +80,137 @@ export async function sendToWebhook(
 }
 
 /**
+ * Single sheet fetch that returns BOTH:
+ *   - incompleteControlNumber: a row that has a control # but blank critical fields
+ *   - highestControlNumber:    the highest-sequenced control # already in the sheet
+ *
+ * Replaces the previous two separate fetches (findIncompleteControlNumber +
+ * getHighestControlNumberFromSheet) so pre-submission only needs ONE n8n read call.
+ *
+ * Critical fields checked:
+ *   WATER   → WATER SOURCE blank
+ *   RawMats → TYPE or SAMPLE blank
+ */
+export async function analyseSheetForSubmission(
+  sampleType: 'WATER' | 'RawMats',
+  sheetTab: string
+): Promise<{ incompleteControlNumber: string | null; highestControlNumber: string | null }> {
+  const empty = { incompleteControlNumber: null, highestControlNumber: null };
+  const settings = getSettings();
+  const url = settings.webhookUrls.liveSheet || 'https://n8n-royvincentc.onrender.com/webhook/get-sheet-data';
+
+  if (!url) return empty;
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': import.meta.env.VITE_N8N_API_KEY || '',
+      },
+      body: JSON.stringify({ spreadsheetId: settings.spreadsheetId, sheetTab }),
+    });
+
+    if (!response.ok) return empty;
+
+    const text = await response.text();
+    if (!text) return empty;
+
+    let rows: any[] = [];
+    try {
+      const parsed = JSON.parse(text);
+      if (parsed && Array.isArray(parsed.value)) rows = parsed.value;
+      else if (Array.isArray(parsed)) rows = parsed;
+      else rows = [parsed];
+    } catch {
+      return empty;
+    }
+
+    // Locate and normalise header row
+    const headerRowIndex = rows.findIndex(row =>
+      Object.values(row).some(
+        v => typeof v === 'string' && (v.toUpperCase().includes('CONTROL') || v.toUpperCase().includes('STATUS'))
+      )
+    );
+
+    let dataRows: any[] = rows;
+    if (headerRowIndex !== -1) {
+      const headerRow = rows[headerRowIndex];
+      const headerMap: Record<string, string> = {};
+      for (const [k, v] of Object.entries(headerRow)) {
+        headerMap[k] = typeof v === 'string' ? v.trim() : k;
+      }
+      dataRows = rows.slice(headerRowIndex + 1).map(row => {
+        const out: any = {};
+        for (const [k, v] of Object.entries(row)) {
+          out[headerMap[k] || k] = v;
+        }
+        return out;
+      });
+    }
+
+    const getControl = (row: any): string => {
+      const raw = String(
+        row['CONTROL #'] || row['control #'] || row['Control #'] ||
+        row['controlnumber'] || row['control'] || row['CONTROL'] || ''
+      ).trim();
+      return sampleType === 'RawMats' ? raw.replace(/^RM-?/i, '') : raw;
+    };
+
+    const isEmpty = (v: any): boolean => {
+      const s = String(v ?? '').trim();
+      return s === '' || s === '-' || s.toLowerCase() === 'undefined' || s.toLowerCase() === 'null';
+    };
+
+    const incompleteList: string[] = [];
+    let lastNum = 0;
+    let foundYear = '';
+
+    for (const row of dataRows) {
+      const ctrl = getControl(row);
+      if (!ctrl) continue;
+
+      // Track highest sequence number across ALL rows
+      const match = ctrl.match(/(?:[EW]?\d{2}-)?(\d{2})-(\d+)/i) || ctrl.match(/^(\d{2})-(\d+)$/);
+      if (match) {
+        foundYear = match[1];
+        const num = parseInt(match[2], 10);
+        if (num > lastNum) lastNum = num;
+      }
+
+      // Detect incomplete rows (control # exists but critical data missing)
+      if (sampleType === 'WATER') {
+        const waterSource =
+          row['WATER SOURCE'] || row['Water Source'] || row['water source'] ||
+          row['WATERSOURCE'] || row['watersource'] || '';
+        if (isEmpty(waterSource)) incompleteList.push(ctrl);
+      } else {
+        const type   = row['TYPE']   || row['Type']   || row['type']   || '';
+        const sample = row['SAMPLE'] || row['Sample'] || row['sample'] || '';
+        if (isEmpty(type) || isEmpty(sample)) incompleteList.push(ctrl);
+      }
+    }
+
+    // Highest incomplete (by sequence)
+    incompleteList.sort((a, b) =>
+      parseInt(b.split('-').pop() || '0', 10) - parseInt(a.split('-').pop() || '0', 10)
+    );
+
+    const highestControlNumber = lastNum > 0
+      ? `${foundYear || new Date().getFullYear().toString().slice(-2)}-${String(lastNum).padStart(3, '0')}`
+      : null;
+
+    return {
+      incompleteControlNumber: incompleteList[0] ?? null,
+      highestControlNumber,
+    };
+  } catch (e) {
+    console.warn('analyseSheetForSubmission failed:', e);
+    return empty;
+  }
+}
+
+/**
  * Test webhook connectivity.
  * Tries POST first, falls back to no-cors mode for basic reachability check.
  */

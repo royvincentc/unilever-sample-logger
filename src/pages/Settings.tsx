@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { Save, Wifi, WifiOff, Trash2, Lock, Unlock, ShieldCheck, LogOut, RefreshCw, AlertTriangle, CheckCircle2, Table2 } from 'lucide-react';
+import PersonnelEditor from '../components/settings/PersonnelEditor';
 import Header from '../components/Layout/Header';
 import TextInput from '../components/ui/TextInput';
 import Button from '../components/ui/Button';
@@ -333,6 +334,9 @@ export default function Settings({ onLogout }: { onLogout?: () => void }) {
               );
             })}
           </motion.div>
+
+          {/* Personnel Editor */}
+          <PersonnelEditor />
 
           {/* Danger zone */}
           <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="glass rounded-2xl p-5 space-y-4">
