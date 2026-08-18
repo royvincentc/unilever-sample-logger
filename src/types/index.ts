@@ -1,5 +1,5 @@
 // ===== SAMPLE TYPES =====
-export type SampleType = 'ENVI' | 'WATER' | 'RawMats';
+export type SampleType = 'ENVI' | 'WATER' | 'RawMats' | 'AIR';
 
 // ===== STATUS =====
 export type SampleStatus = 'ONGOING' | 'ON GOING' | 'PENDING RELEASE' | 'RELEASED' | 'COMPLETED' | '';
@@ -29,6 +29,7 @@ export interface EnviFormData {
   dateAnalyzed: string;
   analyzedBy: string;
   status: SampleStatus;
+  endorsedTo?: string;
   remarks?: string;
 }
 
@@ -43,6 +44,7 @@ export interface WaterFormData {
   dateAnalyzed: string;
   analyzedBy: string;
   status: SampleStatus;
+  endorsedTo?: string;
   remarks?: string;
 }
 
@@ -65,6 +67,34 @@ export interface RawMatsFormData {
   dateAnalyzed: string;
   analyzedBy: string;
   status: SampleStatus;
+  endorsedTo?: string;
+  remarks?: string;
+}
+
+// ===== AIR =====
+export type AirMethod = 'ACTIVE' | 'PASSIVE';
+export type AirSamplingPoint = 
+  | 'Compounding Area: Corner 1' 
+  | 'Compounding Area: Corner 2' 
+  | 'Compounding Area: Corner 3' 
+  | 'Compounding Area: Corner 4' 
+  | 'Compounding Area: Center' 
+  | 'Compounding Area: Main Mixing Tank Center'
+  | 'Filling Area: Akash 1 - Near Nozzle'
+  | 'Filling Area: Akash 1 - Near Packaging'
+  | 'Filling Area: Akash 2 - Near Nozzle'
+  | 'Filling Area: Akash 2 - Near Packaging'
+  | 'Filling Area: Leepack - Near Nozzle'
+  | 'Filling Area: Leepack - Near Packaging'
+  | 'Dispensary Area: Center';
+
+export interface AirFormData {
+  method: AirMethod | '';
+  samplingPoint: AirSamplingPoint | '';
+  dateSampled: string;
+  timeSampled: string;
+  performedBy: string;
+  status: SampleStatus;
   remarks?: string;
 }
 
@@ -74,7 +104,7 @@ export type QueueItemStatus = 'queued' | 'sending' | 'success' | 'failed';
 export interface QueueItem {
   id: string;
   sampleType: SampleType;
-  formData: EnviFormData | WaterFormData | RawMatsFormData;
+  formData: EnviFormData | WaterFormData | RawMatsFormData | AirFormData;
   status: QueueItemStatus;
   createdAt: string;
   lastAttempt?: string;
@@ -133,5 +163,7 @@ export interface HistoryEntry {
   status: SampleStatus;
   submittedAt: string;
   submittedBy: string;
+  endorsedTo?: string;
+  sheetAnalyst?: string; // Add synced analyst from Google Sheet
   results?: any; // To store the logged results
 }

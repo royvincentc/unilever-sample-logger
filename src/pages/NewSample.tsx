@@ -6,6 +6,7 @@ import SampleTypeSelector from '../components/forms/SampleTypeSelector';
 import EnviForm from '../components/forms/EnviForm';
 import WaterForm from '../components/forms/WaterForm';
 import RawMatsForm from '../components/forms/RawMatsForm';
+import AirForm from '../components/forms/AirForm';
 import { useToast } from '../components/ui/Toast';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { sendToWebhook, analyseSheetForSubmission } from '../utils/api';
@@ -14,7 +15,7 @@ import { getSheetTabName } from '../utils/sheetMapping';
 import { addToQueue, addToHistory, getHighestControlNumberForSubmission } from '../utils/db';
 import { getUserName } from '../utils/auth';
 import { useSheetSchema, remapPayloadToLiveColumns } from '../hooks/useSheetSchema';
-import type { SampleType, EnviFormData, WaterFormData, RawMatsFormData, QueueItem, HistoryEntry } from '../types';
+import type { SampleType, EnviFormData, WaterFormData, RawMatsFormData, AirFormData, QueueItem, HistoryEntry } from '../types';
 
 import { useTheme } from '../hooks/useTheme';
 
@@ -36,12 +37,12 @@ export default function NewSample({ onQueueUpdate }: NewSampleProps) {
 
   useEffect(() => {
     const type = searchParams.get('type') as SampleType | null;
-    if (type && ['ENVI', 'WATER', 'RawMats'].includes(type)) {
+    if (type && ['ENVI', 'WATER', 'RawMats', 'AIR'].includes(type)) {
       setSelectedType(type);
     }
   }, [searchParams]);
 
-  const makeQueueItem = (sampleType: SampleType, formData: EnviFormData | WaterFormData | RawMatsFormData, sampleName: string): QueueItem => ({
+  const makeQueueItem = (sampleType: SampleType, formData: EnviFormData | WaterFormData | RawMatsFormData | AirFormData, sampleName: string): QueueItem => ({
     id: Date.now().toString() + Math.random().toString(36).slice(2),
     sampleType,
     formData,
@@ -53,21 +54,22 @@ export default function NewSample({ onQueueUpdate }: NewSampleProps) {
 
   const submitSample = async (
     sampleType: SampleType,
-    formData: EnviFormData | WaterFormData | RawMatsFormData,
+    formData: EnviFormData | WaterFormData | RawMatsFormData | AirFormData,
     sampleName: string
   ) => {
     try {
-      const sheetTab = getSheetTabName(formData.dateSampled, sampleType);
-      const endpoint = sampleType === 'ENVI' ? 'envi' : sampleType === 'WATER' ? 'water' : 'rawmats';
+      const subType = sampleType === 'RawMats' ? (formData as RawMatsFormData).type : undefined;
+      const sheetTab = getSheetTabName(sampleType, subType);
+      const endpoint = sampleType === 'ENVI' ? 'envi' : sampleType === 'WATER' ? 'water' : sampleType === 'AIR' ? 'air' : 'rawmats';
 
-      // For WATER and RawMats: one sheet read returns both the incomplete row
+      // For WATER, RawMats, and AIR: one sheet read returns both the incomplete row
       // control number AND the highest existing number — no double fetch.
       let controlNumber: string;
       let isUpdate = false;
 
-      if (isOnline && (sampleType === 'WATER' || sampleType === 'RawMats')) {
+      if (isOnline && (sampleType === 'WATER' || sampleType === 'RawMats' || sampleType === 'AIR')) {
         const { incompleteControlNumber, highestControlNumber } =
-          await analyseSheetForSubmission(sampleType as 'WATER' | 'RawMats', sheetTab);
+          await analyseSheetForSubmission(sampleType as 'WATER' | 'RawMats' | 'AIR', sheetTab);
 
         if (incompleteControlNumber) {
           // Reuse the pre-existing blank row's control number
@@ -94,6 +96,13 @@ export default function NewSample({ onQueueUpdate }: NewSampleProps) {
         sheetTab,
         sampleType,
         isUpdate,
+        // Ensure sample name is available for mapping
+        sample: sampleName,
+        // For ENVI, join categories so it's a string, just in case they add a category column
+        category: (formData as any).categories ? (formData as any).categories.join(', ') : undefined,
+        // Default QTY and UNIT as seen in the spreadsheet format
+        ...(sampleType === 'ENVI' ? { qty: '1', unit: 'swab' } : {}),
+        ...(sampleType === 'WATER' ? { qty: '1', unit: 'bottle' } : {}),
       };
 
       // Remap payload field names to live sheet column headers.
@@ -170,8 +179,14 @@ export default function NewSample({ onQueueUpdate }: NewSampleProps) {
   };
 
   const handleEnviSubmit = async (data: EnviFormData) => {
-    const name = `${data.categories.join(', ')} - ${data.selectedSamples.length} samples`;
-    await submitSample('ENVI', data, name);
+    // We must submit a separate row for EACH selected sample so they get unique control numbers
+    const total = data.selectedSamples.length;
+    if (total === 0) return;
+
+    for (let i = 0; i < total; i++) {
+      const sample = data.selectedSamples[i];
+      await submitSample('ENVI', data, sample);
+    }
   };
 
   const handleWaterSubmit = async (data: WaterFormData) => {
@@ -180,6 +195,12 @@ export default function NewSample({ onQueueUpdate }: NewSampleProps) {
 
   const handleRawMatsSubmit = async (data: RawMatsFormData) => {
     await submitSample('RawMats', data, data.sample);
+  };
+
+  const handleAirSubmit = async (data: AirFormData) => {
+    // We construct a descriptive name for the sample history tab.
+    const name = `${data.method} - ${data.samplingPoint}`;
+    await submitSample('AIR', data, name);
   };
 
   return (
@@ -217,7 +238,7 @@ export default function NewSample({ onQueueUpdate }: NewSampleProps) {
             >
               <WaterForm onSubmit={handleWaterSubmit} onBack={() => setSelectedType(null)} />
             </motion.div>
-          ) : (
+          ) : selectedType === 'RawMats' ? (
             <motion.div
               key="rawmats"
               initial={{ opacity: 0, x: 20 }}
@@ -226,6 +247,16 @@ export default function NewSample({ onQueueUpdate }: NewSampleProps) {
               transition={{ duration: 0.2 }}
             >
               <RawMatsForm onSubmit={handleRawMatsSubmit} onBack={() => setSelectedType(null)} />
+            </motion.div>
+          ) : (
+            <motion.div
+              key="air"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 20 }}
+              transition={{ duration: 0.2 }}
+            >
+              <AirForm onSubmit={handleAirSubmit} onBack={() => setSelectedType(null)} />
             </motion.div>
           )}
         </AnimatePresence>

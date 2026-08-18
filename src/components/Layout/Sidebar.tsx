@@ -16,7 +16,7 @@ import {
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/new', icon: PlusCircle, label: 'New Sample' },
-  { to: '/queue', icon: ListTodo, label: 'Queue' },
+  { to: '/queue', icon: ListTodo, label: 'Offline Queue' },
   { to: '/history', icon: Clock, label: 'History' },
   { to: '/live', icon: FileSpreadsheet, label: 'Live Sheet' },
   { to: '/results', icon: FileText, label: 'Reports' },
@@ -33,35 +33,34 @@ interface SidebarProps {
 export default function Sidebar({ onLogout, queueCount }: SidebarProps) {
   return (
     <aside
-      className="hidden lg:flex flex-col w-64 h-screen fixed left-0 top-0
-                 bg-[var(--bg-sidebar)] backdrop-blur-xl border-r border-[var(--border-subtle)]
-                 z-40"
+      className="hidden lg:flex flex-col w-[280px] h-screen fixed left-0 top-0
+                 bg-transparent border-r border-[var(--border-subtle)] z-40"
     >
       {/* Logo */}
-      <div className="flex items-center gap-3 px-6 py-6 border-b border-[var(--border-subtle)]">
-        <div className="w-10 h-10 rounded-xl bg-[#00529b] overflow-hidden p-1.5 flex items-center justify-center shadow-lg border border-white/20">
+      <div className="flex items-center gap-4 px-8 py-8">
+        <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-[#00529b] to-[#00386b] overflow-hidden p-1.5 flex items-center justify-center shadow-2xl">
           <img src="/unilever-logo.png" alt="Unilever" className="w-full h-full object-contain brightness-0 invert" />
         </div>
         <div>
-          <h1 className="text-base font-bold text-[var(--text-primary)] leading-tight">Unilever Dashboard</h1>
-          <p className="text-[10px] text-[var(--text-muted)] font-bold uppercase tracking-widest">QC Microbiology</p>
+          <h1 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-widest">Dashboard</h1>
+          <p className="text-[10px] text-[var(--text-muted)] font-bold uppercase tracking-widest">QC Micro</p>
         </div>
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+      <nav className="flex-1 px-4 py-4 space-y-2 overflow-y-auto custom-scrollbar">
         {navItems.map((item) => (
           <NavLink
             key={item.to}
             to={item.to}
             end={item.to === '/'}
             className={({ isActive }) => `
-              flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium
-              transition-all duration-200 group relative
+              flex items-center gap-4 px-4 py-3 rounded-2xl text-sm font-bold tracking-wide
+              transition-all duration-300 group relative overflow-hidden
               ${
                 isActive
-                  ? 'bg-primary-500/10 text-primary-500'
-                  : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]'
+                  ? 'text-primary-500 bg-primary-500/10'
+                  : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]'
               }
             `}
           >
@@ -70,14 +69,14 @@ export default function Sidebar({ onLogout, queueCount }: SidebarProps) {
                 {isActive && (
                   <motion.div
                     layoutId="sidebar-active"
-                    className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 rounded-r-full bg-primary-500"
+                    className="absolute inset-0 rounded-2xl border border-primary-500/20"
                     transition={{ type: 'spring', stiffness: 300, damping: 25 }}
                   />
                 )}
-                <item.icon className="w-5 h-5" />
-                <span>{item.label}</span>
+                <item.icon className={`w-5 h-5 transition-transform duration-300 ${isActive ? 'scale-110' : 'group-hover:scale-110'}`} />
+                <span className="relative z-10">{item.label}</span>
                 {item.to === '/queue' && queueCount > 0 && (
-                  <span className="ml-auto bg-danger-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center font-bold">
+                  <span className="ml-auto bg-warning-500 text-white text-[10px] w-5 h-5 rounded-full flex items-center justify-center font-black relative z-10 shadow-lg shadow-warning-500/30">
                     {queueCount}
                   </span>
                 )}
@@ -88,15 +87,15 @@ export default function Sidebar({ onLogout, queueCount }: SidebarProps) {
       </nav>
 
       {/* Logout */}
-      <div className="px-3 py-4 border-t border-[var(--border-subtle)]">
+      <div className="px-4 py-6">
         <button
           onClick={onLogout}
-          className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium
-                     text-[var(--text-secondary)] hover:bg-danger-500/10 hover:text-danger-500
-                     transition-all duration-200 w-full cursor-pointer"
+          className="flex items-center justify-center gap-3 px-4 py-3 rounded-2xl text-sm font-bold
+                     text-[var(--text-secondary)] hover:bg-danger-500 hover:text-white
+                     transition-all duration-300 w-full cursor-pointer shadow-none hover:shadow-xl hover:shadow-danger-500/30 group"
         >
-          <LogOut className="w-5 h-5" />
-          <span>Logout</span>
+          <LogOut className="w-5 h-5 transition-transform group-hover:-translate-x-1" />
+          <span>Sign Out</span>
         </button>
       </div>
     </aside>

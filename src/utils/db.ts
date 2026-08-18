@@ -15,7 +15,7 @@ import {
   writeBatch
 } from 'firebase/firestore';
 import { fetchLiveSheetData } from './api';
-import { getSheetTabName, getPreviousMonthSheetTabName } from './sheetMapping';
+import { getSheetTabName } from './sheetMapping';
 
 const DB_NAME = 'SampleLoggerDB';
 const DB_VERSION = 2; // Incremented version to ensure fresh DB structure if needed
@@ -213,8 +213,20 @@ export async function getHighestLocalControlNumber(sampleType: string, dateStr: 
 }
 
 export async function clearHistory(): Promise<void> {
-  // Now deprecated as local history is removed
-  console.warn("clearHistory called, but local history cache is deprecated.");
+  try {
+    const snapshot = await getDocs(collection(firestore, 'history'));
+    const batch = writeBatch(firestore);
+    
+    snapshot.docs.forEach((document) => {
+      batch.delete(document.ref);
+    });
+    
+    await batch.commit();
+    console.log(`Cleared ${snapshot.docs.length} items from history.`);
+  } catch (e) {
+    console.error('Failed to clear history:', e);
+    throw e;
+  }
 }
 
 export interface IssueReport {
@@ -296,16 +308,14 @@ async function getHighestControlNumberFromSheet(sheetTab: string, sampleType: Sa
 
 export async function getHighestControlNumberFromSheets(
   sampleType: SampleType,
-  dateStr: string
+  dateStr: string,
+  subType?: string
 ): Promise<string | null> {
-  const currentTab = getSheetTabName(dateStr, sampleType);
+  const currentTab = getSheetTabName(sampleType, subType);
   const highestCurrent = await getHighestControlNumberFromSheet(currentTab, sampleType);
   if (highestCurrent) return highestCurrent;
-
-  // Try the previous month if current month is empty
-  const prevTab = getPreviousMonthSheetTabName(dateStr, sampleType);
-  const highestPrev = await getHighestControlNumberFromSheet(prevTab, sampleType);
-  return highestPrev;
+  
+  return null;
 }
 
 export async function getHighestControlNumberForSubmission(

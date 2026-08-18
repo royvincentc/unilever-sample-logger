@@ -30,9 +30,9 @@ export default function Settings({ onLogout }: { onLogout?: () => void }) {
 
   // Expected logical field names per sample type (used to detect renames)
   const EXPECTED_FIELDS: Record<string, string[]> = {
-    ENVI: ['CONTROL #', 'SAMPLE', 'QTY', 'UNIT', 'DATE SWABBED', 'TIME SWABBED', 'SWABBED BY', 'DATE ANALYZED', 'ANALYZED BY', 'STATUS', 'REMARKS'],
-    WATER: ['CONTROL #', 'WATER SOURCE', 'QTY', 'UNIT', 'DATE SAMPLED', 'TIME', 'SAMPLED BY', 'DATE ANALYZED', 'ANALYZED BY', 'STATUS', 'REMARKS'],
-    RawMats: ['CONTROL #', 'TYPE', 'RFAF', 'MIXING BATCH #', 'CUC #', 'SAMPLE', 'SOURCE', 'QTY', 'UNIT', 'DATE RECEIVED/SAMPLED', 'TIME', 'RECEIVED BY', 'DATE ANALYZED', 'ANALYZED BY', 'STATUS', 'REMARKS'],
+    ENVI: ['CONTROL #', 'SAMPLE', 'QTY', 'UNIT', 'DATE SWABBED', 'TIME SWABBED', 'SWABBED BY', 'ENDORSED TO', 'DATE ANALYZED', 'ANALYZED BY', 'STATUS', 'REMARKS'],
+    WATER: ['CONTROL #', 'WATER SOURCE', 'QTY', 'UNIT', 'DATE SAMPLED', 'TIME', 'SAMPLED BY', 'ENDORSED TO', 'DATE ANALYZED', 'ANALYZED BY', 'STATUS', 'REMARKS'],
+    RawMats: ['CONTROL #', 'TYPE', 'RFAF', 'MIXING BATCH #', 'CUC #', 'SAMPLE', 'SOURCE', 'QTY', 'UNIT', 'DATE RECEIVED/SAMPLED', 'TIME', 'RECEIVED BY', 'ENDORSED TO', 'DATE ANALYZED', 'ANALYZED BY', 'STATUS', 'REMARKS'],
   };
 
   const today = new Date().toISOString().split('T')[0];
@@ -66,7 +66,7 @@ export default function Settings({ onLogout }: { onLogout?: () => void }) {
 
   // Fetch the live column headers from the sheet for a given sample type
   const handleFetchSchema = async (sampleType: 'ENVI' | 'WATER' | 'RawMats') => {
-    const sheetTab = getSheetTabName(today, sampleType);
+    const sheetTab = getSheetTabName(sampleType);
     setSchemaLoading(sampleType);
     try {
       const headers = await fetchSheetSchema(sheetTab);
@@ -392,10 +392,9 @@ export default function Settings({ onLogout }: { onLogout?: () => void }) {
                 onClick={async () => {
                   setIsSyncing(true);
                   try {
-                    const sheetHistory = await fetchHistoryFromSheet();
-                    if (sheetHistory.length > 0) {
-                      await importHistoryBatch(sheetHistory);
-                      showToast('success', 'Sync Complete!', 'Cloud data merged with local history.');
+                    const updatedIds = await fetchHistoryFromSheet();
+                    if (updatedIds.length > 0) {
+                      showToast('success', 'Sync Complete!', `Synced ${updatedIds.length} items with cloud.`);
                     } else {
                       showToast('warning', 'No data found', 'No items in cloud.');
                     }
@@ -410,6 +409,28 @@ export default function Settings({ onLogout }: { onLogout?: () => void }) {
               >
                 <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
                 {isSyncing ? 'Syncing...' : 'Sync Everything Now'}
+              </button>
+            </div>
+          </div>
+
+          <div className="glass rounded-2xl border border-red-500/30 overflow-hidden mt-6">
+            <div className="p-6">
+              <h3 className="text-sm font-bold text-red-500 uppercase tracking-wider mb-4 flex items-center gap-2">
+                <LogOut className="w-4 h-4" />
+                Danger Zone
+              </h3>
+              <p className="text-xs text-[var(--text-muted)] mb-4">
+                If you cleared your Google Sheet and want to wipe your app's local History tab to match, click here. This cannot be undone.
+              </p>
+              <button
+                onClick={() => {
+                  if (window.confirm('Are you sure you want to delete all local history data?')) {
+                    handleClearData();
+                  }
+                }}
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-red-500/10 text-red-500 hover:bg-red-500/20 rounded-xl font-bold transition-all"
+              >
+                Clear Local History & Queue
               </button>
             </div>
           </div>

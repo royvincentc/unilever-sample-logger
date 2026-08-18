@@ -27,8 +27,7 @@ export default function LiveSheetView() {
     setLoading(true);
     setError(null);
     try {
-      const todayStr = new Date().toISOString().split('T')[0];
-      const sheetTab = getSheetTabName(todayStr, type);
+      const sheetTab = getSheetTabName(type);
       const rows = await fetchLiveSheetData(sheetTab);
       
       // We removed the 'SAMPLE TYPE' filtering because the sheetTab itself 
@@ -132,7 +131,7 @@ export default function LiveSheetView() {
                     {selectedType} Section
                     <span className="px-2 py-0.5 rounded-full bg-primary-500/10 text-primary-500 text-[10px] font-bold uppercase tracking-wider">Live</span>
                   </h3>
-                  <p className="text-[10px] text-[var(--text-muted)] font-medium">Viewing real-time records from {getSheetTabName(new Date().toISOString(), selectedType)}</p>
+                  <p className="text-[10px] text-[var(--text-muted)] font-medium">Viewing real-time records from {getSheetTabName(selectedType)}</p>
                 </div>
               </div>
 

@@ -1,37 +1,27 @@
-import { MONTH_ABBR } from '../data/constants';
+import type { SampleType } from '../types';
 
 /**
- * Get the sheet tab name for a given date and sample type.
- * e.g. date = "2026-05-06", type = "ENVI" → "MAY ENVI"
- * e.g. date = "2026-01-15", type = "WATER" → "JAN WATER"
- * e.g. date = "2026-03-20", type = "RawMats,FG&SFG" → "MAR RawMats,FG&SFG"
+ * Get the sheet tab name for a given sample type and optional subtype.
+ * Subtype is used to distinguish between RM and SFG/FG for RawMats.
  */
-export function getSheetTabName(dateStr: string, sampleType: 'ENVI' | 'WATER' | 'RawMats'): string {
-  const date = new Date(dateStr);
-  const monthIndex = date.getMonth();
-  const monthAbbr = MONTH_ABBR[monthIndex];
+export function getSheetTabName(sampleType: SampleType, subType?: string, overrideDate?: Date): string {
+  const date = overrideDate || new Date();
+  const yearStr = date.getFullYear().toString();
   
-  const typeMap = {
-    'ENVI': 'ENVI',
-    'WATER': 'WATER',
-    'RawMats': 'RawMats,FG&SFG',
-  };
+  if (sampleType === 'ENVI') return `SWAB ${yearStr}`;
+  if (sampleType === 'WATER') return `WATER ${yearStr}`;
+  if (sampleType === 'AIR') return `AIR ${yearStr}`;
   
-  return `${monthAbbr} ${typeMap[sampleType]}`;
+  if (sampleType === 'RawMats') {
+    return `RM,FG,SFG ${yearStr}`;
+  }
+  
+  return '';
 }
 
 /**
- * Get the sheet tab name for the previous month.
- */
-export function getPreviousMonthSheetTabName(dateStr: string, sampleType: 'ENVI' | 'WATER' | 'RawMats'): string {
-  const date = new Date(dateStr);
-  date.setMonth(date.getMonth() - 1);
-  const prevDateStr = date.toISOString().split('T')[0];
-  return getSheetTabName(prevDateStr, sampleType);
-}
-
-/**
- * Get the 2-digit year from a date string
+ * Kept for backward compatibility if any legacy code calls this.
+ * The new system does not rely on dates for tab names.
  */
 export function getYearShort(dateStr: string): string {
   const date = new Date(dateStr);

@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Droplets, FlaskConical, Package } from 'lucide-react';
+import { Droplets, FlaskConical, Package, Wind } from 'lucide-react';
 import type { SampleType } from '../../types';
 
 interface SampleTypeSelectorProps {
@@ -31,6 +31,14 @@ const types = [
     gradient: 'from-violet-500 to-purple-500',
     shadow: 'shadow-violet-500/25',
   },
+  {
+    id: 'AIR' as SampleType,
+    label: 'AIR',
+    description: 'Air quality samples',
+    icon: Wind,
+    gradient: 'from-yellow-400 to-amber-500',
+    shadow: 'shadow-amber-500/25',
+  },
 ];
 
 const container = {
@@ -59,7 +67,7 @@ export default function SampleTypeSelector({ onSelect }: SampleTypeSelectorProps
         variants={container}
         initial="hidden"
         animate="show"
-        className="grid grid-cols-1 sm:grid-cols-3 gap-4"
+        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"
       >
         {types.map((type) => (
           <motion.button

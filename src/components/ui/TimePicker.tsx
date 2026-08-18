@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Clock, Plus, Minus } from 'lucide-react';
 
@@ -173,15 +174,16 @@ export default function TimePicker({
       </button>
 
       {/* Picker overlay */}
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            className="fixed inset-0 z-50 flex items-center justify-center p-4"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-          >
+      {typeof document !== 'undefined' && createPortal(
+        <AnimatePresence>
+          {open && (
+            <motion.div
+              className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+            >
             {/* Backdrop */}
             <motion.div
               className="absolute inset-0"
@@ -202,7 +204,7 @@ export default function TimePicker({
                 relative z-10 w-full max-w-[325px]
                 rounded-2xl border border-[var(--border-color)]
                 bg-[var(--bg-card-solid)]
-                shadow-xl overflow-hidden
+                shadow-2xl overflow-hidden
               "
               initial={{ opacity: 0, scale: 0.9, y: 30 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -419,7 +421,9 @@ export default function TimePicker({
             </motion.div>
           </motion.div>
         )}
-      </AnimatePresence>
+      </AnimatePresence>,
+      document.body
+    )}
     </div>
   );
 }

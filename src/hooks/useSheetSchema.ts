@@ -39,7 +39,7 @@ export function useSheetSchema(
   const fetchAndSave = useCallback(async () => {
     if (!sampleType || !enabled) return;
 
-    const sheetTab = getSheetTabName(dateStr, sampleType);
+    const sheetTab = getSheetTabName(sampleType);
     setLoading(true);
 
     try {
@@ -104,32 +104,39 @@ export function useSheetSchema(
  *   4. Fallback: the logical name itself
  */
 const FIELD_KEYWORDS: Record<string, string[]> = {
-  // Shared
-  'CONTROL #':             ['control'],
-  'STATUS':                ['status'],
-  'REMARKS':               ['remark', 'note', 'comment'],
-  'DATE ANALYZED':         ['date anal', 'analyzed date', 'analysis date'],
-  'ANALYZED BY':           ['analyzed by', 'analyst'],
-  // ENVI
-  'SAMPLE':                ['sample', 'material', 'product'],
-  'QTY':                   ['qty', 'quantity'],
-  'UNIT':                  ['unit'],
-  'DATE SWABBED':          ['date swab', 'date sampled', 'swab date'],
-  'TIME SWABBED':          ['time swab', 'time sampled', 'swab time'],
-  'SWABBED BY':            ['swabbed by', 'sampled by', 'swab by'],
-  // WATER
-  'WATER SOURCE':          ['water source', 'source', 'water supply', 'water type', 'location'],
-  'DATE SAMPLED':          ['date sampled', 'sample date'],
-  'TIME':                  ['time'],
-  'SAMPLED BY':            ['sampled by', 'sample by', 'collected by'],
-  // RAW MATS
-  'TYPE':                  ['type'],
-  'RFAF':                  ['rfaf'],
-  'MIXING BATCH #':        ['mixing batch', 'batch #', 'batch no', 'mix batch'],
-  'CUC #':                 ['cuc'],
-  'SOURCE':                ['source', 'supplier', 'vendor', 'origin'],
-  'DATE RECEIVED/SAMPLED': ['date received', 'date sampled', 'received date'],
-  'RECEIVED BY':           ['received by', 'sampled by', 'collected by'],
+  // Shared / General
+  'controlNumber':         ['control'],
+  'status':                ['status'],
+  'remarks':               ['remark', 'note', 'comment'],
+  'dateAnalyzed':          ['date anal', 'analyzed date', 'analysis date'],
+  'analyzedBy':            ['analyzed by', 'analyst'],
+  'endorsedTo':            ['endorsed', 'endorse'],
+  
+  // ENVI specific
+  'sample':                ['sample', 'material', 'product'],
+  'category':              ['category'],
+  'dateSampled':           ['date swabbed', 'date sampled', 'swab date', 'date performed'],
+  'timeSampled':           ['time swabbed', 'time sampled', 'swab time', 'time', 'time performed'],
+  'swabbedBy':             ['swabbed by', 'swab by'],
+
+  // WATER specific
+  'waterSource':           ['water source', 'source', 'water supply', 'water type', 'location'],
+  'sampledBy':             ['sampled by', 'sample by', 'collected by'],
+
+  // RAW MATS specific
+  'type':                  ['type'],
+  'rfaf':                  ['rfaf'],
+  'mixingBatchNo':         ['mixing batch', 'batch #', 'batch no', 'mix batch'],
+  'cucNo':                 ['cuc'],
+  'source':                ['source', 'supplier', 'vendor', 'origin'],
+  'qty':                   ['qty', 'quantity'],
+  'unit':                  ['unit'],
+  'receivedBy':            ['received by', 'sampled by', 'collected by'],
+
+  // AIR specific
+  'method':                ['method'],
+  'samplingPoint':         ['sampling point', 'point', 'location'],
+  'performedBy':           ['performed by', 'sampled by', 'collected by'],
 };
 
 export function resolveColumn(logicalName: string, headers: string[]): string {

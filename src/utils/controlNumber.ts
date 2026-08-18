@@ -21,12 +21,14 @@ export function generateNextControlNumber(
       case 'ENVI': return `E${year}-001`;
       case 'WATER': return `W${year}-001`;
       case 'RawMats': return `${year}-001`;
+      case 'AIR': return `A${year}-001`;
+      default: return `C${year}-001`;
     }
   }
   
   // Extract the numeric portion from previous control number
   const parts = previousControlNumber.split('-');
-  const lastNum = parseInt(parts[parts.length - 1], 10);
+  const lastNum = parseInt(parts[parts.length - 1], 10) || 0;
   const nextNum = lastNum + 1;
   const padded = String(nextNum).padStart(3, '0');
   
@@ -34,6 +36,8 @@ export function generateNextControlNumber(
     case 'ENVI': return `E${year}-${padded}`;
     case 'WATER': return `W${year}-${padded}`;
     case 'RawMats': return `${year}-${padded}`;
+    case 'AIR': return `A${year}-${padded}`;
+    default: return `C${year}-${padded}`;
   }
 }
 

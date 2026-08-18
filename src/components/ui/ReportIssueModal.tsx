@@ -38,33 +38,27 @@ export default function ReportIssueModal() {
       return;
     }
 
-    setLoading(true);
-    const reportId = 'BUG-' + Date.now().toString(36).toUpperCase();
-    const reportData: IssueReport = {
-      id: reportId,
-      subject: subject.trim(),
-      description: description.trim(),
-      severity,
-      reporterName: userName,
-      pagePath: location.pathname + location.search,
-      submittedAt: new Date().toISOString(),
-      userAgent: navigator.userAgent,
-    };
+    const emailTo = 'vincecodinera@gmail.com';
+    const emailSubject = `[Sample Logger Bug] ${subject.trim()}`;
+    const emailBody = `
+Severity: ${severity.toUpperCase()}
+Reporter: ${userName}
+Path: ${location.pathname + location.search}
 
-    try {
-      await submitIssueReport(reportData);
-      showToast('success', 'Report Submitted', `Issue ${reportId} logged and forwarded.`);
-      setIsOpen(false);
-    } catch (err: any) {
-      showToast('error', 'Submission Failed', err.message || 'Could not submit issue report.');
-    } finally {
-      setLoading(false);
-    }
+Description:
+${description.trim()}
+    `.trim();
+
+    // Open user's default email client
+    window.location.href = `mailto:${emailTo}?subject=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(emailBody)}`;
+    
+    showToast('success', 'Email Opened', 'Please send the email from your default client to report the issue.');
+    setIsOpen(false);
   };
 
   return (
     <>
-      {/* Floating Button */}
+      {/* Floating Button - Moved to bottom-left to avoid overlap */}
       <motion.button
         onClick={handleOpen}
         initial={{ scale: 0, opacity: 0 }}
@@ -72,7 +66,7 @@ export default function ReportIssueModal() {
         transition={{ delay: 1, type: 'spring', stiffness: 260, damping: 20 }}
         whileHover={{ scale: 1.1 }}
         whileTap={{ scale: 0.9 }}
-        className="fixed right-6 bottom-24 lg:right-8 lg:bottom-8 z-50
+        className="fixed left-6 bottom-24 lg:left-8 lg:bottom-8 z-50
                    w-12 h-12 rounded-full flex items-center justify-center
                    bg-gradient-to-br from-primary-500 to-accent-500
                    text-white shadow-xl hover:shadow-primary-500/20

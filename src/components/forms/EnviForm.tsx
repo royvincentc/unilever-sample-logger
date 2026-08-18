@@ -182,6 +182,7 @@ export default function EnviForm({ onSubmit, onBack }: EnviFormProps) {
           <h4 className="text-sm font-semibold text-[var(--text-primary)] uppercase tracking-wider">Details</h4>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Dropdown label="Swabbed By" value={form.swabbedBy} options={PERSONNEL} onChange={(v) => setForm({ ...form, swabbedBy: v })} required />
+            <Dropdown label="Endorsed To (Optional)" value={form.endorsedTo || 'None'} options={['None', ...PERSONNEL]} onChange={(v) => setForm({ ...form, endorsedTo: v === 'None' ? '' : v })} />
             <DatePicker label="Date Analyzed" value={form.dateAnalyzed} onChange={(v) => setForm({ ...form, dateAnalyzed: v })} />
             <Dropdown label="Analyzed By" value={form.analyzedBy} options={PERSONNEL} onChange={(v) => setForm({ ...form, analyzedBy: v })} />
             <Dropdown label="Status" value={form.status} options={STATUS_OPTIONS} onChange={(v) => setForm({ ...form, status: v as any })} />

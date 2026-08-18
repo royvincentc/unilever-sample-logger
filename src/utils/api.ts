@@ -7,33 +7,18 @@ interface WebhookResponse {
 }
 
 /**
- * Send sample data to n8n webhook.
- * Falls back gracefully when no webhook URL is configured (mock mode).
+ * Send sample data to Vercel Serverless Function (replaces n8n).
  */
 export async function sendToWebhook(
-  endpoint: 'envi' | 'water' | 'rawmats',
+  endpoint: 'envi' | 'water' | 'rawmats' | 'air',
   data: Record<string, unknown>
 ): Promise<WebhookResponse> {
   const settings = getSettings();
-  const url = settings.webhookUrls[endpoint];
-
-  // Mock mode: no webhook URL configured
-  if (!url) {
-    // Simulate a short delay to show loading state
-    await new Promise(r => setTimeout(r, 800));
-    return {
-      success: true,
-      controlNumber: data.controlNumber as string || 'MOCK-001',
-    };
-  }
 
   try {
-    const response = await fetch(url, {
+    const response = await fetch('/api/submit', {
       method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json',
-        'x-api-key': import.meta.env.VITE_N8N_API_KEY || ''
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         ...data,
         spreadsheetId: settings.spreadsheetId,
@@ -41,35 +26,62 @@ export async function sendToWebhook(
     });
 
     if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      const errText = await response.text();
+      throw new Error(errText || `HTTP ${response.status}: ${response.statusText}`);
     }
 
-    // Safely parse JSON to handle empty or plain-text responses from n8n
-    const text = await response.text();
-    let result: any = {};
-    if (text) {
-      try {
-        const parsed = JSON.parse(text);
-        // Handle n8n sometimes returning an array of items, or a single item with a 'json' property
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          result = parsed[0].json || parsed[0];
-        } else if (parsed.json) {
-          result = parsed.json;
-        } else {
-          result = parsed;
-        }
-      } catch (e) {
-        console.warn('n8n returned non-JSON response:', text);
-      }
-    }
-
-    // A response is successful if n8n says so, or if it's a non-error object from a successful HTTP call
-    const success = result.success !== undefined ? result.success : true;
+    const result = await response.json();
 
     return {
-      success,
-      controlNumber: result.controlNumber || result.control_number || result['CONTROL #'] || 'N/A',
-      error: result.error || result.message || (success ? undefined : 'Webhook failed without specific error')
+      success: result.success,
+      controlNumber: result.controlNumber || 'N/A',
+      error: result.error || result.message
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+}
+
+/**
+ * Updates an existing row in the live Google Sheet.
+ * This directly calls the /api/submit endpoint with isUpdate = true.
+ */
+export async function updateSheetRow(
+  sheetTab: string,
+  controlNumber: string,
+  updates: Record<string, unknown>
+): Promise<WebhookResponse> {
+  const settings = getSettings();
+  if (!settings.spreadsheetId) {
+    return { success: false, error: 'Spreadsheet ID not configured in settings.' };
+  }
+
+  try {
+    const response = await fetch('/api/submit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ...updates,
+        spreadsheetId: settings.spreadsheetId,
+        sheetTab,
+        controlNumber,
+        isUpdate: true,
+      }),
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new Error(errText || `HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const result = await response.json();
+    return {
+      success: result.success,
+      controlNumber: result.controlNumber || controlNumber,
+      error: result.error || result.message
     };
   } catch (error) {
     return {
@@ -81,79 +93,25 @@ export async function sendToWebhook(
 
 /**
  * Single sheet fetch that returns BOTH:
- *   - incompleteControlNumber: a row that has a control # but blank critical fields
- *   - highestControlNumber:    the highest-sequenced control # already in the sheet
- *
- * Replaces the previous two separate fetches (findIncompleteControlNumber +
- * getHighestControlNumberFromSheet) so pre-submission only needs ONE n8n read call.
- *
- * Critical fields checked:
- *   WATER   → WATER SOURCE blank
- *   RawMats → TYPE or SAMPLE blank
+ *   - incompleteControlNumber
+ *   - highestControlNumber
  */
 export async function analyseSheetForSubmission(
-  sampleType: 'WATER' | 'RawMats',
+  sampleType: 'WATER' | 'RawMats' | 'AIR',
   sheetTab: string
 ): Promise<{ incompleteControlNumber: string | null; highestControlNumber: string | null }> {
   const empty = { incompleteControlNumber: null, highestControlNumber: null };
   const settings = getSettings();
-  const url = settings.webhookUrls.liveSheet || 'https://n8n-royvincentc.onrender.com/webhook/get-sheet-data';
-
-  if (!url) return empty;
 
   try {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': import.meta.env.VITE_N8N_API_KEY || '',
-      },
-      body: JSON.stringify({ spreadsheetId: settings.spreadsheetId, sheetTab }),
-    });
-
+    const response = await fetch(`/api/sheet-data?sheetId=${settings.spreadsheetId}&tab=${encodeURIComponent(sheetTab)}`);
     if (!response.ok) return empty;
 
-    const text = await response.text();
-    if (!text) return empty;
-
-    let rows: any[] = [];
-    try {
-      const parsed = JSON.parse(text);
-      if (parsed && Array.isArray(parsed.value)) rows = parsed.value;
-      else if (Array.isArray(parsed)) rows = parsed;
-      else rows = [parsed];
-    } catch {
-      return empty;
-    }
-
-    // Locate and normalise header row
-    const headerRowIndex = rows.findIndex(row =>
-      Object.values(row).some(
-        v => typeof v === 'string' && (v.toUpperCase().includes('CONTROL') || v.toUpperCase().includes('STATUS'))
-      )
-    );
-
-    let dataRows: any[] = rows;
-    if (headerRowIndex !== -1) {
-      const headerRow = rows[headerRowIndex];
-      const headerMap: Record<string, string> = {};
-      for (const [k, v] of Object.entries(headerRow)) {
-        headerMap[k] = typeof v === 'string' ? v.trim() : k;
-      }
-      dataRows = rows.slice(headerRowIndex + 1).map(row => {
-        const out: any = {};
-        for (const [k, v] of Object.entries(row)) {
-          out[headerMap[k] || k] = v;
-        }
-        return out;
-      });
-    }
+    const dataRows = await response.json();
+    if (!Array.isArray(dataRows) || dataRows.length === 0) return empty;
 
     const getControl = (row: any): string => {
-      const raw = String(
-        row['CONTROL #'] || row['control #'] || row['Control #'] ||
-        row['controlnumber'] || row['control'] || row['CONTROL'] || ''
-      ).trim();
+      const raw = String(row['CONTROL #'] || '').trim();
       return sampleType === 'RawMats' ? raw.replace(/^RM-?/i, '') : raw;
     };
 
@@ -170,7 +128,6 @@ export async function analyseSheetForSubmission(
       const ctrl = getControl(row);
       if (!ctrl) continue;
 
-      // Track highest sequence number across ALL rows
       const match = ctrl.match(/(?:[EW]?\d{2}-)?(\d{2})-(\d+)/i) || ctrl.match(/^(\d{2})-(\d+)$/);
       if (match) {
         foundYear = match[1];
@@ -178,20 +135,13 @@ export async function analyseSheetForSubmission(
         if (num > lastNum) lastNum = num;
       }
 
-      // Detect incomplete rows (control # exists but critical data missing)
       if (sampleType === 'WATER') {
-        const waterSource =
-          row['WATER SOURCE'] || row['Water Source'] || row['water source'] ||
-          row['WATERSOURCE'] || row['watersource'] || '';
-        if (isEmpty(waterSource)) incompleteList.push(ctrl);
+        if (isEmpty(row['WATER SOURCE'])) incompleteList.push(ctrl);
       } else {
-        const type   = row['TYPE']   || row['Type']   || row['type']   || '';
-        const sample = row['SAMPLE'] || row['Sample'] || row['sample'] || '';
-        if (isEmpty(type) || isEmpty(sample)) incompleteList.push(ctrl);
+        if (isEmpty(row['TYPE']) || isEmpty(row['SAMPLE'])) incompleteList.push(ctrl);
       }
     }
 
-    // Highest incomplete (by sequence)
     incompleteList.sort((a, b) =>
       parseInt(b.split('-').pop() || '0', 10) - parseInt(a.split('-').pop() || '0', 10)
     );
@@ -211,154 +161,117 @@ export async function analyseSheetForSubmission(
 }
 
 /**
- * Test webhook connectivity.
- * Tries POST first, falls back to no-cors mode for basic reachability check.
+ * Kept for UI compatibility in Settings, but webhooks are deprecated.
  */
 export async function testWebhookConnection(url: string): Promise<boolean> {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 8000);
-
-  try {
-    // Try a normal POST first
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json',
-        'x-api-key': import.meta.env.VITE_N8N_API_KEY || ''
-      },
-      body: JSON.stringify({ test: true }),
-      signal: controller.signal,
-    });
-    clearTimeout(timeout);
-    return response.ok;
-  } catch {
-    clearTimeout(timeout);
-
-    // If CORS blocks it, try a no-cors ping (we can't read the response,
-    // but if it doesn't throw, the server is at least reachable)
-    try {
-      const controller2 = new AbortController();
-      const timeout2 = setTimeout(() => controller2.abort(), 5000);
-      await fetch(url, {
-        method: 'POST',
-        mode: 'no-cors',
-        headers: { 'Content-Type': 'text/plain' },
-        body: '{"test":true}',
-        signal: controller2.signal,
-      });
-      clearTimeout(timeout2);
-      // no-cors fetch succeeded — server is reachable (CORS just blocks reading response)
-      return true;
-    } catch {
-      return false;
-    }
-  }
+  return true;
 }
 
+import { getHistory, updateHistory } from './db';
+
 /**
- * Fetch the last X entries from Google Sheets via n8n sync endpoint.
+ * Fetch live data from Google Sheets to sync "RELEASED" statuses back to local DB.
+ * Returns an array of updated entry IDs.
  */
-export async function fetchHistoryFromSheet(): Promise<any[]> {
+export async function fetchHistoryFromSheet(): Promise<string[]> {
   const settings = getSettings();
-  const url = settings.webhookUrls.sync || 'https://n8n-royvincentc.onrender.com/webhook/sync-history';
+  if (!settings.spreadsheetId) return [];
 
   try {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json',
-        'x-api-key': import.meta.env.VITE_N8N_API_KEY || ''
-      },
-      body: JSON.stringify({ 
-        spreadsheetId: settings.spreadsheetId,
-        limit: 50 
-      }),
-    });
+    // 1. Get local history that needs syncing (ongoing, OR missing sheetAnalyst)
+    const localHistory = await getHistory();
+    const needsSync = localHistory.filter(e => 
+      (e.status !== 'RELEASED' && e.status !== 'COMPLETED') || !e.sheetAnalyst
+    );
+    if (needsSync.length === 0) return [];
 
-    if (!response.ok) return [];
+    const updatedIds: string[] = [];
+    const tabGroups = new Map<string, typeof needsSync>();
     
-    const data = await response.json();
-    return Array.isArray(data) ? data : [];
+    for (const item of needsSync) {
+      const date = item.dateSampled ? new Date(item.dateSampled) : new Date();
+      const yearStr = date.getFullYear().toString();
+      
+      let tabName = '';
+      if (item.sampleType === 'ENVI') tabName = `SWAB ${yearStr}`;
+      if (item.sampleType === 'WATER') tabName = `WATER ${yearStr}`;
+      if (item.sampleType === 'RawMats') tabName = `RM,FG,SFG ${yearStr}`;
+      if (item.sampleType === 'AIR') tabName = `AIR ${yearStr}`;
+      
+      if (!tabGroups.has(tabName)) tabGroups.set(tabName, []);
+      tabGroups.get(tabName)!.push(item);
+    }
+
+    // 2. Fetch live sheet data for each tab
+    for (const [tabName, itemsInTab] of tabGroups.entries()) {
+      try {
+        const dataRows = await fetchLiveSheetData(tabName);
+        
+        for (const local of itemsInTab) {
+          // Find row matching control number
+          const matchRow = dataRows.find(r => {
+            const rowCtrl = String(r['CONTROL #'] || '').trim();
+            const locCtrl = local.controlNumber;
+            
+            // Strip any leading alphabetical characters and hyphens (e.g. W, E, RM, RM-) to strictly compare the digits
+            const cleanRow = rowCtrl.replace(/^[A-Z-]+/i, '');
+            const cleanLoc = locCtrl.replace(/^[A-Z-]+/i, '');
+            
+            return cleanRow === cleanLoc;
+          });
+
+          if (matchRow) {
+            const dateReleased = String(matchRow['DATE RELEASED'] || matchRow['DATE & TIME RELEASED'] || '').trim();
+            const statusCol = String(matchRow['STATUS'] || '').trim().toUpperCase();
+            const analystCol = String(matchRow['ANALYST'] || matchRow['ANALYZED BY'] || matchRow['ANALYSTS'] || '').trim();
+
+            const isReleased = (dateReleased !== '' && dateReleased !== '-') || 
+                               statusCol === 'COMPLETED' || 
+                               statusCol === 'RELEASED';
+
+            let changed = false;
+            let updatedData = { ...local };
+
+            if (isReleased && local.status !== 'RELEASED' && local.status !== 'COMPLETED') {
+              updatedData.status = 'RELEASED';
+              changed = true;
+            }
+
+            if (analystCol && analystCol !== '-' && local.sheetAnalyst !== analystCol) {
+              updatedData.sheetAnalyst = analystCol;
+              changed = true;
+            }
+
+            if (changed) {
+              await updateHistory(updatedData);
+              updatedIds.push(local.id);
+            }
+          }
+        }
+      } catch (e) {
+        console.warn(`Failed to sync tab ${tabName}:`, e);
+      }
+    }
+    return updatedIds;
   } catch (error) {
-    console.error('Sync failed:', error);
+    console.error('History sync failed:', error);
     return [];
   }
 }
 
 /**
- * Fetch live data from Google Sheets via n8n webhook.
+ * Fetch live data from Google Sheets via Vercel Function.
  */
 export async function fetchLiveSheetData(sheetTab: string): Promise<any[]> {
   const settings = getSettings();
-  // Provide a default URL or rely on user settings
-  const url = settings.webhookUrls.liveSheet || 'https://n8n-royvincentc.onrender.com/webhook/get-sheet-data';
-
   try {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json',
-        'x-api-key': import.meta.env.VITE_N8N_API_KEY || ''
-      },
-      body: JSON.stringify({ 
-        spreadsheetId: settings.spreadsheetId,
-        sheetTab
-      }),
-    });
-
+    const response = await fetch(`/api/sheet-data?sheetId=${settings.spreadsheetId}&tab=${encodeURIComponent(sheetTab)}`);
     if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(errorText || `HTTP ${response.status}: ${response.statusText}`);
+      throw new Error(errorText || `HTTP ${response.status}`);
     }
-    
-    const text = await response.text();
-    let data: any = [];
-    if (text) {
-      try {
-        const parsed = JSON.parse(text);
-        // n8n often returns { value: [...], Count: X } for multiple items
-        if (parsed && Array.isArray(parsed.value)) {
-          data = parsed.value;
-        } else if (Array.isArray(parsed)) {
-          data = parsed;
-        } else {
-          data = [parsed];
-        }
-      } catch (e) {
-        console.warn('n8n returned non-JSON response for live sheet:', text);
-      }
-    }
-
-    if (!Array.isArray(data) || data.length === 0) return [];
-
-    // Find the row that contains the actual headers (e.g. 'CONTROL #')
-    const headerRowIndex = data.findIndex(row => 
-      Object.values(row).some(v => 
-        typeof v === 'string' && (v.toUpperCase().includes('CONTROL #') || v.toUpperCase().includes('DATE') || v.toUpperCase().includes('STATUS'))
-      )
-    );
-
-    if (headerRowIndex !== -1) {
-      const headerRow = data[headerRowIndex];
-      const headerMap: Record<string, string> = {};
-      
-      for (const [key, value] of Object.entries(headerRow)) {
-        headerMap[key] = typeof value === 'string' ? value.trim() : key;
-      }
-      
-      // Map the rest of the rows using the real headers (data after the header row)
-      return data.slice(headerRowIndex + 1).map(row => {
-        const newRow: any = {};
-        for (const [key, value] of Object.entries(row)) {
-          const properKey = headerMap[key] || key;
-          newRow[properKey] = value;
-        }
-        return newRow;
-      });
-    }
-
-    // If headers are already correct, or no header row found
-    return data;
+    const data = await response.json();
+    return Array.isArray(data) ? data : [];
   } catch (error) {
     console.error('Live sheet fetch failed:', error);
     throw error;
@@ -366,67 +279,16 @@ export async function fetchLiveSheetData(sheetTab: string): Promise<any[]> {
 }
 
 /**
- * Fetch the live header row (schema) for a given sheet tab via n8n.
- * Returns an array of column header strings in sheet order, e.g.
- * ['CONTROL #', 'SAMPLE', 'QTY', 'UNIT', …]
- *
- * Uses the schema webhook URL if configured, otherwise falls back to
- * the liveSheet webhook URL (both return the same raw row data).
+ * Fetch the live header row (schema) for a given sheet tab via Vercel Function.
  */
-export async function fetchSheetSchema(
-  sheetTab: string
-): Promise<string[]> {
+export async function fetchSheetSchema(sheetTab: string): Promise<string[]> {
   const settings = getSettings();
-  const url = settings.webhookUrls.schema || settings.webhookUrls.liveSheet || '';
-
-  if (!url) {
-    console.warn('No schema webhook URL configured. Returning empty schema.');
-    return [];
-  }
-
   try {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': import.meta.env.VITE_N8N_API_KEY || ''
-      },
-      body: JSON.stringify({
-        spreadsheetId: settings.spreadsheetId,
-        sheetTab,
-        schemaOnly: true,
-      }),
-    });
-
+    const response = await fetch(`/api/sheet-data?sheetId=${settings.spreadsheetId}&tab=${encodeURIComponent(sheetTab)}&schemaOnly=true`);
     if (!response.ok) return [];
 
-    const text = await response.text();
-    if (!text) return [];
-
-    let rows: any[] = [];
-    try {
-      const parsed = JSON.parse(text);
-      if (Array.isArray(parsed?.value)) rows = parsed.value;
-      else if (Array.isArray(parsed)) rows = parsed;
-      else rows = [parsed];
-    } catch {
-      return [];
-    }
-
-    // Find the header row — the row that contains 'CONTROL' somewhere
-    for (const row of rows) {
-      const vals = Object.values(row);
-      const isHeaderRow = vals.some(
-        v => typeof v === 'string' && v.toUpperCase().includes('CONTROL')
-      );
-      if (isHeaderRow) {
-        return vals
-          .filter((v): v is string => typeof v === 'string' && v.trim() !== '')
-          .map(v => (v as string).trim());
-      }
-    }
-
-    return [];
+    const data = await response.json();
+    return Array.isArray(data?.headers) ? data.headers : [];
   } catch (error) {
     console.error('fetchSheetSchema failed:', error);
     return [];

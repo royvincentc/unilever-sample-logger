@@ -141,7 +141,6 @@ export default function Incubation() {
       try {
         const sheetHistory = await fetchHistoryFromSheet();
         if (sheetHistory.length > 0) {
-          await importHistoryBatch(sheetHistory);
           loadIncubations();
         }
       } catch (e) {

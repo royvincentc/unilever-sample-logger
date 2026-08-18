@@ -55,6 +55,7 @@ function AppContent({
   refreshQueueCount,
 }: AppContentProps) {
   const location = useLocation();
+  const { theme, setTheme } = useTheme();
 
   return (
     <Routes>
@@ -76,7 +77,7 @@ function AppContent({
               <Layout onLogout={logout} queueCount={queueCount}>
                 <AnimatePresence mode="wait">
                   <Routes location={location} key={location.pathname}>
-                    <Route index element={<PageTransition><Dashboard /></PageTransition>} />
+                    <Route index element={<PageTransition><Dashboard theme={theme} onSetTheme={setTheme} queueCount={queueCount} /></PageTransition>} />
                     <Route path="new" element={<PageTransition><NewSample onQueueUpdate={refreshQueueCount} /></PageTransition>} />
                     <Route path="queue" element={<PageTransition><SubmissionQueue onQueueUpdate={refreshQueueCount} /></PageTransition>} />
                     <Route path="history" element={<PageTransition><SampleHistory /></PageTransition>} />
