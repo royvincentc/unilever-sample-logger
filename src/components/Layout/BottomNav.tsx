@@ -34,12 +34,14 @@ export default function BottomNav({ queueCount }: BottomNavProps) {
             to={item.to}
             end={item.to === '/'}
             className={({ isActive }) => `
-              flex flex-col items-center gap-0.5 px-3 py-2 rounded-xl
-              transition-all duration-200 relative min-w-[56px]
+              flex flex-col items-center gap-1 px-3 py-2 rounded-2xl
+              transition-all duration-200 relative min-w-[64px]
               ${
-                isActive
+                isActive && !item.primary
+                  ? 'text-primary-500 bg-primary-500/10'
+                  : isActive && item.primary
                   ? 'text-primary-500'
-                  : 'text-[var(--text-muted)]'
+                  : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]'
               }
             `}
           >

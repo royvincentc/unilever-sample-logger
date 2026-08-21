@@ -173,6 +173,50 @@ import { getHistory, updateHistory } from './db';
  * Fetch live data from Google Sheets to sync "RELEASED" statuses back to local DB.
  * Returns an array of updated entry IDs.
  */
+import { getSheetTabName } from './sheetMapping';
+import type { SampleType } from '../types';
+
+export async function fetchActiveIncubationsFromSheet(): Promise<any[]> {
+  const settings = getSettings();
+  if (!settings.spreadsheetId) return [];
+
+  const types: SampleType[] = ['ENVI', 'WATER', 'RawMats', 'AIR'];
+  const activeIncubations: any[] = [];
+
+  for (const sampleType of types) {
+    const tabName = getSheetTabName(sampleType);
+    try {
+      const response = await fetch(`/api/sheet-data?sheetId=${settings.spreadsheetId}&tab=${encodeURIComponent(tabName)}`);
+      if (!response.ok) continue;
+      
+      const dataRows = await response.json();
+      if (!Array.isArray(dataRows) || dataRows.length === 0) continue;
+
+      for (const row of dataRows) {
+        // Find the DATE ANALYZED column dynamically
+        const dateAnalyzedKey = Object.keys(row).find(k => k.toUpperCase().includes('DATE ANALYZED') || k.toUpperCase() === 'DATE & TIME ANALYZED');
+        const dateAnalyzed = dateAnalyzedKey ? String(row[dateAnalyzedKey] || '').trim() : '';
+        const status = String(row['STATUS'] || '').trim().toUpperCase();
+
+        if (dateAnalyzed && dateAnalyzed !== '-' && status !== 'RELEASED' && status !== 'COMPLETED') {
+          activeIncubations.push({
+            id: String(row['_rowIndex'] || Math.random().toString()),
+            sampleType: sampleType,
+            controlNumber: row['CONTROL #'] || '',
+            sampleName: row['SAMPLE'] || row['SAMPLE DESCRIPTION'] || '',
+            dateAnalyzed: dateAnalyzed,
+            rawMatsType: sampleType === 'RawMats' ? String(row['TYPE'] || '').toUpperCase() : undefined,
+            submittedBy: String(row['ANALYST'] || row['ANALYZED BY'] || row['SWABBED BY'] || ''), // just for tracking
+          });
+        }
+      }
+    } catch (e) {
+      console.warn(`Failed to fetch incubations for ${tabName}:`, e);
+    }
+  }
+  return activeIncubations;
+}
+
 export async function fetchHistoryFromSheet(): Promise<string[]> {
   const settings = getSettings();
   if (!settings.spreadsheetId) return [];

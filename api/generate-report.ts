@@ -2,7 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import fs from 'fs';
 import path from 'path';
 import PizZip from 'pizzip';
-import { getSheetsClient } from './_sheets';
+import { getSheetsClient } from './_sheets.js';
 
 /**
  * Replaces the header table values in header1.xml

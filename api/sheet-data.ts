@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getSheetsClient } from './_sheets';
+import { getSheetsClient } from './_sheets.js';
 
 /**
  * Vercel Serverless Function to fetch live data from a Google Sheet tab.
@@ -59,18 +59,41 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(200).json({ headers });
     }
 
+    const controlHeader = headers.find((h: any) => typeof h === 'string' && (h.toUpperCase().includes('CONTROL') || h.toUpperCase().includes('SAMPLE')));
+    let lastControlNumber = '';
+
     const data = rows.slice(headerRowIndex + 1).map((row: any[], rowIndex) => {
       const obj: any = {};
       // Also add _rowIndex for update logic
       obj['_rowIndex'] = headerRowIndex + 2 + rowIndex;
       // Add the raw row array so we can access columns by index (A=0, B=1, etc.)
       obj['__rawRow'] = row;
+      
+      let currentRowControl = '';
+
       headers.forEach((header: string, i: number) => {
         // Note: this assumes headers are unique
         if (header) {
-          obj[header] = row[i] !== undefined ? row[i] : '';
+          const val = row[i] !== undefined ? row[i] : '';
+          obj[header] = val;
+          if (header === controlHeader) {
+            currentRowControl = String(val).trim();
+          }
         }
       });
+
+      if (controlHeader) {
+        if (currentRowControl === '') {
+          // If the row has some text in other columns (i.e. it's part of a cluster)
+          const hasData = row.some(cell => String(cell).trim() !== '');
+          if (hasData && lastControlNumber) {
+            obj[controlHeader] = lastControlNumber;
+          }
+        } else {
+          lastControlNumber = currentRowControl;
+        }
+      }
+
       return obj;
     });
 

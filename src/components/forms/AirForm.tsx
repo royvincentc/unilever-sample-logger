@@ -5,6 +5,7 @@ import type { AirFormData, AirMethod, AirSamplingPoint } from '../../types';
 import DatePicker from '../ui/DatePicker';
 import TimePicker from '../ui/TimePicker';
 import Dropdown from '../ui/Dropdown';
+import MultiSelectGroup from '../ui/MultiSelectGroup';
 import Button from '../ui/Button';
 import { PERSONNEL } from '../../data/personnelData';
 import { STATUS_OPTIONS } from '../../data/constants';
@@ -41,7 +42,7 @@ export default function AirForm({ onSubmit, onBack }: AirFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [form, setForm] = useState<AirFormData>({
     method: '',
-    samplingPoint: '',
+    samplingPoints: [],
     dateSampled: new Date().toISOString().split('T')[0],
     timeSampled: '',
     performedBy: '',
@@ -51,6 +52,7 @@ export default function AirForm({ onSubmit, onBack }: AirFormProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (form.samplingPoints.length === 0) return;
     setIsSubmitting(true);
     try {
       await onSubmit(form);
@@ -59,14 +61,21 @@ export default function AirForm({ onSubmit, onBack }: AirFormProps) {
     }
   };
 
+
+const stagger = {
+  hidden: { opacity: 0 },
+  show: { opacity: 1, transition: { staggerChildren: 0.05 } },
+};
+
   return (
     <form onSubmit={handleSubmit}>
       <motion.div
+        variants={stagger}
         initial="hidden"
         animate="show"
         className="space-y-6"
       >
-        <div className="flex items-center justify-between mb-6">
+        <motion.div variants={fadeUp} className="flex items-center justify-between mb-6">
           <button
             type="button"
             onClick={onBack}
@@ -75,11 +84,11 @@ export default function AirForm({ onSubmit, onBack }: AirFormProps) {
             <ArrowLeft className="w-5 h-5" />
             <span>Back to types</span>
           </button>
-        </div>
+        </motion.div>
 
         <motion.div variants={fadeUp} className="glass rounded-2xl p-5 space-y-4 border border-amber-500/20">
           <h4 className="text-sm font-semibold text-[var(--text-primary)] uppercase tracking-wider text-amber-500">Method & Location</h4>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4">
             <Dropdown
               label="Method"
               value={form.method}
@@ -88,12 +97,13 @@ export default function AirForm({ onSubmit, onBack }: AirFormProps) {
               placeholder="Select method..."
               required
             />
-            <Dropdown
-              label="Sampling Point"
-              value={form.samplingPoint}
+          </div>
+          <div className="mt-4">
+            <MultiSelectGroup
+              label="Sampling Points"
               options={SAMPLING_POINTS}
-              onChange={(v: string) => setForm({ ...form, samplingPoint: v as AirSamplingPoint })}
-              placeholder="Select sampling point..."
+              values={form.samplingPoints}
+              onChange={(vals: string[]) => setForm(prev => ({ ...prev, samplingPoints: vals as AirSamplingPoint[] }))}
               required
             />
           </div>

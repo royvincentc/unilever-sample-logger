@@ -10,7 +10,9 @@ import {
   FlaskConical,
   FileText,
   FileSpreadsheet,
-  CalendarDays
+  CalendarDays,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 
 const navItems = [
@@ -28,23 +30,36 @@ const navItems = [
 interface SidebarProps {
   onLogout: () => void;
   queueCount: number;
+  isCollapsed: boolean;
+  onToggleCollapse: () => void;
 }
 
-export default function Sidebar({ onLogout, queueCount }: SidebarProps) {
+export default function Sidebar({ onLogout, queueCount, isCollapsed, onToggleCollapse }: SidebarProps) {
   return (
     <aside
-      className="hidden lg:flex flex-col w-[280px] h-screen fixed left-0 top-0
-                 bg-transparent border-r border-[var(--border-subtle)] z-40"
+      className={`hidden lg:flex flex-col h-screen fixed left-0 top-0
+                 bg-transparent border-r border-[var(--border-subtle)] z-40
+                 transition-all duration-300 ${isCollapsed ? 'w-20' : 'w-[280px]'}`}
     >
+      {/* Collapse Toggle */}
+      <button 
+        onClick={onToggleCollapse} 
+        className="absolute -right-3 top-6 bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-full p-1.5 z-50 text-[var(--text-secondary)] hover:text-primary-500 shadow-sm"
+      >
+         {isCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+      </button>
+
       {/* Logo */}
-      <div className="flex items-center gap-4 px-8 py-8">
-        <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-[#00529b] to-[#00386b] overflow-hidden p-1.5 flex items-center justify-center shadow-2xl">
+      <div className={`flex items-center ${isCollapsed ? 'justify-center px-0' : 'gap-3 px-8'} py-8`}>
+        <div className={`${isCollapsed ? 'w-8 h-8' : 'w-12 h-12'} flex items-center justify-center shrink-0 transition-all duration-300`}>
           <img src="/unilever-logo.png" alt="Unilever" className="w-full h-full object-contain brightness-0 invert" />
         </div>
-        <div>
-          <h1 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-widest">Dashboard</h1>
-          <p className="text-[10px] text-[var(--text-muted)] font-bold uppercase tracking-widest">QC Micro</p>
-        </div>
+        {!isCollapsed && (
+          <div className="overflow-hidden whitespace-nowrap">
+            <h1 className="text-xl font-black text-[var(--text-primary)] uppercase tracking-wider leading-none mb-1">Unilever</h1>
+            <p className="text-xs text-[var(--text-muted)] font-semibold uppercase tracking-widest leading-none">DASHBOARD | QC MICRO</p>
+          </div>
+        )}
       </div>
 
       {/* Nav */}
@@ -55,7 +70,7 @@ export default function Sidebar({ onLogout, queueCount }: SidebarProps) {
             to={item.to}
             end={item.to === '/'}
             className={({ isActive }) => `
-              flex items-center gap-4 px-4 py-3 rounded-2xl text-sm font-bold tracking-wide
+              flex items-center ${isCollapsed ? 'justify-center px-0' : 'gap-4 px-4'} py-3 rounded-2xl text-sm font-bold tracking-wide
               transition-all duration-300 group relative overflow-hidden
               ${
                 isActive
@@ -63,6 +78,7 @@ export default function Sidebar({ onLogout, queueCount }: SidebarProps) {
                   : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]'
               }
             `}
+            title={isCollapsed ? item.label : undefined}
           >
             {({ isActive }) => (
               <>
@@ -73,10 +89,15 @@ export default function Sidebar({ onLogout, queueCount }: SidebarProps) {
                     transition={{ type: 'spring', stiffness: 300, damping: 25 }}
                   />
                 )}
-                <item.icon className={`w-5 h-5 transition-transform duration-300 ${isActive ? 'scale-110' : 'group-hover:scale-110'}`} />
-                <span className="relative z-10">{item.label}</span>
-                {item.to === '/queue' && queueCount > 0 && (
+                <item.icon className={`w-5 h-5 shrink-0 transition-transform duration-300 ${isActive ? 'scale-110' : 'group-hover:scale-110'}`} />
+                {!isCollapsed && <span className="relative z-10 whitespace-nowrap">{item.label}</span>}
+                {!isCollapsed && item.to === '/queue' && queueCount > 0 && (
                   <span className="ml-auto bg-warning-500 text-white text-[10px] w-5 h-5 rounded-full flex items-center justify-center font-black relative z-10 shadow-lg shadow-warning-500/30">
+                    {queueCount}
+                  </span>
+                )}
+                {isCollapsed && item.to === '/queue' && queueCount > 0 && (
+                  <span className="absolute top-2 right-2 bg-warning-500 text-white text-[8px] w-3 h-3 rounded-full flex items-center justify-center font-black shadow-lg shadow-warning-500/30">
                     {queueCount}
                   </span>
                 )}
@@ -90,12 +111,13 @@ export default function Sidebar({ onLogout, queueCount }: SidebarProps) {
       <div className="px-4 py-6">
         <button
           onClick={onLogout}
-          className="flex items-center justify-center gap-3 px-4 py-3 rounded-2xl text-sm font-bold
+          className={`flex items-center ${isCollapsed ? 'justify-center px-0' : 'justify-center gap-3 px-4'} py-3 rounded-2xl text-sm font-bold
                      text-[var(--text-secondary)] hover:bg-danger-500 hover:text-white
-                     transition-all duration-300 w-full cursor-pointer shadow-none hover:shadow-xl hover:shadow-danger-500/30 group"
+                     transition-all duration-300 w-full cursor-pointer shadow-none hover:shadow-xl hover:shadow-danger-500/30 group`}
+          title={isCollapsed ? 'Sign Out' : undefined}
         >
-          <LogOut className="w-5 h-5 transition-transform group-hover:-translate-x-1" />
-          <span>Sign Out</span>
+          <LogOut className="w-5 h-5 shrink-0 transition-transform group-hover:-translate-x-1" />
+          {!isCollapsed && <span className="whitespace-nowrap">Sign Out</span>}
         </button>
       </div>
     </aside>

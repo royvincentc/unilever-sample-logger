@@ -90,7 +90,7 @@ export type AirSamplingPoint =
 
 export interface AirFormData {
   method: AirMethod | '';
-  samplingPoint: AirSamplingPoint | '';
+  samplingPoints: AirSamplingPoint[];
   dateSampled: string;
   timeSampled: string;
   performedBy: string;

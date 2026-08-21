@@ -18,17 +18,21 @@ export default function Header({ theme, onSetTheme, title }: HeaderProps) {
     <header className="sticky top-0 z-30 px-4 lg:px-8 py-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-[#00529b] overflow-hidden p-1 flex items-center justify-center shadow-md lg:hidden border border-white/20">
+          {/* Logo without the blue box container, just the image itself */}
+          <div className="w-14 h-14 flex items-center justify-center lg:hidden shrink-0">
             <img src="/unilever-logo.png" alt="Unilever" className="w-full h-full object-contain brightness-0 invert" />
           </div>
-          {title ? (
-            <h2 className="text-xl lg:text-2xl font-bold text-[var(--text-primary)]">
-              {title}
-            </h2>
-          ) : (
-            <div className="lg:hidden">
-              <h1 className="text-base font-bold text-[var(--text-primary)] leading-tight">Unilever</h1>
-              <p className="text-[10px] text-[var(--text-muted)] font-bold uppercase tracking-widest">QC Microbiology</p>
+          <div className="lg:hidden flex flex-col justify-center">
+            <h1 className="text-xl font-black text-[var(--text-primary)] uppercase tracking-wider leading-none mb-1">Unilever</h1>
+            <p className="text-[10px] sm:text-xs text-[var(--text-muted)] font-semibold uppercase tracking-widest leading-none">
+              {title ? `${title} | QC MICRO` : 'DASHBOARD | QC MICRO'}
+            </p>
+          </div>
+          {title && (
+            <div className="hidden lg:block">
+              <h2 className="text-xl lg:text-2xl font-bold text-[var(--text-primary)]">
+                {title}
+              </h2>
             </div>
           )}
         </div>

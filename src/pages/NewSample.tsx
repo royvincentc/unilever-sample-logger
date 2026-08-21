@@ -55,7 +55,8 @@ export default function NewSample({ onQueueUpdate }: NewSampleProps) {
   const submitSample = async (
     sampleType: SampleType,
     formData: EnviFormData | WaterFormData | RawMatsFormData | AirFormData,
-    sampleName: string
+    sampleName: string,
+    overrideControlNumber?: string
   ) => {
     try {
       const subType = sampleType === 'RawMats' ? (formData as RawMatsFormData).type : undefined;
@@ -67,7 +68,10 @@ export default function NewSample({ onQueueUpdate }: NewSampleProps) {
       let controlNumber: string;
       let isUpdate = false;
 
-      if (isOnline && (sampleType === 'WATER' || sampleType === 'RawMats' || sampleType === 'AIR')) {
+      if (overrideControlNumber) {
+        controlNumber = overrideControlNumber;
+        isUpdate = false; // Bulks typically append new rows
+      } else if (isOnline && (sampleType === 'WATER' || sampleType === 'RawMats' || sampleType === 'AIR')) {
         const { incompleteControlNumber, highestControlNumber } =
           await analyseSheetForSubmission(sampleType as 'WATER' | 'RawMats' | 'AIR', sheetTab);
 
@@ -179,13 +183,17 @@ export default function NewSample({ onQueueUpdate }: NewSampleProps) {
   };
 
   const handleEnviSubmit = async (data: EnviFormData) => {
-    // We must submit a separate row for EACH selected sample so they get unique control numbers
+    // Submit a separate row for EACH selected sample, but share ONE unique control number for the whole batch
     const total = data.selectedSamples.length;
     if (total === 0) return;
 
+    // Generate the ONE control number for the whole batch
+    const highestControl = await getHighestControlNumberForSubmission('ENVI', data.dateSampled, isOnline);
+    const sharedControlNumber = generateNextControlNumber('ENVI', highestControl, data.dateSampled);
+
     for (let i = 0; i < total; i++) {
       const sample = data.selectedSamples[i];
-      await submitSample('ENVI', data, sample);
+      await submitSample('ENVI', data, sample, sharedControlNumber);
     }
   };
 
@@ -198,23 +206,44 @@ export default function NewSample({ onQueueUpdate }: NewSampleProps) {
   };
 
   const handleAirSubmit = async (data: AirFormData) => {
-    // We construct a descriptive name for the sample history tab.
-    const name = `${data.method} - ${data.samplingPoint}`;
-    await submitSample('AIR', data, name);
+    const total = data.samplingPoints.length;
+    if (total === 0) return;
+
+    // We still call analyseSheetForSubmission via submitSample to grab the blank row or generate one.
+    // We'll generate it ONCE manually if we want to share. But Air in sheets might not have pre-created blank rows,
+    // wait, Air uses "AIR" format. If it's online, `submitSample` handles the logic. 
+    // To ensure they ALL share the same control number, we should fetch it once here.
+    let sharedControlNumber: string;
+
+    if (isOnline) {
+      const { incompleteControlNumber, highestControlNumber } = await analyseSheetForSubmission('AIR', getSheetTabName('AIR'));
+      sharedControlNumber = incompleteControlNumber || generateNextControlNumber('AIR', highestControlNumber, data.dateSampled);
+    } else {
+      const highestControl = await getHighestControlNumberForSubmission('AIR', data.dateSampled, isOnline);
+      sharedControlNumber = generateNextControlNumber('AIR', highestControl, data.dateSampled);
+    }
+
+    for (let i = 0; i < total; i++) {
+      const point = data.samplingPoints[i];
+      const name = `${data.method} - ${point}`;
+      // Clone data and inject the specific sampling point so the mapper picks it up
+      const rowData = { ...data, samplingPoint: point };
+      await submitSample('AIR', rowData, name, sharedControlNumber);
+    }
   };
 
   return (
-    <div>
+    <div className="min-h-screen flex flex-col">
       <Header theme={theme} onSetTheme={setTheme} title="New Sample" />
-      <div className="px-4 lg:px-8 max-w-3xl">
+      <div className="flex-1 w-full max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-24">
         <AnimatePresence mode="wait">
           {!selectedType ? (
             <motion.div
               key="selector"
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              transition={{ duration: 0.2 }}
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: -10 }}
+              transition={{ duration: 0.3, type: "spring", bounce: 0.2 }}
             >
               <SampleTypeSelector onSelect={setSelectedType} />
             </motion.div>
@@ -223,8 +252,8 @@ export default function NewSample({ onQueueUpdate }: NewSampleProps) {
               key="envi"
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 20 }}
-              transition={{ duration: 0.2 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.3, type: "spring", bounce: 0.2 }}
             >
               <EnviForm onSubmit={handleEnviSubmit} onBack={() => setSelectedType(null)} />
             </motion.div>
@@ -233,8 +262,8 @@ export default function NewSample({ onQueueUpdate }: NewSampleProps) {
               key="water"
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 20 }}
-              transition={{ duration: 0.2 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.3, type: "spring", bounce: 0.2 }}
             >
               <WaterForm onSubmit={handleWaterSubmit} onBack={() => setSelectedType(null)} />
             </motion.div>
@@ -243,8 +272,8 @@ export default function NewSample({ onQueueUpdate }: NewSampleProps) {
               key="rawmats"
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 20 }}
-              transition={{ duration: 0.2 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.3, type: "spring", bounce: 0.2 }}
             >
               <RawMatsForm onSubmit={handleRawMatsSubmit} onBack={() => setSelectedType(null)} />
             </motion.div>
@@ -253,8 +282,8 @@ export default function NewSample({ onQueueUpdate }: NewSampleProps) {
               key="air"
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 20 }}
-              transition={{ duration: 0.2 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.3, type: "spring", bounce: 0.2 }}
             >
               <AirForm onSubmit={handleAirSubmit} onBack={() => setSelectedType(null)} />
             </motion.div>

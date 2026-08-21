@@ -56,7 +56,7 @@ const item = {
 
 export default function SampleTypeSelector({ onSelect }: SampleTypeSelectorProps) {
   return (
-    <div className="px-4 lg:px-8 py-6">
+    <div className="w-full">
       <div className="mb-6">
         <h3 className="text-lg font-bold text-[var(--text-primary)]">What type of sample?</h3>
         <p className="text-sm text-[var(--text-secondary)] mt-1">

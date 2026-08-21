@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Send, ArrowLeft } from 'lucide-react';
 import TextInput, { DatePicker, TimePicker } from '../ui/TextInput';
 import Dropdown from '../ui/Dropdown';
+import ComboBox from '../ui/ComboBox';
 import RadioGroup from '../ui/RadioGroup';
 import Button from '../ui/Button';
 import { PERSONNEL, PERSONNEL_WITH_MARK } from '../../data/personnelData';
@@ -105,7 +106,7 @@ export default function RawMatsForm({ onSubmit, onBack }: RawMatsFormProps) {
         <motion.div variants={fadeUp} className="glass rounded-2xl p-5 space-y-4">
           <h4 className="text-sm font-semibold text-[var(--text-primary)] uppercase tracking-wider">Sample Details</h4>
           <RadioGroup label="Type" value={form.type} options={RAWMATS_TYPES} onChange={(v) => setForm({ ...form, type: v as RawMatsType })} required />
-          <Dropdown label="Sample" value={form.sample} options={RAWMATS_SAMPLES} onChange={(v) => setForm({ ...form, sample: v })} placeholder="Select sample..." required />
+          <ComboBox label="Sample" value={form.sample} options={RAWMATS_SAMPLES} onChange={(v) => setForm({ ...form, sample: v })} placeholder="Select sample..." required />
           <Dropdown label="Source" value={form.source} options={RAWMATS_SOURCES} onChange={(v) => setForm({ ...form, source: v })} placeholder="Select source..." required />
           <div className="grid grid-cols-2 gap-4">
             <TextInput label="QTY" value={form.qty} onChange={(v) => setForm({ ...form, qty: v })} placeholder="Enter qty" />

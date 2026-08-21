@@ -2,12 +2,11 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   CalendarDays, RefreshCw, CheckCircle2, AlertCircle, Clock,
-  FlaskConical, Droplets, Package, Link2, Info
+  FlaskConical, Droplets, Package, Link2, Info, X
 } from 'lucide-react';
 import Header from '../components/Layout/Header';
 import { useTheme } from '../hooks/useTheme';
-import { getHistory } from '../utils/db';
-import type { HistoryEntry } from '../types';
+import { fetchActiveIncubationsFromSheet } from '../utils/api';
 import { auth } from '../utils/firebase';
 import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 
@@ -40,58 +39,87 @@ interface IncubationEvent {
   controlNumber: string;
   status: 'due-today' | 'upcoming' | 'overdue';
   colorClass: string;
+  analyst: string;
 }
 
-function buildIncubationEvents(history: HistoryEntry[]): IncubationEvent[] {
-  const events: IncubationEvent[] = [];
+function buildIncubationEvents(history: any[]): IncubationEvent[] {
+  const eventsMap = new Map<string, IncubationEvent>();
   const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
   for (const entry of history) {
-    const base = new Date(entry.dateSampled);
+    const baseDateStr = entry.dateAnalyzed || entry.dateSampled || entry.submittedAt;
+    if (!baseDateStr) continue;
+
+    const base = new Date(baseDateStr);
     if (isNaN(base.getTime())) continue;
 
     const addReading = (label: string, daysOffset: number) => {
       const due = new Date(base);
       due.setDate(due.getDate() + daysOffset);
-      due.setHours(17, 0, 0, 0); // Default reminder at 5 PM
+      
+      const dueStartOfDay = new Date(due.getFullYear(), due.getMonth(), due.getDate());
+      const diffDays = Math.round((dueStartOfDay.getTime() - today.getTime()) / 86400000);
 
-      const diffDays = Math.ceil((due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
       if (diffDays < -30) return; // Skip very old ones to keep calendar clean
 
       const status: IncubationEvent['status'] =
         diffDays < 0 ? 'overdue' : diffDays === 0 ? 'due-today' : 'upcoming';
 
-      events.push({
-        id: `${entry.id}-${label}`,
-        title: `${entry.controlNumber} - ${label.split(' ')[0]}`,
-        description: `Control #: ${entry.controlNumber}\nType: ${entry.sampleType}\nSubmitted by: ${entry.submittedBy}`,
-        start: due,
-        end: new Date(due.getTime() + 60 * 60 * 1000), // 1 hour duration
-        sampleType: entry.sampleType,
-        controlNumber: entry.controlNumber,
-        status,
-        colorClass:
-          status === 'overdue' ? 'bg-danger-500' :
-          status === 'due-today' ? 'bg-amber-500' :
-          'bg-primary-500',
-      });
+      // Set it to 9am on that day
+      due.setHours(9, 0, 0, 0);
+
+      const colorClass = 
+          entry.sampleType === 'ENVI' ? 'bg-emerald-500' :
+          entry.sampleType === 'AIR' ? 'bg-yellow-500' :
+          entry.sampleType === 'WATER' ? 'bg-blue-500' :
+          'bg-pink-500'; // RM, SFG, FG
+
+      const analystName = entry.submittedBy || 'Unknown';
+      const sampleName = entry.sampleName || 'N/A';
+      
+      const key = `${entry.controlNumber}-${label}-${due.getTime()}`;
+      if (eventsMap.has(key)) {
+        const existing = eventsMap.get(key)!;
+        existing.description += `\nSample: ${sampleName}`;
+      } else {
+        eventsMap.set(key, {
+          id: `${entry.id || entry.controlNumber}-${label}`,
+          title: `${entry.controlNumber} - ${label}`,
+          description: `Control #: ${entry.controlNumber}\nType: ${entry.sampleType}\nAnalyst: ${analystName}\nSample: ${sampleName}`,
+          start: due,
+          end: new Date(due.getTime() + 60 * 60 * 1000), // 1 hour duration
+          sampleType: entry.sampleType,
+          controlNumber: entry.controlNumber,
+          status,
+          colorClass,
+          analyst: analystName
+        });
+      }
     };
 
+    const sName = (entry.sampleName || '').toLowerCase();
+    
     if (entry.sampleType === 'ENVI') {
-      addReading('ENVI Final (48h)', 2);
+      addReading('Final (2D)', 2);
     } else if (entry.sampleType === 'WATER') {
-      addReading('WATER 1st (48h)', 2);
-      addReading('WATER 2nd (7D)', 7);
-      addReading('WATER Final (14D)', 14);
+      addReading('Reading (14th)', 14);
+    } else if (entry.sampleType === 'AIR') {
+      // Leave empty
     } else if (entry.sampleType === 'RawMats') {
-      addReading('RM APC (3D)', 3);
-      addReading('RM APC (7D)', 7);
-      addReading('RM MY (5D)', 5);
-      addReading('RM MY (7D)', 7);
+      const isFabCon = sName.includes('fabcon') || sName.includes('fabric conditioner') || sName.includes('fabric');
+      
+      if (isFabCon) {
+        addReading('Indicative (5D)', 5);
+        addReading('Final (7D)', 7);
+      } else {
+        addReading('Indicative (3D)', 3);
+        addReading('Final (7D)', 7);
+      }
     }
   }
 
-  return events;
+  return Array.from(eventsMap.values());
 }
 
 // ===== GOOGLE CALENDAR API =====
@@ -157,17 +185,54 @@ async function createCalendarEvent(accessToken: string, event: IncubationEvent):
     const [view, setView] = useState<View>(Views.MONTH);
     const [date, setDate] = useState(new Date());
 
+    const [selectedEvents, setSelectedEvents] = useState<IncubationEvent[] | null>(null);
+    const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [selectedAnalyst, setSelectedAnalyst] = useState<string>('All Analysts');
+
+    const uniqueAnalysts = useMemo(() => {
+      const analysts = Array.from(new Set(events.map(e => e.analyst))).filter(Boolean);
+      return ['All Analysts', ...analysts.sort()];
+    }, [events]);
+
+    const filteredEvents = useMemo(() => {
+      if (selectedAnalyst === 'All Analysts') return events;
+      return events.filter(e => e.analyst === selectedAnalyst);
+    }, [events, selectedAnalyst]);
+
+    // Keyboard shortcut to close modal
+    useEffect(() => {
+      const handleKeyDown = (e: KeyboardEvent) => {
+        if (e.key === 'Escape' && isModalOpen) {
+          setIsModalOpen(false);
+        }
+      };
+      window.addEventListener('keydown', handleKeyDown);
+      return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [isModalOpen]);
+
     const loadEvents = useCallback(async () => {
       setLoading(true);
       try {
-        const history = await getHistory();
+        const history = await fetchActiveIncubationsFromSheet();
         setEvents(buildIncubationEvents(history));
+      } catch (err) {
+        console.error("Failed to load events", err);
       } finally {
         setLoading(false);
       }
     }, []);
 
     useEffect(() => { loadEvents(); }, [loadEvents]);
+
+    const handleSelectDate = (selectedD: Date) => {
+      const dayEvents = filteredEvents.filter(e => e.start.toDateString() === selectedD.toDateString());
+      if (dayEvents.length > 0) {
+        setSelectedEvents(dayEvents);
+        setSelectedDate(selectedD);
+        setIsModalOpen(true);
+      }
+    };
 
     const handleSyncToGoogleCalendar = async () => {
       setSyncing(true);
@@ -182,7 +247,7 @@ async function createCalendarEvent(accessToken: string, event: IncubationEvent):
         }
         let success = 0; let failed = 0;
         let lastError = '';
-        for (const event of events.filter(e => e.start.getTime() > Date.now())) {
+        for (const event of filteredEvents.filter(e => e.start.getTime() > Date.now())) {
           try {
             const ok = await createCalendarEvent(token, event);
             if (ok) success++; else failed++;
@@ -213,10 +278,19 @@ async function createCalendarEvent(accessToken: string, event: IncubationEvent):
             <h2 className="text-2xl font-bold text-[var(--text-primary)]">Incubation Schedule</h2>
             <p className="text-sm text-[var(--text-secondary)] mt-1">Track reading dates in a visual grid</p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <select
+              value={selectedAnalyst}
+              onChange={(e) => setSelectedAnalyst(e.target.value)}
+              className="px-4 py-2 rounded-xl bg-[var(--bg-input)] border border-[var(--border-subtle)] text-sm font-bold text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-primary-500/50 cursor-pointer appearance-none min-w-[140px]"
+            >
+              {uniqueAnalysts.map(analyst => (
+                <option key={analyst} value={analyst}>{analyst}</option>
+              ))}
+            </select>
             <button
               onClick={handleSyncToGoogleCalendar}
-              disabled={syncing || events.length === 0}
+              disabled={syncing || filteredEvents.length === 0}
               className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white text-sm font-bold shadow-lg shadow-blue-500/20 transition-all cursor-pointer disabled:opacity-50"
             >
               <Link2 className="w-4 h-4" />
@@ -276,7 +350,7 @@ async function createCalendarEvent(accessToken: string, event: IncubationEvent):
           ) : (
             <BigCalendar
               localizer={localizer}
-              events={events}
+              events={filteredEvents}
               startAccessor="start"
               endAccessor="end"
               style={{ height: '100%', minHeight: '500px' }}
@@ -285,6 +359,14 @@ async function createCalendarEvent(accessToken: string, event: IncubationEvent):
               date={date}
               onView={(v: any) => setView(v)}
               onNavigate={(d) => setDate(d)}
+              selectable={true}
+              onSelectSlot={({ start }) => handleSelectDate(start)}
+              onDrillDown={(date) => handleSelectDate(date)}
+              onSelectEvent={(e) => {
+                setSelectedEvents([e]);
+                setSelectedDate(e.start);
+                setIsModalOpen(true);
+              }}
               components={{
                 event: CustomEvent,
               }}
@@ -295,12 +377,76 @@ async function createCalendarEvent(accessToken: string, event: IncubationEvent):
 
         {/* Legend */}
         <div className="mt-6 flex flex-wrap items-center justify-center gap-6 pb-8">
-          <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-danger-500" /><span className="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider">Overdue</span></div>
-          <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-amber-500" /><span className="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider">Due Today</span></div>
-          <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-primary-500" /><span className="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider">Upcoming</span></div>
+          <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-emerald-500" /><span className="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider">ENVI</span></div>
+          <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-yellow-500" /><span className="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider">AIR</span></div>
+          <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-blue-500" /><span className="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider">WATER</span></div>
+          <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-pink-500" /><span className="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider">RM / SFG / FG</span></div>
         </div>
 
       </div>
+
+      {/* Modal Popup */}
+      <AnimatePresence>
+        {isModalOpen && selectedEvents && selectedDate && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
+            <motion.div 
+              initial={{ opacity: 0 }} 
+              animate={{ opacity: 1 }} 
+              exit={{ opacity: 0 }} 
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm fixed"
+              onClick={() => setIsModalOpen(false)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-lg bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-2xl shadow-2xl overflow-hidden my-8"
+            >
+              <div className="p-6 border-b border-[var(--border-subtle)] bg-[var(--bg-body)] sticky top-0 z-10">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-xl font-bold text-[var(--text-primary)]">
+                      {selectedDate.toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                    </h3>
+                    <p className="text-sm font-semibold text-[var(--text-secondary)] mt-1">{selectedEvents.length} Sample{selectedEvents.length === 1 ? '' : 's'} Due</p>
+                  </div>
+                  <button 
+                    onClick={() => setIsModalOpen(false)}
+                    className="p-2 text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] rounded-lg transition-colors"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="p-6 space-y-6 max-h-[60vh] overflow-y-auto">
+                {selectedEvents.map((evt, idx) => (
+                  <div key={idx} className="rounded-xl border border-[var(--border-subtle)] overflow-hidden">
+                    <div className={`h-2 w-full ${evt.colorClass}`} />
+                    <div className="p-4 bg-[var(--bg-body)]">
+                      <h4 className="text-lg font-bold text-[var(--text-primary)] font-mono">{evt.controlNumber}</h4>
+                      <p className="text-sm font-semibold text-[var(--text-secondary)] mt-1 mb-4">{evt.title.split(' - ')[1]}</p>
+                      
+                      <div className="space-y-2">
+                        {evt.description.split('\n').map((line, i) => {
+                          const [label, ...val] = line.split(':');
+                          return (
+                            <div key={i} className="flex flex-col bg-[var(--bg-surface)] p-2 rounded-lg border border-[var(--border-subtle)]/50">
+                              <span className="text-[10px] uppercase tracking-wider text-[var(--text-muted)] font-bold">{label}</span>
+                              <span className="text-sm font-medium text-[var(--text-primary)] mt-0.5">{val.join(':').trim()}</span>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
     </div>
   );
 }

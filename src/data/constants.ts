@@ -85,7 +85,7 @@ export const DEFAULT_SETTINGS = {
     rawmats: 'https://n8n-royvincentc.onrender.com/webhook/rawmats-submit',
     sync: 'https://n8n-royvincentc.onrender.com/webhook/sync-history',
   },
-  spreadsheetId: '10ZTitLYObaWll2p8waWfQ0LJzuPu77Of0IDPL42zzwo',
+  spreadsheetId: '1yfoeCEFrL6AYftrmjcuAqsWU6Pu2bZ_mahaUvs9TzbI',
   theme: 'system' as const,
   authMode: 'password' as const,
   pin: '09062025',
@@ -93,7 +93,7 @@ export const DEFAULT_SETTINGS = {
 
 export const SPREADSHEETS = {
   practice: '12GkLM06FaO9Qn_E4TDQp852nUvf53mxl6nUI9C9GEdc',
-  official: '10ZTitLYObaWll2p8waWfQ0LJzuPu77Of0IDPL42zzwo'
+  official: '1yfoeCEFrL6AYftrmjcuAqsWU6Pu2bZ_mahaUvs9TzbI'
 };
 
 // ===== AUTH CREDENTIALS =====

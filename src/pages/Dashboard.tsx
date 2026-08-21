@@ -238,7 +238,7 @@ export default function Dashboard({ theme, onSetTheme }: DashboardProps) {
       </div>
 
       {/* Fluid Floating Action Button (FAB) */}
-      <div className="fixed bottom-8 right-8 z-50">
+      <div className="hidden lg:block fixed bottom-8 right-8 z-50">
         <AnimatePresence>
           {isFabOpen && (
             <motion.div 

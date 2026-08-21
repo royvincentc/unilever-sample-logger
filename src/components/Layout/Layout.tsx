@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { ReactNode } from 'react';
 import Sidebar from './Sidebar';
 import BottomNav from './BottomNav';
@@ -13,15 +14,21 @@ interface LayoutProps {
 
 export default function Layout({ children, onLogout, queueCount }: LayoutProps) {
   const isOnline = useOnlineStatus();
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   return (
     <div className="min-h-screen gradient-mesh">
       <OfflineBanner visible={!isOnline} />
-      <Sidebar onLogout={onLogout} queueCount={queueCount} />
+      <Sidebar 
+        onLogout={onLogout} 
+        queueCount={queueCount} 
+        isCollapsed={isSidebarCollapsed}
+        onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+      />
       <BottomNav queueCount={queueCount} />
 
       {/* Main content area */}
-      <main className="lg:ml-64 pb-24 lg:pb-8 min-h-screen">
+      <main className={`transition-all duration-300 ${isSidebarCollapsed ? 'lg:ml-20' : 'lg:ml-[280px]'} pb-24 lg:pb-8 min-h-screen`}>
         {children}
       </main>
 

@@ -72,7 +72,7 @@ export default function Results() {
         // Find the longest object to extract all possible headers
         let allHeaders: string[] = [];
         for (const row of rows) {
-          const keys = Object.keys(row);
+          const keys = Object.keys(row).filter(k => !k.startsWith('_'));
           if (keys.length > allHeaders.length) {
             allHeaders = keys;
           }
@@ -233,40 +233,42 @@ export default function Results() {
           ) : (
             <div className="overflow-x-auto overflow-y-auto flex-1 custom-scrollbar">
               <table className="w-full text-left border-collapse text-sm min-w-max">
-                <thead className="sticky top-0 bg-[var(--bg-surface)] z-10 shadow-sm">
+                <thead className="sticky top-0 z-10 shadow-sm">
                   <tr>
-                    <th className="px-4 py-3 font-semibold text-[var(--text-secondary)] border-b border-[var(--border-subtle)]">Actions</th>
+                    <th className="px-3 py-2 font-bold text-[var(--text-secondary)] border border-[var(--border-subtle)] bg-[var(--bg-sidebar)] uppercase tracking-wider text-[10px]">Actions</th>
                     {headers.map((h, i) => (
-                      <th key={i} className="px-4 py-3 font-semibold text-[var(--text-secondary)] border-b border-[var(--border-subtle)] uppercase tracking-wider text-xs">
+                      <th key={i} className="px-3 py-2 font-bold text-[var(--text-secondary)] border border-[var(--border-subtle)] bg-[var(--bg-sidebar)] uppercase tracking-wider text-[10px] whitespace-nowrap">
                         {h}
                       </th>
                     ))}
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[var(--border-subtle)]">
+                <tbody>
                   {filteredData.map((row, rowIndex) => (
                     <tr key={rowIndex} className="hover:bg-[var(--bg-hover)] transition-colors group">
-                      <td className="px-4 py-2">
+                      <td className="px-3 py-1.5 border border-[var(--border-subtle)] bg-[var(--bg-surface)]">
                         <div className="flex items-center gap-2">
                           <button
                             onClick={() => handleEditClick(row)}
-                            className="p-1.5 rounded-lg bg-[var(--bg-body)] border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-primary-500 hover:border-primary-500 transition-colors shadow-sm"
+                            className="flex items-center gap-1.5 px-2 py-1 rounded bg-[var(--bg-body)] border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-primary-500 hover:border-primary-500 transition-colors shadow-sm"
                             title="Edit Row"
                           >
-                            <Edit2 className="w-4 h-4" />
+                            <Edit2 className="w-3.5 h-3.5" />
+                            <span className="text-[10px] font-bold uppercase tracking-wider">Edit</span>
                           </button>
                           <button
                             onClick={() => handleGenerateReport(row)}
-                            className="p-1.5 rounded-lg bg-[var(--bg-body)] border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-success-500 hover:border-success-500 transition-colors shadow-sm"
+                            className="flex items-center gap-1.5 px-2 py-1 rounded bg-[var(--bg-body)] border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-success-500 hover:border-success-500 transition-colors shadow-sm"
                             title="Generate Report"
                           >
-                            <FileText className="w-4 h-4" />
+                            <FileText className="w-3.5 h-3.5" />
+                            <span className="text-[10px] font-bold uppercase tracking-wider">Print</span>
                           </button>
                         </div>
                       </td>
                       {headers.map((h, colIndex) => (
-                        <td key={colIndex} className="px-4 py-3 text-[var(--text-primary)] max-w-xs truncate">
-                          {row[h] !== undefined && row[h] !== null ? String(row[h]) : '-'}
+                        <td key={colIndex} className="px-3 py-1.5 text-xs text-[var(--text-primary)] border border-[var(--border-subtle)] whitespace-nowrap max-w-sm truncate bg-[var(--bg-body)]">
+                          {row[h] !== undefined && row[h] !== null && String(row[h]).trim() !== '' ? String(row[h]) : '-'}
                         </td>
                       ))}
                     </tr>
