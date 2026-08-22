@@ -265,11 +265,8 @@ export default function Incubation() {
       const sizePart = task.qty && task.unit ? `, ${task.qty} ${task.unit}` : '';
       text += `${index + 1}. ${typePrefix}${task.sampleName}${sizePart}\n`;
       
-      const batchParts = [];
-      if (task.batchNumber) batchParts.push(task.batchNumber);
-      if (task.time) batchParts.push(task.time);
-      if (batchParts.length > 0) {
-        text += `Batch #: ${batchParts.join(' ')}\n`;
+      if (task.batchNumber) {
+        text += `Batch #: ${task.batchNumber}\n`;
       }
       
       text += `APC: ${task.apc || 'N/A'}\n`;
