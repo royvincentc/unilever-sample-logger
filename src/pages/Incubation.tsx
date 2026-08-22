@@ -35,6 +35,13 @@ interface IncubationTask {
   category: IncubationCategory;
   filterTab: FilterTab;
   analyzedBy: string;
+  batchNumber?: string;
+  qty?: string;
+  unit?: string;
+  apc?: string;
+  my?: string;
+  indicativeRemarks?: string;
+  time?: string;
 }
 
 export default function Incubation() {
@@ -42,6 +49,7 @@ export default function Incubation() {
   const [tasks, setTasks] = useState<IncubationTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<FilterTab>('All');
+  const [finalTab, setFinalTab] = useState<'All' | 'ENVI' | 'RM/SFG/FG' | 'WATER' | 'AIR'>('All');
   const navigate = useNavigate();
   const { showToast } = useToast();
 
@@ -111,7 +119,14 @@ export default function Incubation() {
             bgClass,
             category,
             filterTab,
-            analyzedBy: entry.submittedBy || 'Unknown Analyst'
+            analyzedBy: entry.submittedBy || 'Unknown Analyst',
+            batchNumber: entry.batchNumber,
+            qty: entry.qty,
+            unit: entry.unit,
+            apc: entry.apc,
+            my: entry.my,
+            indicativeRemarks: entry.indicativeRemarks,
+            time: entry.time
           });
         };
 
@@ -163,7 +178,15 @@ export default function Incubation() {
   const dueToday = tasks.filter(t => t.status === 'due-today' && (activeTab === 'All' || t.filterTab === activeTab));
   const priority1 = dueToday.filter(t => t.category === 'Priority 1');
   const priority2 = dueToday.filter(t => t.category === 'Priority 2');
-  const finals = dueToday.filter(t => t.category === 'Final');
+  const finals = dueToday.filter(t => {
+    if (t.category !== 'Final') return false;
+    if (finalTab === 'All') return true;
+    if (finalTab === 'ENVI') return t.filterTab === 'Envi Swabs';
+    if (finalTab === 'WATER') return t.filterTab === 'Water Samples';
+    if (finalTab === 'AIR') return t.filterTab === 'Air Monitoring';
+    if (finalTab === 'RM/SFG/FG') return ['Raw Materials', 'Semi-Finished Goods (SFG)', 'Finished Goods (FG)'].includes(t.filterTab);
+    return true;
+  });
 
   // Bottom section: overdue and upcoming/all queues
   const filteredTasks = tasks.filter(t => activeTab === 'All' || t.filterTab === activeTab);
@@ -214,6 +237,43 @@ export default function Incubation() {
     </div>
   );
 
+  const handleCopyReport = (dayTasks: IncubationTask[], day: number) => {
+    if (dayTasks.length === 0) {
+      showToast('info', 'No Data', `No indicative readings for Day ${day} today.`);
+      return;
+    }
+
+    let text = `Indicative Result of Day ${day}\n`;
+    dayTasks.forEach((task, index) => {
+      let type = '';
+      if (task.filterTab === 'Finished Goods (FG)') type = 'FG';
+      else if (task.filterTab === 'Semi-Finished Goods (SFG)') type = 'SFG';
+      else if (task.filterTab === 'Raw Materials') type = 'RM';
+
+      const typePrefix = type ? `${type} - ` : '';
+      const parts = [];
+      if (task.batchNumber) parts.push(`BN: ${task.batchNumber}`);
+      if (task.time) parts.push(`I ${task.time}`);
+      
+      let batchFull = '';
+      if (parts.length > 0) {
+        batchFull = `, ${parts.join(' ')}`;
+      }
+      
+      const sizePart = task.qty && task.unit ? `, ${task.qty} ${task.unit}` : '';
+      
+      text += `${index + 1}. ${typePrefix}${task.sampleName}${batchFull}${sizePart}\n`;
+      text += `APC: ${task.apc || 'N/A'}\n`;
+      text += `MY: ${task.my || 'N/A'}\n`;
+      text += `Remarks: ${task.indicativeRemarks || 'N/A'}\n`;
+      if (index < dayTasks.length - 1) text += '\n';
+    });
+
+    navigator.clipboard.writeText(text)
+      .then(() => showToast('success', 'Copied!', `Day ${day} report copied to clipboard.`))
+      .catch(() => showToast('error', 'Error', 'Failed to copy to clipboard.'));
+  };
+
   return (
     <div className="min-h-screen bg-[var(--bg-body)]">
       <Header theme={theme} onSetTheme={setTheme} title="Incubations" />
@@ -223,8 +283,19 @@ export default function Incubation() {
         {/* Top Priority Panels */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="glass rounded-2xl p-4 border border-[var(--border-subtle)] flex flex-col h-full max-h-[400px]">
-            <h3 className="text-sm font-bold text-[var(--text-primary)] mb-1">Priority 1: 3rd Day Indicative Readings</h3>
-            <p className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-4">(Due Today)</p>
+            <div className="flex items-start justify-between mb-4">
+              <div>
+                <h3 className="text-sm font-bold text-[var(--text-primary)] mb-1">Priority 1: 3rd Day Indicative Readings</h3>
+                <p className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider">(Due Today)</p>
+              </div>
+              <button 
+                onClick={() => handleCopyReport(priority1, 3)}
+                className="text-[10px] font-bold text-primary-500 bg-primary-500/10 px-2 py-1.5 rounded-lg hover:bg-primary-500/20 transition-colors cursor-pointer border border-primary-500/20"
+                title="Copy Day 3 Report"
+              >
+                Copy Report
+              </button>
+            </div>
             <div className="text-3xl font-bold text-warning-500 mb-4">{priority1.length}</div>
             <div className="space-y-2 flex-1 overflow-y-auto pr-1 custom-scrollbar">
               {priority1.map(t => <TaskCard key={t.id} task={t} />)}
@@ -232,8 +303,19 @@ export default function Incubation() {
           </div>
           
           <div className="glass rounded-2xl p-4 border border-[var(--border-subtle)] flex flex-col h-full max-h-[400px]">
-            <h3 className="text-sm font-bold text-[var(--text-primary)] mb-1">Priority 2: 5th Day Indicative Readings</h3>
-            <p className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-4">(Due Today)</p>
+            <div className="flex items-start justify-between mb-4">
+              <div>
+                <h3 className="text-sm font-bold text-[var(--text-primary)] mb-1">Priority 2: 5th Day Indicative Readings</h3>
+                <p className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider">(Due Today)</p>
+              </div>
+              <button 
+                onClick={() => handleCopyReport(priority2, 5)}
+                className="text-[10px] font-bold text-primary-500 bg-primary-500/10 px-2 py-1.5 rounded-lg hover:bg-primary-500/20 transition-colors cursor-pointer border border-primary-500/20"
+                title="Copy Day 5 Report"
+              >
+                Copy Report
+              </button>
+            </div>
             <div className="text-3xl font-bold text-danger-500 mb-4">{priority2.length}</div>
             <div className="space-y-2 flex-1 overflow-y-auto pr-1 custom-scrollbar">
               {priority2.map(t => <TaskCard key={t.id} task={t} />)}
@@ -241,8 +323,29 @@ export default function Incubation() {
           </div>
 
           <div className="glass rounded-2xl p-4 border border-[var(--border-subtle)] flex flex-col h-full max-h-[400px]">
-            <h3 className="text-sm font-bold text-[var(--text-primary)] mb-1">Final & Multi-Stage Readings</h3>
-            <p className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-4">(Due Today)</p>
+            <div className="flex items-start justify-between mb-2">
+              <div>
+                <h3 className="text-sm font-bold text-[var(--text-primary)] mb-1">Final & Multi-Stage Readings</h3>
+                <p className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider">(Due Today)</p>
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-1.5 mb-3 overflow-x-auto hide-scrollbar pb-1">
+              {['All', 'ENVI', 'RM/SFG/FG', 'WATER', 'AIR'].map(tab => (
+                <button
+                  key={tab}
+                  onClick={() => setFinalTab(tab as any)}
+                  className={`text-[9px] font-bold px-2 py-1 rounded transition-colors cursor-pointer whitespace-nowrap
+                    ${finalTab === tab 
+                      ? 'bg-emerald-500 text-white shadow-sm' 
+                      : 'bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-subtle)]'
+                    }`}
+                >
+                  {tab}
+                </button>
+              ))}
+            </div>
+
             <div className="text-3xl font-bold text-emerald-500 mb-4">{finals.length}</div>
             <div className="space-y-2 flex-1 overflow-y-auto pr-1 custom-scrollbar">
               {finals.map(t => <TaskCard key={t.id} task={t} />)}

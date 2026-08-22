@@ -206,7 +206,14 @@ export async function fetchActiveIncubationsFromSheet(): Promise<any[]> {
             sampleName: row['SAMPLE'] || row['SAMPLE DESCRIPTION'] || '',
             dateAnalyzed: dateAnalyzed,
             rawMatsType: sampleType === 'RawMats' ? String(row['TYPE'] || '').toUpperCase() : undefined,
-            submittedBy: String(row['ANALYST'] || row['ANALYZED BY'] || row['SWABBED BY'] || ''), // just for tracking
+            submittedBy: String(row['ANALYST'] || row['ANALYZED BY'] || row['SWABBED BY'] || ''),
+            batchNumber: row['MIXING BATCH #'] || '',
+            qty: row['QTY'] || '',
+            unit: row['UNIT'] || '',
+            apc: row['(C) Aerobic Plate Count'] || '',
+            my: row['(C) Yeast and Molds'] || '',
+            indicativeRemarks: row['INDICATIVE RESULT'] || row['REMARKS'] || row['REMARKS '] || '',
+            time: row['TIME'] || '',
           });
         }
       }
