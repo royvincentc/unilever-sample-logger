@@ -42,6 +42,7 @@ interface IncubationTask {
   my?: string;
   indicativeRemarks?: string;
   time?: string;
+  rawMatsType?: string;
 }
 
 export default function Incubation() {
@@ -126,7 +127,8 @@ export default function Incubation() {
             apc: entry.apc,
             my: entry.my,
             indicativeRemarks: entry.indicativeRemarks,
-            time: entry.time
+            time: entry.time,
+            rawMatsType: entry.rawMatsType
           });
         };
 
@@ -243,31 +245,47 @@ export default function Incubation() {
       return;
     }
 
-    let text = `Indicative Result of Day ${day}\n`;
+    const hour = new Date().getHours();
+    const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+    
+    let text = `${greeting}!\n\nIndicative Result for the following samples:\n\n`;
+
     dayTasks.forEach((task, index) => {
       let type = '';
-      if (task.filterTab === 'Finished Goods (FG)') type = 'FG';
-      else if (task.filterTab === 'Semi-Finished Goods (SFG)') type = 'SFG';
-      else if (task.filterTab === 'Raw Materials') type = 'RM';
-
-      const typePrefix = type ? `${type} - ` : '';
-      const parts = [];
-      if (task.batchNumber) parts.push(`BN: ${task.batchNumber}`);
-      if (task.time) parts.push(`I ${task.time}`);
-      
-      let batchFull = '';
-      if (parts.length > 0) {
-        batchFull = `, ${parts.join(' ')}`;
+      if (task.rawMatsType) {
+        type = task.rawMatsType;
+      } else {
+        if (task.filterTab === 'Finished Goods (FG)') type = 'FG';
+        else if (task.filterTab === 'Semi-Finished Goods (SFG)') type = 'SFG';
+        else if (task.filterTab === 'Raw Materials') type = 'RM';
       }
+
+      const typePrefix = type ? `${type} ` : '';
       
       const sizePart = task.qty && task.unit ? `, ${task.qty} ${task.unit}` : '';
+      text += `${index + 1}. ${typePrefix}${task.sampleName}${sizePart}\n`;
       
-      text += `${index + 1}. ${typePrefix}${task.sampleName}${batchFull}${sizePart}\n`;
+      const batchParts = [];
+      if (task.batchNumber) batchParts.push(task.batchNumber);
+      if (task.time) batchParts.push(task.time);
+      if (batchParts.length > 0) {
+        text += `Batch #: ${batchParts.join(' ')}\n`;
+      }
+      
       text += `APC: ${task.apc || 'N/A'}\n`;
       text += `MY: ${task.my || 'N/A'}\n`;
-      text += `Remarks: ${task.indicativeRemarks || 'N/A'}\n`;
-      if (index < dayTasks.length - 1) text += '\n';
+      
+      // Force Remarks to "Pass" if indicativeRemarks contains passed/pass, etc. Or just output as is.
+      // In the example it's "Remarks: Pass". We will output exactly what the sheet has, but if it's "PASSED" we can format it as "Pass" if desired, but better to keep exactly what's there or normalize capitalization.
+      const rawRemarks = (task.indicativeRemarks || 'N/A').trim();
+      const formattedRemarks = rawRemarks.toUpperCase() === 'PASSED' ? 'Pass' : 
+                               rawRemarks.toUpperCase() === 'PASS' ? 'Pass' : 
+                               rawRemarks.toUpperCase() === 'FAILED' ? 'Fail' : rawRemarks;
+      
+      text += `Remarks: ${formattedRemarks}\n\n`;
     });
+
+    text += `Thank you`;
 
     navigator.clipboard.writeText(text)
       .then(() => showToast('success', 'Copied!', `Day ${day} report copied to clipboard.`))
