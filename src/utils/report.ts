@@ -57,9 +57,9 @@ export async function generateDocxReport(data: any, analyzedBy: string, tab: str
         return resultStr;
       };
 
-      const apcResultStr = formatResult(apcSpec, String(raw[28] || ''));
-      const myResultStr = formatResult(mySpec, String(raw[30] || ''));
-      const gnResultStr = formatResult(gnSpec, String(raw[29] || ''));
+      const apcResultStr = formatResult(apcSpec, String(data['(A) Aerobic Plate Count'] || data['Aerobic Plate Count'] || data['TVC (count)'] || raw[28] || ''));
+      const myResultStr = formatResult(mySpec, String(data['(A) Yeast and Molds'] || data['Yeast and Molds'] || data['Molds & Yeast'] || raw[30] || ''));
+      const gnResultStr = formatResult(gnSpec, String(data['Gram Negative'] || data['(A) Gram- Negative'] || data['Gram Staining'] || raw[29] || ''));
 
       const apcRemarks = apcResultStr ? ((apcResultStr.includes('<300') || apcResultStr === apcSpec || apcResultStr.startsWith('<')) ? 'Passed' : 'Failed') : '';
       const myRemarks = myResultStr ? ((myResultStr.includes('<100') || myResultStr === mySpec || myResultStr.startsWith('<')) ? 'Passed' : 'Failed') : '';
