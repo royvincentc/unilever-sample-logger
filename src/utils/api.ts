@@ -199,20 +199,31 @@ export async function fetchActiveIncubationsFromSheet(): Promise<any[]> {
         const status = String(row['STATUS'] || '').trim().toUpperCase();
 
         if (dateAnalyzed && dateAnalyzed !== '-' && status !== 'RELEASED' && status !== 'COMPLETED') {
+          const rawType = sampleType === 'RawMats' ? String(row['TYPE'] || '').toUpperCase() : undefined;
+          
+          let batchNumber = row['MIXING BATCH #'] || '';
+          if (sampleType === 'RawMats') {
+            if (rawType === 'SFG' || rawType === 'ROH') {
+              batchNumber = row['__rawRow']?.[2] || batchNumber; // Column C
+            } else if (rawType === 'CUC') {
+              batchNumber = row['__rawRow']?.[3] || batchNumber; // Column D
+            }
+          }
+
           activeIncubations.push({
             id: String(row['_rowIndex'] || Math.random().toString()),
             sampleType: sampleType,
             controlNumber: row['CONTROL #'] || '',
             sampleName: row['SAMPLE'] || row['SAMPLE DESCRIPTION'] || '',
             dateAnalyzed: dateAnalyzed,
-            rawMatsType: sampleType === 'RawMats' ? String(row['TYPE'] || '').toUpperCase() : undefined,
+            rawMatsType: rawType,
             submittedBy: String(row['ANALYST'] || row['ANALYZED BY'] || row['SWABBED BY'] || ''),
-            batchNumber: row['MIXING BATCH #'] || '',
+            batchNumber: batchNumber,
             qty: row['QTY'] || '',
             unit: row['UNIT'] || '',
-            apc: row['(C) Aerobic Plate Count'] || '',
-            my: row['(C) Yeast and Molds'] || '',
-            indicativeRemarks: row['INDICATIVE RESULT'] || row['REMARKS'] || row['REMARKS '] || '',
+            apc: row['__rawRow']?.[28] || row['(C) Aerobic Plate Count'] || '', // Column AC
+            my: row['__rawRow']?.[30] || row['(C) Yeast and Molds'] || '',     // Column AE
+            indicativeRemarks: row['__rawRow']?.[34] || row['INDICATIVE RESULT'] || row['REMARKS'] || row['REMARKS '] || '', // Column AI
             time: row['TIME'] || '',
           });
         }

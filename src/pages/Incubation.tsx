@@ -254,6 +254,8 @@ export default function Incubation() {
       let type = '';
       if (task.rawMatsType) {
         type = task.rawMatsType;
+        if (type === 'ROH') type = 'RM';
+        if (type === 'CUC') type = 'FG';
       } else {
         if (task.filterTab === 'Finished Goods (FG)') type = 'FG';
         else if (task.filterTab === 'Semi-Finished Goods (SFG)') type = 'SFG';
