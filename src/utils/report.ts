@@ -66,11 +66,11 @@ export async function generateDocxReport(data: any, analyzedBy: string, tab: str
       const apcRemarks = apcResultStr ? ((apcResultStr.includes('<300') || apcResultStr === apcSpec || apcResultStr.startsWith('<')) ? 'Passed' : 'Failed') : '';
       const myRemarks = myResultStr ? ((myResultStr.includes('<100') || myResultStr === mySpec || myResultStr.startsWith('<')) ? 'Passed' : 'Failed') : '';
       
-      // GN_Remarks logic: "Passed" if value is <100, <100 cfu/g, or numeric < 100.
+      // GN_Remarks logic: "Passed" if value is <100, <100 cfu/g, numeric <= 100, or 'No Growth'.
       let gnRemarks = '';
       if (gnResultStr) {
         const cleanGn = gnResultStr.toLowerCase().replace(/\s/g, '').replace('cfu/g', '');
-        if (cleanGn === '<100') {
+        if (cleanGn === '<100' || cleanGn === 'nogrowth' || cleanGn === 'absent') {
           gnRemarks = 'Passed';
         } else {
           const match = cleanGn.match(/(\d+(\.\d+)?)/);
@@ -82,7 +82,12 @@ export async function generateDocxReport(data: any, analyzedBy: string, tab: str
               gnRemarks = 'Failed';
             }
           } else {
-             gnRemarks = gnResultStr; // fallback if it's text like "No Growth"
+             // If it's something like "Growth" or anything else unrecognized
+             if (cleanGn === 'growth' || cleanGn === 'present') {
+               gnRemarks = 'Failed';
+             } else {
+               gnRemarks = gnResultStr;
+             }
           }
         }
       }
