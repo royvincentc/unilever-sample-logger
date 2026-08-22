@@ -65,7 +65,7 @@ export default function SubmissionQueue({ onQueueUpdate }: Props) {
   return (
     <div>
       <Header theme={theme} onSetTheme={setTheme} title="Queue" />
-      <div className="px-4 lg:px-8 max-w-3xl space-y-4">
+      <div className="px-4 lg:px-8 max-w-3xl mx-auto space-y-4 py-4">
         {pending > 0 && (
           <Button variant="primary" size="sm" loading={retryingAll} icon={<RefreshCw className="w-4 h-4" />} onClick={handleRetryAll}>
             Retry All ({pending})

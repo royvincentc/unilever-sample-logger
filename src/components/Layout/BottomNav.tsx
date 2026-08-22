@@ -23,33 +23,38 @@ export default function BottomNav({ queueCount }: BottomNavProps) {
   return (
     <nav
       className="lg:hidden fixed bottom-0 left-0 right-0 z-40
-                 bg-[var(--bg-sidebar)] backdrop-blur-xl
+                 bg-[var(--bg-sidebar)]/95 backdrop-blur-xl
                  border-t border-[var(--border-subtle)]
                  pb-[env(safe-area-inset-bottom)]"
     >
-      <div className="flex items-center justify-around px-2 py-1 overflow-x-auto hide-scrollbar">
+      <div className="flex items-end justify-around px-2 py-2 max-w-lg mx-auto">
         {navItems.map((item) => (
           <NavLink
             key={item.to}
             to={item.to}
             end={item.to === '/'}
             className={({ isActive }) => `
-              flex flex-col items-center gap-1 px-3 py-2 rounded-2xl
-              transition-all duration-200 relative min-w-[64px]
+              flex flex-col items-center gap-1 px-2 py-1.5 rounded-xl
+              transition-all duration-200 relative min-w-[52px]
               ${
-                isActive && !item.primary
-                  ? 'text-primary-500 bg-primary-500/10'
-                  : isActive && item.primary
+                item.primary
+                  ? isActive
+                    ? 'text-white'
+                    : 'text-white'
+                  : isActive
                   ? 'text-primary-500'
-                  : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]'
+                  : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
               }
             `}
           >
             {item.primary ? (
-              <div className="w-12 h-12 -mt-5 rounded-2xl bg-gradient-to-br from-primary-500 to-accent-500
-                              flex items-center justify-center shadow-lg shadow-primary-500/30">
-                <item.icon className="w-6 h-6 text-white" />
-              </div>
+              <>
+                <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-primary-500 to-accent-500
+                                flex items-center justify-center shadow-lg shadow-primary-500/30">
+                  <item.icon className="w-5 h-5 text-white" />
+                </div>
+                <span className="text-[10px] font-semibold text-[var(--text-secondary)]">{item.label}</span>
+              </>
             ) : (
               <>
                 <div className="relative">

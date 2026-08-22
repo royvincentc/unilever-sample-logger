@@ -15,16 +15,16 @@ const themeOptions = [
 
 export default function Header({ theme, onSetTheme, title }: HeaderProps) {
   return (
-    <header className="sticky top-0 z-30 px-4 lg:px-8 py-4">
+    <header className="sticky top-0 z-30 px-4 lg:px-8 py-3 bg-[var(--bg-app)]/80 backdrop-blur-lg">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           {/* Logo without the blue box container, just the image itself */}
-          <div className="w-14 h-14 flex items-center justify-center lg:hidden shrink-0">
+          <div className="w-10 h-10 flex items-center justify-center lg:hidden shrink-0">
             <img src="/unilever-logo.png" alt="Unilever" className="w-full h-full object-contain brightness-0 invert" />
           </div>
           <div className="lg:hidden flex flex-col justify-center">
-            <h1 className="text-xl font-black text-[var(--text-primary)] uppercase tracking-wider leading-none mb-1">Unilever</h1>
-            <p className="text-[10px] sm:text-xs text-[var(--text-muted)] font-semibold uppercase tracking-widest leading-none">
+            <h1 className="text-lg font-black text-[var(--text-primary)] uppercase tracking-wider leading-none mb-0.5">Unilever</h1>
+            <p className="text-[10px] text-[var(--text-muted)] font-semibold uppercase tracking-widest leading-none">
               {title ? `${title} | QC MICRO` : 'DASHBOARD | QC MICRO'}
             </p>
           </div>
@@ -58,7 +58,7 @@ export default function Header({ theme, onSetTheme, title }: HeaderProps) {
                   transition={{ type: 'spring', stiffness: 300, damping: 25 }}
                 />
               )}
-              <opt.icon className="w-4 h-4 relative z-10" />
+              <opt.icon className="w-3.5 h-3.5 relative z-10" />
             </motion.button>
           ))}
         </div>

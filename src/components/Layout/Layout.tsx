@@ -28,7 +28,7 @@ export default function Layout({ children, onLogout, queueCount }: LayoutProps) 
       <BottomNav queueCount={queueCount} />
 
       {/* Main content area */}
-      <main className={`transition-all duration-300 ${isSidebarCollapsed ? 'lg:ml-20' : 'lg:ml-[280px]'} pb-24 lg:pb-8 min-h-screen`}>
+      <main className={`transition-all duration-300 ${isSidebarCollapsed ? 'lg:ml-20' : 'lg:ml-[280px]'} pb-28 lg:pb-8 min-h-screen`}>
         {children}
       </main>
 

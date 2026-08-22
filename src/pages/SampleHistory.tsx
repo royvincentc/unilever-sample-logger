@@ -314,7 +314,7 @@ export default function SampleHistory() {
                               </div>
                               <div className="flex items-center gap-3">
                                 <StatusBadge status={e.status} />
-                                <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                <div className="flex items-center sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                                   <button
                                     onClick={() => setSelectedEntry(e)}
                                     className="p-1.5 rounded-md text-[var(--text-muted)] hover:text-primary-500 hover:bg-primary-500/10 transition-colors"

@@ -66,15 +66,29 @@ export async function generateDocxReport(data: any, analyzedBy: string, tab: str
       const apcRemarks = apcResultStr ? ((apcResultStr.includes('<300') || apcResultStr === apcSpec || apcResultStr.startsWith('<')) ? 'Passed' : 'Failed') : '';
       const myRemarks = myResultStr ? ((myResultStr.includes('<100') || myResultStr === mySpec || myResultStr.startsWith('<')) ? 'Passed' : 'Failed') : '';
       
-      // The user specified that Gram Negative Remarks is in column AI (index 34)
-      const gnRemarks = String(raw[34] || '');
-
-      let overallRemarks = '';
-      if (apcRemarks === 'Failed' || myRemarks === 'Failed' || gnRemarks === 'Failed') {
-        overallRemarks = 'FAILED';
-      } else if (apcRemarks === 'Passed' && myRemarks === 'Passed' && gnRemarks === 'Passed') {
-        overallRemarks = 'PASSED';
+      // GN_Remarks logic: "Passed" if value is <100, <100 cfu/g, or numeric < 100.
+      let gnRemarks = '';
+      if (gnResultStr) {
+        const cleanGn = gnResultStr.toLowerCase().replace(/\s/g, '').replace('cfu/g', '');
+        if (cleanGn === '<100') {
+          gnRemarks = 'Passed';
+        } else {
+          const match = cleanGn.match(/(\d+(\.\d+)?)/);
+          if (match) {
+            const val = parseFloat(match[1]);
+            if (val <= 100) {
+              gnRemarks = 'Passed';
+            } else {
+              gnRemarks = 'Failed';
+            }
+          } else {
+             gnRemarks = gnResultStr; // fallback if it's text like "No Growth"
+          }
+        }
       }
+
+      // OverallRemarks exactly from column AI (index 34)
+      const overallRemarks = String(raw[34] || '');
 
       templateData = {
         Category: mapCategory(raw[4]),

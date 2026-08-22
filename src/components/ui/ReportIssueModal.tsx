@@ -66,14 +66,14 @@ ${description.trim()}
         transition={{ delay: 1, type: 'spring', stiffness: 260, damping: 20 }}
         whileHover={{ scale: 1.1 }}
         whileTap={{ scale: 0.9 }}
-        className="fixed left-6 bottom-24 lg:left-8 lg:bottom-8 z-50
-                   w-12 h-12 rounded-full flex items-center justify-center
+        className="fixed left-5 bottom-[5.5rem] lg:left-8 lg:bottom-8 z-50
+                   w-10 h-10 rounded-full flex items-center justify-center
                    bg-gradient-to-br from-primary-500 to-accent-500
-                   text-white shadow-xl hover:shadow-primary-500/20
-                   cursor-pointer focus:outline-none transition-shadow"
+                   text-white shadow-lg opacity-70 hover:opacity-100
+                   cursor-pointer focus:outline-none transition-all"
         title="Report an Issue"
       >
-        <HelpCircle className="w-6 h-6" />
+        <HelpCircle className="w-5 h-5" />
       </motion.button>
 
       {/* Modal Overlay and Content */}

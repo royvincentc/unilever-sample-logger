@@ -115,123 +115,127 @@ export default function Dashboard({ theme, onSetTheme }: DashboardProps) {
       <Header theme={theme} onSetTheme={onSetTheme} title="Dashboard" />
       <NotificationPopup userName={userName} />
 
-      <div className="px-4 lg:px-8 py-6 max-w-7xl mx-auto space-y-12">
+      <div className="px-4 lg:px-8 py-4 sm:py-6 max-w-7xl mx-auto space-y-6 sm:space-y-8 lg:space-y-10">
         {/* Welcome Section */}
-        <motion.div initial="hidden" animate="show" variants={fadeUp} className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
+        <motion.div initial="hidden" animate="show" variants={fadeUp} className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 sm:gap-6">
           <div>
             <motion.h1 
               initial={{ opacity: 0, x: -20 }} 
               animate={{ opacity: 1, x: 0 }} 
-              className="text-4xl md:text-5xl font-black tracking-tight text-[var(--text-primary)]"
+              className="text-3xl sm:text-4xl md:text-5xl font-black tracking-tight text-[var(--text-primary)]"
             >
               Hello, <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary-500 to-cyan-500">{userName.split(' ')[0]}</span>.
             </motion.h1>
-            <p className="text-[var(--text-secondary)] mt-2 font-medium">Ready to log some samples today?</p>
+            <p className="text-[var(--text-secondary)] mt-1.5 text-sm sm:text-base font-medium">Ready to log some samples today?</p>
           </div>
 
-          <div className="flex gap-4">
-            <button onClick={handleSync} disabled={syncing} className="glass px-4 py-2 rounded-2xl flex items-center gap-2 hover:bg-[var(--bg-hover)] transition-colors text-sm font-bold text-[var(--text-primary)]">
-              <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
+          <div className="flex flex-wrap gap-2 sm:gap-3 w-full md:w-auto">
+            <button onClick={handleSync} disabled={syncing} className="glass px-3 sm:px-4 py-2 rounded-xl flex items-center gap-2 hover:bg-[var(--bg-hover)] active:scale-95 transition-all text-xs sm:text-sm font-bold text-[var(--text-primary)] flex-1 min-w-fit justify-center md:flex-none">
+              <RefreshCw className={`w-4 h-4 shrink-0 ${syncing ? 'animate-spin' : ''}`} />
               {syncing ? 'Syncing...' : 'Sync'}
             </button>
-            <button onClick={() => navigate('/results')} className="glass px-4 py-2 rounded-2xl flex items-center gap-2 hover:bg-[var(--bg-hover)] transition-colors text-sm font-bold text-[var(--text-primary)]">
-              <FileText className="w-4 h-4" /> Results
+            <button onClick={() => navigate('/results')} className="glass px-3 sm:px-4 py-2 rounded-xl flex items-center gap-2 hover:bg-[var(--bg-hover)] active:scale-95 transition-all text-xs sm:text-sm font-bold text-[var(--text-primary)] flex-1 min-w-fit justify-center md:flex-none">
+              <FileText className="w-4 h-4 shrink-0" /> Results
             </button>
-            <button onClick={() => navigate('/calendar')} className="glass px-4 py-2 rounded-2xl flex items-center gap-2 hover:bg-[var(--bg-hover)] transition-colors text-sm font-bold text-[var(--text-primary)]">
-              <CalendarDays className="w-4 h-4" /> Calendar
+            <button onClick={() => navigate('/calendar')} className="glass px-3 sm:px-4 py-2 rounded-xl flex items-center gap-2 hover:bg-[var(--bg-hover)] active:scale-95 transition-all text-xs sm:text-sm font-bold text-[var(--text-primary)] flex-1 min-w-fit justify-center md:flex-none">
+              <CalendarDays className="w-4 h-4 shrink-0" /> Calendar
             </button>
           </div>
         </motion.div>
 
         {/* Minimalist Overview Cards */}
-        <motion.div initial="hidden" animate="show" variants={fadeUp} className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="glass-strong rounded-[2rem] p-6 relative overflow-hidden group hover:scale-[1.02] transition-transform">
-            <div className="absolute -right-6 -top-6 w-32 h-32 bg-primary-500/10 rounded-full blur-2xl group-hover:bg-primary-500/20 transition-colors" />
-            <div className="flex items-center gap-3 text-primary-500 mb-8">
-              <History className="w-5 h-5" />
-              <h3 className="font-bold text-sm tracking-widest uppercase">History</h3>
+        <motion.div initial="hidden" animate="show" variants={fadeUp} className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-5">
+          <div className="glass-strong rounded-2xl p-4 sm:p-5 relative overflow-hidden group hover:scale-[1.02] transition-transform">
+            <div className="absolute -right-4 -top-4 w-24 h-24 bg-primary-500/10 rounded-full blur-2xl group-hover:bg-primary-500/20 transition-colors" />
+            <div className="flex items-center gap-2.5 text-primary-500 mb-4">
+              <History className="w-4.5 h-4.5" />
+              <h3 className="font-bold text-xs tracking-widest uppercase">History</h3>
             </div>
             <div className="flex items-end justify-between">
               <div>
-                <p className="text-5xl font-black text-[var(--text-primary)]">{recent.length}</p>
-                <p className="text-[var(--text-muted)] text-sm font-medium mt-1">Recent Logs</p>
+                <p className="text-4xl sm:text-5xl font-black text-[var(--text-primary)]">{recent.length}</p>
+                <p className="text-[var(--text-muted)] text-xs sm:text-sm font-medium mt-1">Recent Logs</p>
               </div>
-              <button onClick={() => navigate('/history')} className="w-12 h-12 rounded-full bg-[var(--bg-hover)] flex items-center justify-center hover:bg-primary-500 hover:text-white transition-colors">
-                <Search className="w-5 h-5" />
+              <button onClick={() => navigate('/history')} className="w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-[var(--bg-hover)] flex items-center justify-center hover:bg-primary-500 hover:text-white active:scale-90 transition-all">
+                <Search className="w-4 h-4 sm:w-5 sm:h-5" />
               </button>
             </div>
           </div>
 
-          <div className="glass-strong rounded-[2rem] p-6 relative overflow-hidden group hover:scale-[1.02] transition-transform">
-            <div className="absolute -right-6 -top-6 w-32 h-32 bg-warning-500/10 rounded-full blur-2xl group-hover:bg-warning-500/20 transition-colors" />
-            <div className="flex items-center gap-3 text-warning-500 mb-8">
-              <UploadCloud className="w-5 h-5" />
-              <h3 className="font-bold text-sm tracking-widest uppercase">Offline Queue</h3>
+          <div className="glass-strong rounded-2xl p-4 sm:p-5 relative overflow-hidden group hover:scale-[1.02] transition-transform">
+            <div className="absolute -right-4 -top-4 w-24 h-24 bg-warning-500/10 rounded-full blur-2xl group-hover:bg-warning-500/20 transition-colors" />
+            <div className="flex items-center gap-2.5 text-warning-500 mb-4">
+              <UploadCloud className="w-4.5 h-4.5" />
+              <h3 className="font-bold text-xs tracking-widest uppercase">Offline Queue</h3>
             </div>
             <div className="flex items-end justify-between">
               <div>
-                <p className="text-5xl font-black text-[var(--text-primary)]">{queueCount}</p>
-                <p className="text-[var(--text-muted)] text-sm font-medium mt-1">Pending Sync</p>
+                <p className="text-4xl sm:text-5xl font-black text-[var(--text-primary)]">{queueCount}</p>
+                <p className="text-[var(--text-muted)] text-xs sm:text-sm font-medium mt-1">Pending Sync</p>
               </div>
-              <button onClick={() => navigate('/queue')} className="w-12 h-12 rounded-full bg-[var(--bg-hover)] flex items-center justify-center hover:bg-warning-500 hover:text-white transition-colors">
-                <Search className="w-5 h-5" />
+              <button onClick={() => navigate('/queue')} className="w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-[var(--bg-hover)] flex items-center justify-center hover:bg-warning-500 hover:text-white active:scale-90 transition-all">
+                <Search className="w-4 h-4 sm:w-5 sm:h-5" />
               </button>
             </div>
           </div>
 
-          <div className="glass-strong rounded-[2rem] p-6 relative overflow-hidden group hover:scale-[1.02] transition-transform">
-            <div className="absolute -right-6 -top-6 w-32 h-32 bg-cyan-500/10 rounded-full blur-2xl group-hover:bg-cyan-500/20 transition-colors" />
-            <div className="flex items-center gap-3 text-cyan-500 mb-8">
-              <Clock className="w-5 h-5" />
-              <h3 className="font-bold text-sm tracking-widest uppercase">Incubation</h3>
+          <div className="glass-strong rounded-2xl p-4 sm:p-5 relative overflow-hidden group hover:scale-[1.02] transition-transform sm:col-span-2 md:col-span-1">
+            <div className="absolute -right-4 -top-4 w-24 h-24 bg-cyan-500/10 rounded-full blur-2xl group-hover:bg-cyan-500/20 transition-colors" />
+            <div className="flex items-center gap-2.5 text-cyan-500 mb-4">
+              <Clock className="w-4.5 h-4.5" />
+              <h3 className="font-bold text-xs tracking-widest uppercase">Incubation</h3>
             </div>
             <div className="flex items-end justify-between">
               <div>
-                <p className="text-5xl font-black text-[var(--text-primary)]">{recent.filter(r => r.status === 'ONGOING' || r.status === 'ON GOING').length}</p>
-                <p className="text-[var(--text-muted)] text-sm font-medium mt-1">Active Samples</p>
+                <p className="text-4xl sm:text-5xl font-black text-[var(--text-primary)]">{recent.filter(r => r.status === 'ONGOING' || r.status === 'ON GOING').length}</p>
+                <p className="text-[var(--text-muted)] text-xs sm:text-sm font-medium mt-1">Active Samples</p>
               </div>
-              <button onClick={() => navigate('/incubation')} className="w-12 h-12 rounded-full bg-[var(--bg-hover)] flex items-center justify-center hover:bg-cyan-500 hover:text-white transition-colors">
-                <Search className="w-5 h-5" />
+              <button onClick={() => navigate('/incubation')} className="w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-[var(--bg-hover)] flex items-center justify-center hover:bg-cyan-500 hover:text-white active:scale-90 transition-all">
+                <Search className="w-4 h-4 sm:w-5 sm:h-5" />
               </button>
             </div>
           </div>
         </motion.div>
 
         {/* Minimal Recent List */}
-        <motion.div initial="hidden" animate="show" variants={fadeUp} className="glass-strong rounded-[2rem] p-8">
-          <div className="flex items-center justify-between mb-8">
-            <h2 className="text-xl font-bold text-[var(--text-primary)]">Recent Activity</h2>
-            <button onClick={() => navigate('/history')} className="text-primary-500 text-sm font-bold hover:underline">View All</button>
+        <motion.div initial="hidden" animate="show" variants={fadeUp} className="glass-strong rounded-2xl p-4 sm:p-6 lg:p-8">
+          <div className="flex items-center justify-between mb-4 sm:mb-6">
+            <h2 className="text-lg sm:text-xl font-bold text-[var(--text-primary)]">Recent Activity</h2>
+            <button onClick={() => navigate('/history')} className="text-primary-500 text-xs sm:text-sm font-bold hover:underline">View All</button>
           </div>
 
-          <div className="space-y-4">
+          <div className="space-y-2 sm:space-y-3 max-h-[55vh] overflow-y-auto custom-scrollbar">
             {recent.length > 0 ? recent.slice(0, 5).map(entry => (
-              <div key={entry.id} className="group flex items-center justify-between p-4 rounded-2xl hover:bg-[var(--bg-hover)] transition-all cursor-pointer border border-transparent hover:border-[var(--border-subtle)]">
-                <div className="flex items-center gap-4">
-                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-bold text-white shadow-lg ${
+              <div key={entry.id} className={`group flex items-center justify-between p-3 sm:p-4 rounded-xl hover:bg-[var(--bg-hover)] transition-all cursor-pointer border-l-[3px] ${
+                entry.sampleType === 'ENVI' ? 'border-l-emerald-500' :
+                entry.sampleType === 'WATER' ? 'border-l-blue-500' :
+                'border-l-violet-500'
+              }`}>
+                <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+                  <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center font-bold text-white shadow-md shrink-0 ${
                     entry.sampleType === 'ENVI' ? 'bg-gradient-to-br from-emerald-400 to-emerald-600' :
                     entry.sampleType === 'WATER' ? 'bg-gradient-to-br from-blue-400 to-blue-600' :
                     'bg-gradient-to-br from-violet-400 to-violet-600'
                   }`}>
-                    {entry.sampleType === 'ENVI' ? <FlaskConical className="w-5 h-5"/> : entry.sampleType === 'WATER' ? <Droplets className="w-5 h-5"/> : <Package className="w-5 h-5"/>}
+                    {entry.sampleType === 'ENVI' ? <FlaskConical className="w-4 h-4 sm:w-5 sm:h-5"/> : entry.sampleType === 'WATER' ? <Droplets className="w-4 h-4 sm:w-5 sm:h-5"/> : <Package className="w-4 h-4 sm:w-5 sm:h-5"/>}
                   </div>
-                  <div>
-                    <h4 className="text-[var(--text-primary)] font-bold">{entry.sampleName}</h4>
-                    <p className="text-[var(--text-secondary)] text-xs font-mono mt-0.5">{entry.controlNumber}</p>
+                  <div className="min-w-0">
+                    <h4 className="text-[var(--text-primary)] font-bold text-sm sm:text-base truncate">{entry.sampleName}</h4>
+                    <p className="text-[var(--text-secondary)] text-[10px] sm:text-xs font-mono mt-0.5 truncate">{entry.controlNumber} · {new Date(entry.submittedAt).toLocaleDateString([], { month: 'short', day: 'numeric' })}</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-8">
+                <div className="flex items-center gap-3 sm:gap-6 shrink-0 ml-2">
                   <div className="text-right hidden sm:block">
                     <p className="text-[var(--text-primary)] text-sm font-medium">{new Date(entry.submittedAt).toLocaleDateString()}</p>
                     <p className="text-[var(--text-muted)] text-xs">{new Date(entry.submittedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
                   </div>
-                  <div className="w-24 flex justify-end text-[10px]">
+                  <div className="w-20 sm:w-24 flex justify-end text-xs">
                     {statusBadge(entry.status as string)}
                   </div>
                 </div>
               </div>
             )) : (
-              <div className="text-center py-12 text-[var(--text-muted)] font-medium">No recent activity found.</div>
+              <div className="text-center py-8 sm:py-12 text-[var(--text-muted)] font-medium">No recent activity found.</div>
             )}
           </div>
         </motion.div>

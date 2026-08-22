@@ -104,14 +104,14 @@ export default function Settings({ onLogout }: { onLogout?: () => void }) {
       <div className="px-4 lg:px-8 max-w-2xl space-y-6">
         
         {/* Header with Lock Status */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
             <h2 className="text-2xl font-bold text-[var(--text-primary)]">Settings</h2>
             <p className="text-sm text-[var(--text-secondary)]">Manage app configuration and connectivity</p>
           </div>
           <button
             onClick={() => isLocked ? setShowPasswordPrompt(true) : setIsLocked(true)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl border transition-all ${
+            className={`w-full sm:w-auto flex items-center gap-2 px-4 py-2 rounded-xl border transition-all ${
               isLocked 
                 ? 'bg-[var(--bg-input)] border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-primary-500'
                 : 'bg-primary-500/10 border-primary-500/20 text-primary-500'

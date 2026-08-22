@@ -148,10 +148,19 @@ body {
 
 .glass-strong {
   background: var(--bg-card);
-  backdrop-filter: blur(40px);
-  -webkit-backdrop-filter: blur(40px);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
   border: var(--glass-border);
   box-shadow: var(--shadow-lg);
+}
+
+/* ===== SCROLLBAR HIDE UTILITY ===== */
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
 }
 
 /* ===== ANIMATIONS ===== */
@@ -253,4 +262,19 @@ textarea:focus {
   button, input, select, textarea {
     min-height: 44px;
   }
+}
+
+@media (max-width: 375px) {
+  html {
+    font-size: 14px;
+  }
+}
+
+/* Custom scrollbar for inner panels */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--color-surface-400);
+  border-radius: 999px;
 }
