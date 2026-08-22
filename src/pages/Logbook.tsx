@@ -15,7 +15,6 @@ export default function Logbook() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedAnalyst, setSelectedAnalyst] = useState<string>('All');
   const isOnline = useOnlineStatus();
-  const { user } = useAuth();
 
   const loadData = useCallback(async () => {
     if (!isOnline) {
