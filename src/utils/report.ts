@@ -101,7 +101,8 @@ export async function generateDocxReport(data: any, analyzedBy: string, tab: str
         
         OverallRemarks: overallRemarks,
         AnalyzedBy: raw[13] || analyzedBy || 'Jasmin C. Barangan',
-        DateAnalyzed: new Date().toLocaleDateString()
+        DateAnalyzed: new Date().toLocaleDateString(),
+        DateReleasedOnly: raw[15] || ''
       };
     } else {
       // Generic fallback for other tabs until specified
@@ -111,6 +112,7 @@ export async function generateDocxReport(data: any, analyzedBy: string, tab: str
         BatchNo: data['BATCH NUMBER'] || data['BATCH'] || 'N/A',
         DateReceived: data['TIMESTAMP'] || 'N/A',
         DateReleased: new Date().toLocaleDateString() + '; ' + new Date().toLocaleTimeString(),
+        DateReleasedOnly: new Date().toLocaleDateString(),
         DateMfd: data['MFG DATE'] || data['DATE SAMPLED'] || 'N/A',
         ExpiryDate: data['EXPIRY DATE'] || 'N/A',
         FillVol: 'N/A',
