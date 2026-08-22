@@ -14,6 +14,7 @@ export default function Logbook() {
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedAnalyst, setSelectedAnalyst] = useState<string>('All');
+  const [sortBy, setSortBy] = useState<'datetime' | 'analyst'>('datetime');
   const isOnline = useOnlineStatus();
 
   const loadData = useCallback(async () => {
@@ -52,8 +53,17 @@ export default function Logbook() {
       const category = String(row['SAMPLE TYPE'] || row['CATEGORY'] || '');
       
       // Date and Time parsing
-      const dateReceived = String(row['DATE RECEIVED'] || row['DATE SAMPLED'] || row['TIMESTAMP'] || '');
-      const timeReceived = String(row['TIME RECEIVED'] || row['TIME SAMPLED'] || '');
+      const dateKey = Object.keys(row).find(k => {
+        const up = k.toUpperCase();
+        return up.includes('DATE RECEIVED') || up.includes('DATE SAMPLED') || up.includes('DATE ANALYZED') || up.includes('DATE COLLECTED') || up.includes('TIMESTAMP') || up === 'DATE' || up === 'DATE & TIME ANALYZED';
+      });
+      const timeKey = Object.keys(row).find(k => {
+        const up = k.toUpperCase();
+        return up.includes('TIME RECEIVED') || up.includes('TIME SAMPLED') || up.includes('TIME ANALYZED') || up.includes('TIME COLLECTED');
+      });
+
+      const dateReceived = dateKey ? String(row[dateKey] || '') : '';
+      const timeReceived = timeKey ? String(row[timeKey] || '') : '';
       
       let parsedDate = new Date(0);
       if (dateReceived) {
@@ -105,8 +115,18 @@ export default function Logbook() {
       return true;
     });
 
-    return filtered.sort((a, b) => a.parsedDate.getTime() - b.parsedDate.getTime());
-  }, [normalizedData, selectedAnalyst, searchQuery]);
+    return filtered.sort((a, b) => {
+      if (sortBy === 'analyst') {
+        const analystCompare = a.analyst.localeCompare(b.analyst);
+        if (analystCompare !== 0) return analystCompare;
+        return a.parsedDate.getTime() - b.parsedDate.getTime();
+      } else {
+        const timeDiff = a.parsedDate.getTime() - b.parsedDate.getTime();
+        if (timeDiff !== 0) return timeDiff;
+        return a.analyst.localeCompare(b.analyst);
+      }
+    });
+  }, [normalizedData, selectedAnalyst, searchQuery, sortBy]);
 
   return (
     <div className="min-h-screen bg-[var(--bg-body)]">
@@ -125,6 +145,16 @@ export default function Logbook() {
           </div>
 
           <div className="flex flex-col md:flex-row items-center gap-2">
+            <div className="relative w-full md:w-36">
+               <select 
+                 value={sortBy} 
+                 onChange={e => setSortBy(e.target.value as any)}
+                 className="w-full bg-[var(--bg-body)] border border-[var(--border-subtle)] rounded-xl py-2 px-3 text-xs text-[var(--text-primary)] focus:outline-none focus:border-primary-500 appearance-none cursor-pointer font-medium"
+               >
+                 <option value="datetime">Sort by Date/Time</option>
+                 <option value="analyst">Sort by Analyst</option>
+               </select>
+            </div>
             <div className="relative w-full md:w-48">
                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)]" />
                <select 
