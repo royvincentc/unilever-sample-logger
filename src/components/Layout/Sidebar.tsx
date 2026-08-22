@@ -10,6 +10,7 @@ import {
   FlaskConical,
   FileText,
   FileSpreadsheet,
+  BookOpen,
   CalendarDays,
   ChevronLeft,
   ChevronRight
@@ -21,6 +22,7 @@ const navItems = [
   { to: '/queue', icon: ListTodo, label: 'Offline Queue' },
   { to: '/history', icon: Clock, label: 'History' },
   { to: '/live', icon: FileSpreadsheet, label: 'Live Sheet' },
+  { to: '/logbook', icon: BookOpen, label: 'Logbook' },
   { to: '/results', icon: FileText, label: 'Reports' },
   { to: '/incubation', icon: FlaskConical, label: 'Incubations' },
   { to: '/calendar', icon: CalendarDays, label: 'Calendar' },

@@ -18,6 +18,7 @@ import Incubation from './pages/Incubation';
 import Results from './pages/Results';
 import Settings from './pages/Settings';
 import LiveSheetView from './pages/LiveSheetView';
+import Logbook from './pages/Logbook';
 import Calendar from './pages/Calendar';
 
 function PageTransition({ children }: { children: React.ReactNode }) {
@@ -82,6 +83,7 @@ function AppContent({
                     <Route path="queue" element={<PageTransition><SubmissionQueue onQueueUpdate={refreshQueueCount} /></PageTransition>} />
                     <Route path="history" element={<PageTransition><SampleHistory /></PageTransition>} />
                     <Route path="live" element={<PageTransition><LiveSheetView /></PageTransition>} />
+                    <Route path="logbook" element={<PageTransition><Logbook /></PageTransition>} />
                     <Route path="incubation" element={<PageTransition><Incubation /></PageTransition>} />
                     <Route path="results" element={<PageTransition><Results /></PageTransition>} />
                     <Route path="settings" element={<PageTransition><Settings onLogout={logout} /></PageTransition>} />
