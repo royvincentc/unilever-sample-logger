@@ -59,11 +59,15 @@ export async function generateDocxReport(data: any, analyzedBy: string, tab: str
 
       const apcResultStr = formatResult(apcSpec, String(data['(A) Aerobic Plate Count'] || data['Aerobic Plate Count'] || data['TVC (count)'] || raw[28] || ''));
       const myResultStr = formatResult(mySpec, String(data['(A) Yeast and Molds'] || data['Yeast and Molds'] || data['Molds & Yeast'] || raw[30] || ''));
-      const gnResultStr = formatResult(gnSpec, String(data['Gram Negative'] || data['(A) Gram- Negative'] || data['Gram Staining'] || raw[29] || ''));
+      
+      // The user specified that Gram Negative actual result is in column AD (index 29)
+      const gnResultStr = String(raw[29] || '');
 
       const apcRemarks = apcResultStr ? ((apcResultStr.includes('<300') || apcResultStr === apcSpec || apcResultStr.startsWith('<')) ? 'Passed' : 'Failed') : '';
       const myRemarks = myResultStr ? ((myResultStr.includes('<100') || myResultStr === mySpec || myResultStr.startsWith('<')) ? 'Passed' : 'Failed') : '';
-      const gnRemarks = gnResultStr ? ((gnResultStr.toLowerCase().includes('no growth') || gnResultStr.toLowerCase().includes('negative')) ? 'Passed' : 'Failed') : '';
+      
+      // The user specified that Gram Negative Remarks is in column AI (index 34)
+      const gnRemarks = String(raw[34] || '');
 
       let overallRemarks = '';
       if (apcRemarks === 'Failed' || myRemarks === 'Failed' || gnRemarks === 'Failed') {
