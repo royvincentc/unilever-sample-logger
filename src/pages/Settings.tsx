@@ -445,3 +445,4 @@ export default function Settings({ onLogout }: { onLogout?: () => void }) {
     </div>
   );
 }
+

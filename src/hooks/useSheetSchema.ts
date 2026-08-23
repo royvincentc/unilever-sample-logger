@@ -129,8 +129,6 @@ const FIELD_KEYWORDS: Record<string, string[]> = {
   'mixingBatchNo':         ['mixing batch', 'batch #', 'batch no', 'mix batch'],
   'cucNo':                 ['cuc'],
   'source':                ['source', 'supplier', 'vendor', 'origin'],
-  'qty':                   ['qty', 'quantity'],
-  'unit':                  ['unit'],
   'receivedBy':            ['received by', 'sampled by', 'collected by'],
 
   // AIR specific

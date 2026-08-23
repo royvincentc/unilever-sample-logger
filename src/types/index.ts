@@ -61,8 +61,6 @@ export interface RawMatsFormData {
   type: RawMatsType | '';
   sample: string;
   source: string;
-  qty: string;
-  unit: string;
   receivedBy: string;
   dateAnalyzed: string;
   analyzedBy: string;

@@ -268,7 +268,7 @@ async function createCalendarEvent(accessToken: string, event: IncubationEvent):
     };
 
   return (
-    <div className="min-h-screen bg-[var(--bg-body)] flex flex-col">
+    <div className="min-h-screen bg-transparent flex flex-col">
       <Header theme={theme} onSetTheme={setTheme} title="Calendar" />
       <div className="px-4 lg:px-8 py-4 max-w-7xl mx-auto w-full flex-1 flex flex-col">
         
@@ -402,7 +402,7 @@ async function createCalendarEvent(accessToken: string, event: IncubationEvent):
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
               className="relative w-full max-w-lg bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-2xl shadow-2xl overflow-hidden my-8"
             >
-              <div className="p-6 border-b border-[var(--border-subtle)] bg-[var(--bg-body)] sticky top-0 z-10">
+              <div className="p-6 border-b border-[var(--border-subtle)] bg-[var(--bg-card)] sticky top-0 z-10">
                 <div className="flex items-center justify-between">
                   <div>
                     <h3 className="text-xl font-bold text-[var(--text-primary)]">
@@ -423,7 +423,7 @@ async function createCalendarEvent(accessToken: string, event: IncubationEvent):
                 {selectedEvents.map((evt, idx) => (
                   <div key={idx} className="rounded-xl border border-[var(--border-subtle)] overflow-hidden">
                     <div className={`h-2 w-full ${evt.colorClass}`} />
-                    <div className="p-4 bg-[var(--bg-body)]">
+                    <div className="p-4 bg-[var(--bg-card)]">
                       <h4 className="text-lg font-bold text-[var(--text-primary)] font-mono">{evt.controlNumber}</h4>
                       <p className="text-sm font-semibold text-[var(--text-secondary)] mt-1 mb-4">{evt.title.split(' - ')[1]}</p>
                       
@@ -450,3 +450,4 @@ async function createCalendarEvent(accessToken: string, event: IncubationEvent):
     </div>
   );
 }
+

@@ -82,11 +82,10 @@ export default function Logbook() {
         originalRow: row,
         sheetName: row.__sheetName,
         control,
+        batchNumber: row.__rawRow?.[2] || row['MIXING BATCH #'] || '-',
         name,
         type,
         category,
-        qty: '1',
-        unit: row.__sheetName.includes('SWAB') ? 'swab' : (row.__sheetName.includes('WATER') ? '120 mL' : '-'),
         dateReceived,
         timeReceived,
         parsedDate,
@@ -129,7 +128,7 @@ export default function Logbook() {
   }, [normalizedData, selectedAnalyst, searchQuery, sortBy]);
 
   return (
-    <div className="min-h-screen bg-[var(--bg-body)]">
+    <div className="min-h-screen bg-transparent">
       <Header theme={theme} onSetTheme={setTheme} title="Logbook" />
       
       <div className="px-4 lg:px-8 max-w-[1400px] mx-auto pb-24 space-y-6">
@@ -149,7 +148,7 @@ export default function Logbook() {
                <select 
                  value={sortBy} 
                  onChange={e => setSortBy(e.target.value as any)}
-                 className="w-full bg-[var(--bg-body)] border border-[var(--border-subtle)] rounded-xl py-2 px-3 text-xs text-[var(--text-primary)] focus:outline-none focus:border-primary-500 appearance-none cursor-pointer font-medium"
+                 className="w-full bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-xl py-2 px-3 text-xs text-[var(--text-primary)] focus:outline-none focus:border-primary-500 appearance-none cursor-pointer font-medium"
                >
                  <option value="datetime">Sort by Date/Time</option>
                  <option value="analyst">Sort by Analyst</option>
@@ -160,7 +159,7 @@ export default function Logbook() {
                <select 
                  value={selectedAnalyst} 
                  onChange={e => setSelectedAnalyst(e.target.value)}
-                 className="w-full bg-[var(--bg-body)] border border-[var(--border-subtle)] rounded-xl py-2 pl-9 pr-4 text-xs text-[var(--text-primary)] focus:outline-none focus:border-primary-500 appearance-none cursor-pointer"
+                 className="w-full bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-xl py-2 pl-9 pr-4 text-xs text-[var(--text-primary)] focus:outline-none focus:border-primary-500 appearance-none cursor-pointer"
                >
                  {analysts.map(a => <option key={a} value={a}>{a}</option>)}
                </select>
@@ -172,13 +171,13 @@ export default function Logbook() {
                 placeholder="Search control # or name..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-[var(--bg-body)] border border-[var(--border-subtle)] rounded-xl py-2 pl-9 pr-4 text-xs text-[var(--text-primary)] focus:outline-none focus:border-primary-500 transition-colors"
+                className="w-full bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-xl py-2 pl-9 pr-4 text-xs text-[var(--text-primary)] focus:outline-none focus:border-primary-500 transition-colors"
               />
             </div>
             <button 
               onClick={loadData}
               disabled={loading}
-              className="p-2.5 rounded-xl bg-[var(--bg-body)] border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-primary-500 hover:border-primary-500 transition-colors disabled:opacity-50"
+              className="p-2.5 rounded-xl bg-[var(--bg-card)] border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-primary-500 hover:border-primary-500 transition-colors disabled:opacity-50"
             >
               <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
             </button>
@@ -196,7 +195,7 @@ export default function Logbook() {
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse whitespace-nowrap">
               <thead>
-                <tr className="bg-[var(--bg-body)]/50 border-b border-[var(--border-subtle)]">
+                <tr className="bg-[var(--bg-card)]/50 border-b border-[var(--border-subtle)]">
                   <th className="p-3 text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider">Control #</th>
                   <th className="p-3 text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider">Sample Name</th>
                   <th className="p-3 text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider">Type / Category</th>
@@ -245,7 +244,7 @@ export default function Logbook() {
                       <td className="p-3 text-xs text-blue-500 font-bold">{row.analyst}</td>
                       <td className="p-3 text-xs text-[var(--text-secondary)]">{row.dateReleased}</td>
                       <td className="p-3">
-                        <span className="text-[10px] font-bold px-2 py-1 rounded bg-[var(--bg-body)] border border-[var(--border-subtle)] text-[var(--text-secondary)] uppercase">
+                        <span className="text-[10px] font-bold px-2 py-1 rounded bg-[var(--bg-card)] border border-[var(--border-subtle)] text-[var(--text-secondary)] uppercase">
                           {row.status || 'PENDING'}
                         </span>
                       </td>
@@ -260,3 +259,4 @@ export default function Logbook() {
     </div>
   );
 }
+

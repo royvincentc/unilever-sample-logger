@@ -364,7 +364,7 @@ export default function SampleHistory() {
               exit={{ opacity: 0, scale: 0.95, y: 15 }}
               transition={{ type: 'spring', duration: 0.35 }}
               onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-md max-h-[85vh] bg-[var(--bg-body)] border border-[var(--border-subtle)] rounded-2xl shadow-xl flex flex-col overflow-hidden cursor-default"
+              className="w-full max-w-md max-h-[85vh] bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-2xl shadow-xl flex flex-col overflow-hidden cursor-default"
             >
               <div className="px-5 py-4 border-b border-[var(--border-subtle)] bg-[var(--bg-sidebar)] flex items-center justify-between sticky top-0">
                 <div className="flex items-center gap-3">
@@ -448,3 +448,4 @@ export default function SampleHistory() {
     </div>
   );
 }
+

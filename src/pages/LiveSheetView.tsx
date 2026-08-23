@@ -92,7 +92,7 @@ export default function LiveSheetView() {
   });
 
   return (
-    <div className="min-h-screen bg-[var(--bg-body)]">
+    <div className="min-h-screen bg-transparent">
       <Header theme={theme} onSetTheme={setTheme} title="Live Sheet Records" />
       
       <div className="px-4 lg:px-8 max-w-6xl mx-auto pb-24">
@@ -143,7 +143,7 @@ export default function LiveSheetView() {
                     placeholder="Search records..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full bg-[var(--bg-body)] border border-[var(--border-subtle)] rounded-xl py-2 pl-9 pr-4 text-xs text-[var(--text-primary)] focus:outline-none focus:border-primary-500 transition-colors"
+                    className="w-full bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-xl py-2 pl-9 pr-4 text-xs text-[var(--text-primary)] focus:outline-none focus:border-primary-500 transition-colors"
                   />
                 </div>
                 <button 
@@ -166,7 +166,7 @@ export default function LiveSheetView() {
 
             {!loading && data.length === 0 && !error ? (
               <div className="glass rounded-3xl p-20 text-center border border-[var(--border-subtle)]">
-                <div className="w-16 h-16 rounded-full bg-[var(--bg-body)] flex items-center justify-center mx-auto mb-4 border border-[var(--border-subtle)]">
+                <div className="w-16 h-16 rounded-full bg-[var(--bg-card)] flex items-center justify-center mx-auto mb-4 border border-[var(--border-subtle)]">
                   <FileSpreadsheet className="w-8 h-8 text-[var(--text-muted)]" />
                 </div>
                 <h3 className="text-lg font-bold text-[var(--text-primary)]">No Records Found</h3>
@@ -253,3 +253,4 @@ export default function LiveSheetView() {
     </div>
   );
 }
+

@@ -104,9 +104,6 @@ export default function NewSample({ onQueueUpdate }: NewSampleProps) {
         sample: sampleName,
         // For ENVI, join categories so it's a string, just in case they add a category column
         category: (formData as any).categories ? (formData as any).categories.join(', ') : undefined,
-        // Default QTY and UNIT as seen in the spreadsheet format
-        ...(sampleType === 'ENVI' ? { qty: '1', unit: 'swab' } : {}),
-        ...(sampleType === 'WATER' ? { qty: '1', unit: 'bottle' } : {}),
       };
 
       // Remap payload field names to live sheet column headers.
@@ -293,5 +290,6 @@ export default function NewSample({ onQueueUpdate }: NewSampleProps) {
     </div>
   );
 }
+
 
 

@@ -15,7 +15,7 @@ const themeOptions = [
 
 export default function Header({ theme, onSetTheme, title }: HeaderProps) {
   return (
-    <header className="sticky top-0 z-30 px-4 lg:px-8 py-3 bg-[var(--bg-app)]/80 backdrop-blur-lg">
+    <header className="relative z-30 px-4 lg:px-8 py-6 bg-transparent">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           {/* Logo without the blue box container, just the image itself */}

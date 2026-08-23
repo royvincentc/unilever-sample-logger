@@ -2,44 +2,47 @@
 
 /* ===== CUSTOM THEME TOKENS ===== */
 @theme {
-  --color-primary-50: #eff6ff;
-  --color-primary-100: #dbeafe;
-  --color-primary-200: #bfdbfe;
-  --color-primary-300: #93c5fd;
-  --color-primary-400: #60a5fa;
-  --color-primary-500: #3b82f6;
-  --color-primary-600: #2563eb;
-  --color-primary-700: #1d4ed8;
-  --color-primary-800: #1e40af;
-  --color-primary-900: #1e3a8a;
+  /* Bespoke Oceanic Primary (Rich, Electric Blue) */
+  --color-primary-50: #f0f5ff;
+  --color-primary-100: #e5edff;
+  --color-primary-200: #cddbff;
+  --color-primary-300: #a4bfff;
+  --color-primary-400: #7697ff;
+  --color-primary-500: #4a6fff; /* Electric Oceanic */
+  --color-primary-600: #2947f5;
+  --color-primary-700: #1b32d6;
+  --color-primary-800: #192cac;
+  --color-primary-900: #192987;
 
-  --color-accent-400: #22d3ee;
-  --color-accent-500: #06b6d4;
+  /* Custom Accents */
+  --color-accent-400: #06b6d4;
+  --color-accent-500: #00e0ff; /* Neon Cyan */
   --color-accent-600: #0891b2;
 
-  --color-success-400: #4ade80;
-  --color-success-500: #22c55e;
-  --color-success-600: #16a34a;
+  --color-success-400: #34d399;
+  --color-success-500: #10b981;
+  --color-success-600: #059669;
 
   --color-warning-400: #fbbf24;
   --color-warning-500: #f59e0b;
   --color-warning-600: #d97706;
 
-  --color-danger-400: #f87171;
-  --color-danger-500: #ef4444;
-  --color-danger-600: #dc2626;
+  --color-danger-400: #fb7185;
+  --color-danger-500: #f43f5e; /* Rose/Crimson */
+  --color-danger-600: #e11d48;
 
-  --color-surface-50: #f8fafc;
-  --color-surface-100: #f1f5f9;
+  /* Midnight Tinted Surfaces (Slate mixed with deep blue) */
+  --color-surface-50: #f8f9fc;
+  --color-surface-100: #f1f4f9;
   --color-surface-200: #e2e8f0;
   --color-surface-300: #cbd5e1;
   --color-surface-400: #94a3b8;
   --color-surface-500: #64748b;
   --color-surface-600: #475569;
-  --color-surface-700: #334155;
-  --color-surface-800: #1e293b;
-  --color-surface-900: #0f172a;
-  --color-surface-950: #020617;
+  --color-surface-700: #2d3748;
+  --color-surface-800: #151a2d; /* Deep Midnight */
+  --color-surface-900: #0b0f1e; /* Rich Dark */
+  --color-surface-950: #05070e; /* Void */
 
   --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
   --radius-xl: 1rem;
@@ -50,42 +53,42 @@
 /* ===== ROOT VARIABLES FOR LIGHT/DARK ===== */
 :root {
   --bg-app: var(--color-surface-50);
-  --bg-card: rgba(255, 255, 255, 0.8);
+  --bg-card: #ffffff;
   --bg-card-solid: #ffffff;
-  --bg-sidebar: rgba(255, 255, 255, 0.6);
+  --bg-sidebar: #ffffff;
   --bg-input: #ffffff;
   --bg-hover: var(--color-surface-100);
   --text-primary: var(--color-surface-900);
-  --text-secondary: var(--color-surface-500);
+  --text-secondary: var(--color-surface-600);
   --text-muted: var(--color-surface-400);
   --border-color: var(--color-surface-200);
-  --border-subtle: var(--color-surface-100);
+  --border-subtle: var(--color-surface-200);
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.04);
-  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.04);
-  --glass-blur: blur(20px);
-  --glass-border: 1px solid rgba(255, 255, 255, 0.3);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.03);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -4px rgba(0, 0, 0, 0.03);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.03);
+  --glass-blur: none;
+  --glass-border: 1px solid var(--color-surface-200);
 }
 
 [data-theme="dark"] {
   --bg-app: var(--color-surface-950);
-  --bg-card: rgba(30, 41, 59, 0.6);
-  --bg-card-solid: var(--color-surface-800);
-  --bg-sidebar: rgba(15, 23, 42, 0.8);
-  --bg-input: var(--color-surface-800);
+  --bg-card: var(--color-surface-900);
+  --bg-card-solid: var(--color-surface-900);
+  --bg-sidebar: var(--color-surface-950);
+  --bg-input: var(--color-surface-900);
   --bg-hover: var(--color-surface-800);
   --text-primary: var(--color-surface-50);
-  --text-secondary: var(--color-surface-400);
+  --text-secondary: var(--color-surface-300);
   --text-muted: var(--color-surface-500);
-  --border-color: var(--color-surface-700);
-  --border-subtle: var(--color-surface-800);
+  --border-color: rgba(255, 255, 255, 0.1);
+  --border-subtle: rgba(255, 255, 255, 0.05);
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -2px rgba(0, 0, 0, 0.3);
   --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -4px rgba(0, 0, 0, 0.3);
   --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.4);
-  --glass-blur: blur(24px);
-  --glass-border: 1px solid rgba(255, 255, 255, 0.08);
+  --glass-blur: none;
+  --glass-border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 /* ===== BASE STYLES ===== */
@@ -101,11 +104,19 @@ html {
 
 body {
   font-family: var(--font-sans);
-  background: var(--bg-app);
+  background-color: var(--bg-app);
   color: var(--text-primary);
   transition: background-color 0.3s ease, color 0.3s ease;
   min-height: 100dvh;
   overflow-x: hidden;
+}
+
+[data-theme="dark"] body {
+  background-image: 
+    radial-gradient(at 0% 0%, rgba(74, 111, 255, 0.05) 0px, transparent 50%),
+    radial-gradient(at 100% 0%, rgba(0, 224, 255, 0.03) 0px, transparent 50%),
+    radial-gradient(at 100% 100%, rgba(74, 111, 255, 0.04) 0px, transparent 50%);
+  background-attachment: fixed;
 }
 
 /* Safe area for iPhone notch / Dynamic Island */

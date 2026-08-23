@@ -288,3 +288,4 @@ export default function Dashboard({ theme, onSetTheme }: DashboardProps) {
     </div>
   );
 }
+

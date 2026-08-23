@@ -14,6 +14,8 @@ import type { SampleType } from '../types';
 import Button from '../components/ui/Button';
 import { generateDocxReport } from '../utils/report';
 
+import { useSearchParams } from 'react-router-dom';
+
 type TabOption = 'ENVI' | 'WATER' | 'RawMats' | 'AIR';
 
 const TABS: { id: TabOption; label: string }[] = [
@@ -25,14 +27,26 @@ const TABS: { id: TabOption; label: string }[] = [
 
 export default function Results() {
   const { theme, setTheme } = useTheme();
-  const [selectedTab, setSelectedTab] = useState<TabOption>('ENVI');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [selectedTab, setSelectedTab] = useState<TabOption>((searchParams.get('tab') as TabOption) || 'ENVI');
+  const [searchQuery, setSearchQuery] = useState(searchParams.get('search') || '');
   const [data, setData] = useState<any[]>([]);
   const [headers, setHeaders] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
   const isOnline = useOnlineStatus();
   const { showToast } = useToast();
+
+  useEffect(() => {
+    const tab = searchParams.get('tab') as TabOption;
+    if (tab && TABS.some(t => t.id === tab)) {
+      setSelectedTab(tab);
+    }
+    const search = searchParams.get('search');
+    if (search !== null) {
+      setSearchQuery(search);
+    }
+  }, [searchParams]);
 
   const [editingRow, setEditingRow] = useState<any | null>(null);
   const [editForm, setEditForm] = useState<Record<string, string>>({});
@@ -134,47 +148,38 @@ export default function Results() {
   });
 
   return (
-    <div className="min-h-screen bg-[var(--bg-body)] flex flex-col">
+    <div className="min-h-screen bg-transparent flex flex-col">
       <Header theme={theme} onSetTheme={setTheme} title="Live Results Dashboard" />
       
       <div className="flex-1 px-4 lg:px-8 py-6 max-w-[1600px] mx-auto w-full flex flex-col">
         
-        {/* Tab Navigation (Matching Screenshot) */}
-        <div className="flex flex-wrap items-center gap-2 mb-6 border-b border-[var(--border-subtle)] pb-4">
+        <div className="flex items-center p-1 gap-1 overflow-x-auto hide-scrollbar bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-2xl w-max max-w-full mb-6">
           {TABS.map(tab => {
             const isActive = selectedTab === tab.id;
-            let tabColorClass = 'hover:bg-[var(--bg-hover)] text-[var(--text-secondary)]';
-            let indicatorColor = 'bg-transparent';
-            
-            if (isActive) {
-              if (tab.id === 'ENVI') {
-                tabColorClass = 'text-green-500 font-bold bg-green-500/10';
-                indicatorColor = 'bg-green-500';
-              } else if (tab.id === 'WATER') {
-                tabColorClass = 'text-blue-500 font-bold bg-blue-500/10';
-                indicatorColor = 'bg-blue-500';
-              } else if (tab.id === 'RawMats') {
-                tabColorClass = 'text-pink-500 font-bold bg-pink-500/10';
-                indicatorColor = 'bg-pink-500';
-              } else if (tab.id === 'AIR') {
-                tabColorClass = 'text-yellow-500 font-bold bg-yellow-500/10';
-                indicatorColor = 'bg-yellow-500';
-              }
-            }
-            
+            let bgAccent = 'bg-primary-500';
+            if (tab.id === 'ENVI') bgAccent = 'bg-green-500';
+            if (tab.id === 'WATER') bgAccent = 'bg-blue-500';
+            if (tab.id === 'RawMats') bgAccent = 'bg-pink-500';
+            if (tab.id === 'AIR') bgAccent = 'bg-yellow-500';
+
             return (
               <button
                 key={tab.id}
                 onClick={() => setSelectedTab(tab.id)}
-                className={`relative px-5 py-2.5 rounded-xl text-sm transition-all flex items-center gap-2 ${tabColorClass}`}
+                className={`relative whitespace-nowrap px-5 py-2 rounded-xl text-sm font-semibold transition-colors duration-200 cursor-pointer
+                  ${isActive 
+                    ? 'text-white' 
+                    : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                  }`}
               >
-                {tab.label}
                 {isActive && (
-                  <motion.div 
-                    layoutId="activeTabIndicator"
-                    className={`absolute bottom-[-17px] left-0 right-0 h-1 ${indicatorColor}`}
+                  <motion.div
+                    layoutId="results-active-tab"
+                    className={`absolute inset-0 ${bgAccent} rounded-xl shadow-sm`}
+                    transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
                   />
                 )}
+                <span className="relative z-10 flex items-center gap-2">{tab.label}</span>
               </button>
             );
           })}
@@ -250,7 +255,7 @@ export default function Results() {
                         <div className="flex items-center gap-2">
                           <button
                             onClick={() => handleEditClick(row)}
-                            className="flex items-center gap-1.5 px-2 py-1 rounded bg-[var(--bg-body)] border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-primary-500 hover:border-primary-500 transition-colors shadow-sm"
+                            className="flex items-center gap-1.5 px-2 py-1 rounded bg-[var(--bg-card)] border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-primary-500 hover:border-primary-500 transition-colors shadow-sm"
                             title="Edit Row"
                           >
                             <Edit2 className="w-3.5 h-3.5" />
@@ -258,7 +263,7 @@ export default function Results() {
                           </button>
                           <button
                             onClick={() => handleGenerateReport(row)}
-                            className="flex items-center gap-1.5 px-2 py-1 rounded bg-[var(--bg-body)] border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-success-500 hover:border-success-500 transition-colors shadow-sm"
+                            className="flex items-center gap-1.5 px-2 py-1 rounded bg-[var(--bg-card)] border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-success-500 hover:border-success-500 transition-colors shadow-sm"
                             title="Generate Report"
                           >
                             <FileText className="w-3.5 h-3.5" />
@@ -267,7 +272,7 @@ export default function Results() {
                         </div>
                       </td>
                       {headers.map((h, colIndex) => (
-                        <td key={colIndex} className="px-3 py-1.5 text-xs text-[var(--text-primary)] border border-[var(--border-subtle)] whitespace-nowrap max-w-sm truncate bg-[var(--bg-body)]">
+                        <td key={colIndex} className="px-3 py-1.5 text-xs text-[var(--text-primary)] border border-[var(--border-subtle)] whitespace-nowrap max-w-sm truncate bg-[var(--bg-card)]">
                           {row[h] !== undefined && row[h] !== null && String(row[h]).trim() !== '' ? String(row[h]) : '-'}
                         </td>
                       ))}
@@ -298,7 +303,7 @@ export default function Results() {
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
               className="relative w-full max-w-2xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
             >
-              <div className="flex items-center justify-between p-6 border-b border-[var(--border-subtle)] bg-[var(--bg-body)]">
+              <div className="flex items-center justify-between p-6 border-b border-[var(--border-subtle)] bg-[var(--bg-card)]">
                 <div>
                   <h2 className="text-xl font-bold text-[var(--text-primary)]">Edit Record</h2>
                   <p className="text-sm text-[var(--text-secondary)] mt-1">
@@ -391,7 +396,7 @@ export default function Results() {
                         disabled={isReadOnly}
                         className={`w-full px-4 py-2.5 rounded-xl border border-[var(--border-subtle)] text-sm transition-colors
                           ${isReadOnly 
-                            ? 'bg-[var(--bg-body)] text-[var(--text-muted)] cursor-not-allowed' 
+                            ? 'bg-[var(--bg-card)] text-[var(--text-muted)] cursor-not-allowed' 
                             : 'bg-[var(--bg-input)] text-[var(--text-primary)] focus:border-primary-500 focus:ring-1 focus:ring-primary-500'
                           }`}
                       />
@@ -400,7 +405,7 @@ export default function Results() {
                 })}
               </div>
 
-              <div className="p-6 border-t border-[var(--border-subtle)] bg-[var(--bg-body)] flex justify-end gap-3">
+              <div className="p-6 border-t border-[var(--border-subtle)] bg-[var(--bg-card)] flex justify-end gap-3">
                 <button
                   onClick={() => setEditingRow(null)}
                   disabled={isSaving}
@@ -424,3 +429,4 @@ export default function Results() {
     </div>
   );
 }
+

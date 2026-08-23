@@ -41,8 +41,6 @@ export default function RawMatsForm({ onSubmit, onBack }: RawMatsFormProps) {
     type: '',
     sample: '',
     source: '',
-    qty: '',
-    unit: '',
     receivedBy: '',
     dateAnalyzed: '',
     analyzedBy: '',
@@ -108,10 +106,6 @@ export default function RawMatsForm({ onSubmit, onBack }: RawMatsFormProps) {
           <RadioGroup label="Type" value={form.type} options={RAWMATS_TYPES} onChange={(v) => setForm({ ...form, type: v as RawMatsType })} required />
           <ComboBox label="Sample" value={form.sample} options={RAWMATS_SAMPLES} onChange={(v) => setForm({ ...form, sample: v })} placeholder="Select sample..." required />
           <Dropdown label="Source" value={form.source} options={RAWMATS_SOURCES} onChange={(v) => setForm({ ...form, source: v })} placeholder="Select source..." required />
-          <div className="grid grid-cols-2 gap-4">
-            <TextInput label="QTY" value={form.qty} onChange={(v) => setForm({ ...form, qty: v })} placeholder="Enter qty" />
-            <TextInput label="UNIT" value={form.unit} onChange={(v) => setForm({ ...form, unit: v })} placeholder="Enter unit" />
-          </div>
         </motion.div>
 
         {/* Personnel & Status */}
