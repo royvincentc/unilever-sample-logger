@@ -160,7 +160,7 @@ export default function Logbook() {
                options={analysts.map(a => ({ value: a, label: a }))}
                className="w-full md:w-48 z-40"
              />
-            </div>
+
             <div className="relative w-full md:w-64">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)]" />
               <input
