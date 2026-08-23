@@ -201,13 +201,9 @@ export async function fetchActiveIncubationsFromSheet(): Promise<any[]> {
         if (dateAnalyzed && dateAnalyzed !== '-' && status !== 'RELEASED' && status !== 'COMPLETED') {
           const rawType = sampleType === 'RawMats' ? String(row['TYPE'] || '').toUpperCase() : undefined;
           
-          let batchNumber = row['MIXING BATCH #'] || '';
+          let batchNumber = row['BATCH #'] || row['MIXING BATCH #'] || row['BATCH NO'] || '';
           if (sampleType === 'RawMats') {
-            if (rawType === 'SFG' || rawType === 'ROH') {
-              batchNumber = row['__rawRow']?.[2] || batchNumber; // Column C
-            } else if (rawType === 'CUC') {
-              batchNumber = row['__rawRow']?.[3] || batchNumber; // Column D
-            }
+            batchNumber = row['__rawRow']?.[2] || batchNumber; // Column C
           }
 
           activeIncubations.push({
@@ -219,9 +215,9 @@ export async function fetchActiveIncubationsFromSheet(): Promise<any[]> {
             rawMatsType: rawType,
             submittedBy: String(row['ANALYST'] || row['ANALYZED BY'] || row['SWABBED BY'] || ''),
             batchNumber: batchNumber,
-            apc: row['__rawRow']?.[28] || row['(C) Aerobic Plate Count'] || '', // Column AC
-            my: row['__rawRow']?.[30] || row['(C) Yeast and Molds'] || '',     // Column AE
-            indicativeRemarks: row['__rawRow']?.[34] || row['INDICATIVE RESULT'] || row['REMARKS'] || row['REMARKS '] || '', // Column AI
+            apc: row['__rawRow']?.[27] || row['(C) Aerobic Plate Count'] || '', // Column AB (shifted from AC)
+            my: row['__rawRow']?.[29] || row['(C) Yeast and Molds'] || '',     // Column AD (shifted from AE)
+            indicativeRemarks: row['REMARKS'] || row['REMARKS '] || row['__rawRow']?.[33] || row['INDICATIVE RESULT'] || '', // Prioritize REMARKS column
             time: row['TIME'] || '',
           });
         }
@@ -325,13 +321,14 @@ export async function fetchHistoryFromSheet(): Promise<string[]> {
 export async function fetchLiveSheetData(sheetTab: string): Promise<any[]> {
   const settings = getSettings();
   try {
-    const response = await fetch(`/api/sheet-data?sheetId=${settings.spreadsheetId}&tab=${encodeURIComponent(sheetTab)}`);
+    const response = await fetch(`/api/supabase-data?tab=${encodeURIComponent(sheetTab)}`);
     if (!response.ok) {
       const errorText = await response.text();
       throw new Error(errorText || `HTTP ${response.status}`);
     }
-    const data = await response.json();
-    return Array.isArray(data) ? data : [];
+    const rawData = await response.json();
+    const data = Array.isArray(rawData) ? rawData.map((row: any) => row.sheet_data) : [];
+    return data;
   } catch (error) {
     console.error('Live sheet fetch failed:', error);
     throw error;
