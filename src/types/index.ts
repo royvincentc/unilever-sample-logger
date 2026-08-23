@@ -56,8 +56,7 @@ export interface RawMatsFormData {
   dateSampled: string;
   timeSampled: string;
   rfaf: RfafOption | '';
-  mixingBatchNo: string;
-  cucNo: string;
+  batchNo: string;
   type: RawMatsType | '';
   sample: string;
   source: string;

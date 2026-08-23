@@ -30,18 +30,14 @@ export async function generateDocxReport(data: any, analyzedBy: string, tab: str
     };
 
     const getBatchNo = (cat: string) => {
-      const c = (cat || '').toUpperCase().trim();
-      if (c === 'ROH' || c === 'SFG') return raw[2] || 'N/A'; // Column C
-      if (c === 'FG' || c === 'CUC') return raw[3] || 'N/A'; // Column D
-      // Fallback
-      return raw[2] || raw[3] || 'N/A';
+      return raw[2] || 'N/A'; // Column C
     };
 
     if (tab === 'RawMats') {
-      // E=4, F=5, I=8, J=9, K=10, N=13, P=15, W=22, X=23, Y=24, Z=25, AA=26, AB=27
-      const apcSpec = String(raw[22] || '');
-      const mySpec = String(raw[24] || '');
-      const gnSpec = String(raw[23] || '');
+      // D=3, E=4, H=7, I=8, J=9, M=12, O=14, V=21, W=22, X=23, Y=24, Z=25, AA=26
+      const apcSpec = String(raw[21] || '');
+      const mySpec = String(raw[23] || '');
+      const gnSpec = String(raw[22] || '');
 
       const formatResult = (specStr: string, resultStr: string) => {
         if (!specStr || !resultStr) return resultStr;
@@ -57,11 +53,11 @@ export async function generateDocxReport(data: any, analyzedBy: string, tab: str
         return resultStr;
       };
 
-      const apcResultStr = formatResult(apcSpec, String(data['(A) Aerobic Plate Count'] || data['Aerobic Plate Count'] || data['TVC (count)'] || raw[28] || ''));
-      const myResultStr = formatResult(mySpec, String(data['(A) Yeast and Molds'] || data['Yeast and Molds'] || data['Molds & Yeast'] || raw[30] || ''));
+      const apcResultStr = formatResult(apcSpec, String(data['(A) Aerobic Plate Count'] || data['Aerobic Plate Count'] || data['TVC (count)'] || raw[27] || ''));
+      const myResultStr = formatResult(mySpec, String(data['(A) Yeast and Molds'] || data['Yeast and Molds'] || data['Molds & Yeast'] || raw[29] || ''));
       
-      // The user specified that Gram Negative actual result is in column AD (index 29)
-      const gnResultStr = String(raw[29] || '');
+      // The user specified that Gram Negative actual result is in column AD (index 29) - now AC (index 28)
+      const gnResultStr = String(raw[28] || '');
 
       const apcRemarks = apcResultStr ? ((apcResultStr.includes('<300') || apcResultStr === apcSpec || apcResultStr.startsWith('<')) ? 'Passed' : 'Failed') : '';
       const myRemarks = myResultStr ? ((myResultStr.includes('<100') || myResultStr === mySpec || myResultStr.startsWith('<')) ? 'Passed' : 'Failed') : '';
@@ -92,20 +88,20 @@ export async function generateDocxReport(data: any, analyzedBy: string, tab: str
         }
       }
 
-      // OverallRemarks exactly from column AI (index 34)
-      const overallRemarks = String(raw[34] || '');
+      // OverallRemarks exactly from column AH (index 33)
+      const overallRemarks = String(raw[33] || '');
 
       templateData = {
-        Category: mapCategory(raw[4]),
-        SampleName: raw[5] || 'Unknown Sample',
+        Category: mapCategory(raw[3]),
+        SampleName: raw[4] || 'Unknown Sample',
         DateMfd: 'N/A',
         ExpiryDate: 'N/A',
         Purpose: 'Microbial Analysis',
-        DateReceived: [raw[9], raw[10]].filter(v => v && String(v).trim().length > 0).join('; '),
-        DateReleased: [raw[15], new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })].filter(v => v && String(v).trim().length > 0).join('; '),
-        FillVol: raw[8] || 'N/A',
+        DateReceived: [raw[8], raw[9]].filter(v => v && String(v).trim().length > 0).join('; '),
+        DateReleased: [raw[14], new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })].filter(v => v && String(v).trim().length > 0).join('; '),
+        FillVol: raw[7] || 'N/A',
         RequestedBy: '[REFER TO RFAF]',
-        BatchNo: getBatchNo(raw[4]),
+        BatchNo: getBatchNo(raw[3]),
         Logbook: '[TO BE FILLED UP]',
         
         // Spec
@@ -114,18 +110,18 @@ export async function generateDocxReport(data: any, analyzedBy: string, tab: str
         GN_Spec: gnSpec,
         
         // Result
-        APC_Result: apcResultStr, // AC
-        MY_Result: myResultStr, // AE
-        GN_Result: gnResultStr, // AD
+        APC_Result: apcResultStr, // AB
+        MY_Result: myResultStr, // AD
+        GN_Result: gnResultStr, // AC
         
         APC_Remarks: apcRemarks,
         MY_Remarks: myRemarks,
         GN_Remarks: gnRemarks,
         
         OverallRemarks: overallRemarks,
-        AnalyzedBy: raw[13] || analyzedBy || 'Jasmin C. Barangan',
+        AnalyzedBy: raw[12] || analyzedBy || 'Jasmin C. Barangan',
         DateAnalyzed: new Date().toLocaleDateString(),
-        DateReleasedOnly: raw[15] || ''
+        DateReleasedOnly: raw[14] || ''
       };
     } else {
       // Generic fallback for other tabs until specified

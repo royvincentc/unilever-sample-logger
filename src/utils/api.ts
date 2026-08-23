@@ -219,6 +219,7 @@ export async function fetchActiveIncubationsFromSheet(): Promise<any[]> {
             my: row['__rawRow']?.[29] || row['(C) Yeast and Molds'] || '',     // Column AD (shifted from AE)
             indicativeRemarks: row['REMARKS'] || row['REMARKS '] || row['__rawRow']?.[33] || row['INDICATIVE RESULT'] || '', // Prioritize REMARKS column
             time: row['TIME'] || '',
+            size: row['PACK SIZE'] || row['SIZE'] || row['VOLUME'] || '',
           });
         }
       }

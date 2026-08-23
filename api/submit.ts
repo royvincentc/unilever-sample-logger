@@ -196,12 +196,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         delete payloadData._rowIndex;
         delete payloadData.sampleType;
         
-        // Find the sample name from the payload (it's whatever matches the 2nd header in the sheet)
-        // Since we don't know the exact header name here, we'll try to find it.
-        // It's usually the key that has "UNILEVER" or "SAMPLE" and is not the control number.
-        // As a fallback, we grab the value of the 2nd key in the payload.
-        const keys = Object.keys(payloadData);
-        const sampleNameStr = keys.length > 1 ? String(payloadData[keys[1]]).trim() : 'Unknown';
+        // Properly extract the sample name based on known column headers to prevent creating duplicate rows on updates
+        const sampleNameStr = String(
+          payloadData['SAMPLE NAME'] || 
+          payloadData['SAMPLE'] || 
+          payloadData['WATER SOURCE'] || 
+          payloadData['SAMPLING POINT'] || 
+          payloadData['POINT'] || 
+          'Unknown'
+        ).trim();
 
         await supabase
           .from('samples')

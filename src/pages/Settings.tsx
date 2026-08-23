@@ -32,7 +32,7 @@ export default function Settings({ onLogout }: { onLogout?: () => void }) {
   const EXPECTED_FIELDS: Record<string, string[]> = {
     ENVI: ['CONTROL #', 'SAMPLE', 'QTY', 'UNIT', 'DATE SWABBED', 'TIME SWABBED', 'SWABBED BY', 'ENDORSED TO', 'DATE ANALYZED', 'ANALYZED BY', 'STATUS', 'REMARKS'],
     WATER: ['CONTROL #', 'WATER SOURCE', 'QTY', 'UNIT', 'DATE SAMPLED', 'TIME', 'SAMPLED BY', 'ENDORSED TO', 'DATE ANALYZED', 'ANALYZED BY', 'STATUS', 'REMARKS'],
-    RawMats: ['CONTROL #', 'TYPE', 'RFAF', 'MIXING BATCH #', 'CUC #', 'SAMPLE', 'SOURCE', 'QTY', 'UNIT', 'DATE RECEIVED/SAMPLED', 'TIME', 'RECEIVED BY', 'ENDORSED TO', 'DATE ANALYZED', 'ANALYZED BY', 'STATUS', 'REMARKS'],
+    RawMats: ['CONTROL #', 'TYPE', 'RFAF', 'BATCH #', 'SAMPLE', 'SOURCE', 'QTY', 'UNIT', 'DATE RECEIVED/SAMPLED', 'TIME', 'RECEIVED BY', 'ENDORSED TO', 'DATE ANALYZED', 'ANALYZED BY', 'STATUS', 'REMARKS'],
   };
 
   const today = new Date().toISOString().split('T')[0];

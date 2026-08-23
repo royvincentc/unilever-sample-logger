@@ -43,6 +43,7 @@ interface IncubationTask {
   indicativeRemarks?: string;
   time?: string;
   rawMatsType?: string;
+  size?: string;
 }
 
 export default function Incubation() {
@@ -259,7 +260,12 @@ export default function Incubation() {
   const generateReportText = (dayTasks: IncubationTask[], day: number) => {
     if (dayTasks.length === 0) return null;
 
-    let text = `Indicative Result for Day ${day}\n`;
+    const hour = new Date().getHours();
+    let greeting = 'Good evening';
+    if (hour < 12) greeting = 'Good morning';
+    else if (hour < 18) greeting = 'Good afternoon';
+
+    let text = `${greeting}\n\nIndicative Result for Day ${day}\n`;
 
     dayTasks.forEach((task, index) => {
       let type = '';
@@ -274,11 +280,13 @@ export default function Incubation() {
       }
 
       const typePrefix = type ? `${type}: ` : '';
+      const sizeSuffix = task.size ? `, ${task.size}` : '';
       
-      text += `${index + 1}. ${typePrefix}${task.sampleName}\n`;
+      text += `${index + 1}. ${typePrefix}${task.sampleName}${sizeSuffix}\n`;
       
       if (task.batchNumber) {
-        text += `Batch #: ${task.batchNumber}\n`;
+        const timeSuffix = task.time ? ` I ${task.time}` : '';
+        text += `Batch #: ${task.batchNumber}${timeSuffix}\n`;
       }
       
       text += `APC: ${task.apc || 'N/A'}\n`;
@@ -289,8 +297,9 @@ export default function Incubation() {
       const rawRemarks = (task.indicativeRemarks || 'N/A').trim();
       const formattedRemarks = rawRemarks.toUpperCase() === 'PASSED' ? 'Pass' : 
                                rawRemarks.toUpperCase() === 'PASS' ? 'Pass' : 
-                               rawRemarks.toUpperCase() === 'FAILED' ? 'Fail' : rawRemarks;
-      
+                               rawRemarks.toUpperCase() === 'FAILED' ? 'Fail' : 
+                               rawRemarks.toUpperCase() === 'FAIL' ? 'Fail' : rawRemarks;
+
       text += `Remarks: ${formattedRemarks}\n\n`;
     });
 

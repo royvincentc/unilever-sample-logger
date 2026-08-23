@@ -36,8 +36,7 @@ export default function RawMatsForm({ onSubmit, onBack }: RawMatsFormProps) {
     dateSampled: new Date().toISOString().split('T')[0],
     timeSampled: '',
     rfaf: '',
-    mixingBatchNo: '',
-    cucNo: '',
+    batchNo: '',
     type: '',
     sample: '',
     source: '',
@@ -90,13 +89,12 @@ export default function RawMatsForm({ onSubmit, onBack }: RawMatsFormProps) {
           </div>
         </motion.div>
 
-        {/* RFAF, Batch, CUC */}
+        {/* RFAF, Batch */}
         <motion.div variants={fadeUp} className="glass rounded-2xl p-5 space-y-4">
           <h4 className="text-sm font-semibold text-[var(--text-primary)] uppercase tracking-wider">Reference</h4>
           <RadioGroup label="RFAF" value={form.rfaf} options={RFAF_OPTIONS} onChange={(v) => setForm({ ...form, rfaf: v as RfafOption })} required />
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <TextInput label="Mixing Batch #" value={form.mixingBatchNo} onChange={(v) => setForm({ ...form, mixingBatchNo: v })} placeholder="Optional" />
-            <TextInput label="CUC #" value={form.cucNo} onChange={(v) => setForm({ ...form, cucNo: v })} placeholder="Optional" />
+          <div className="grid grid-cols-1 gap-4">
+            <TextInput label="Batch #" value={form.batchNo} onChange={(v) => setForm({ ...form, batchNo: v })} placeholder="Optional" />
           </div>
         </motion.div>
 

@@ -126,8 +126,7 @@ const FIELD_KEYWORDS: Record<string, string[]> = {
   // RAW MATS specific
   'type':                  ['type'],
   'rfaf':                  ['rfaf'],
-  'mixingBatchNo':         ['mixing batch', 'batch #', 'batch no', 'mix batch'],
-  'cucNo':                 ['cuc'],
+  'batchNo':               ['batch #', 'batch no', 'mixing batch', 'mix batch', 'batch', 'cuc', 'cuc #'],
   'source':                ['source', 'supplier', 'vendor', 'origin'],
   'receivedBy':            ['received by', 'sampled by', 'collected by'],
 
