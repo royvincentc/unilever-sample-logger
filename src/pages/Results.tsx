@@ -4,7 +4,7 @@ import {
   FileSpreadsheet, RefreshCw, AlertCircle, Search, Edit2, X, Save, FileText
 } from 'lucide-react';
 import Header from '../components/Layout/Header';
-import { fetchLiveSheetData } from '../utils/api';
+import { fetchLiveSheetData, fetchSheetSchema } from '../utils/api';
 import { updateSheetRow } from '../utils/api';
 import { getSheetTabName } from '../utils/sheetMapping';
 import { useTheme } from '../hooks/useTheme';
@@ -80,18 +80,25 @@ export default function Results() {
     
     try {
       const sheetTab = getSheetTabName(type as SampleType);
-      const rows = await fetchLiveSheetData(sheetTab);
+      const rowsPromise = fetchLiveSheetData(sheetTab);
+      const schemaPromise = fetchSheetSchema(sheetTab);
+      
+      const [rows, schema] = await Promise.all([rowsPromise, schemaPromise]);
       
       if (rows && rows.length > 0) {
-        // Find the longest object to extract all possible headers
-        let allHeaders: string[] = [];
-        for (const row of rows) {
-          const keys = Object.keys(row).filter(k => !k.startsWith('_'));
-          if (keys.length > allHeaders.length) {
-            allHeaders = keys;
+        if (schema && schema.length > 0) {
+          setHeaders(schema);
+        } else {
+          // Fallback if schema fails
+          let allHeaders: string[] = [];
+          for (const row of rows) {
+            const keys = Object.keys(row).filter(k => !k.startsWith('_'));
+            if (keys.length > allHeaders.length) {
+              allHeaders = keys;
+            }
           }
+          setHeaders(allHeaders);
         }
-        setHeaders(allHeaders);
         setData(rows);
       } else {
         setData([]);
