@@ -80,25 +80,26 @@ export default function Results() {
     
     try {
       const sheetTab = getSheetTabName(type as SampleType);
-      const rowsPromise = fetchLiveSheetData(sheetTab);
-      const schemaPromise = fetchSheetSchema(sheetTab);
-      
-      const [rows, schema] = await Promise.all([rowsPromise, schemaPromise]);
+      const rows = await fetchLiveSheetData(sheetTab);
       
       if (rows && rows.length > 0) {
-        if (schema && schema.length > 0) {
-          setHeaders(schema);
+        // Find the longest object to extract all possible headers
+        // Prioritize _keys if it exists from Supabase to preserve order
+        let allHeaders: string[] = [];
+        
+        // If the first row has _keys, use it exactly!
+        if (rows[0] && Array.isArray(rows[0]._keys) && rows[0]._keys.length > 0) {
+          allHeaders = rows[0]._keys;
         } else {
-          // Fallback if schema fails
-          let allHeaders: string[] = [];
+          // Fallback
           for (const row of rows) {
             const keys = Object.keys(row).filter(k => !k.startsWith('_'));
             if (keys.length > allHeaders.length) {
               allHeaders = keys;
             }
           }
-          setHeaders(allHeaders);
         }
+        setHeaders(allHeaders);
         setData(rows);
       } else {
         setData([]);

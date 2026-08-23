@@ -210,11 +210,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (success && supabase) {
       try {
         const payloadData = { ...payload };
+        
+        // Preserve original column order since Postgres JSONB scrambles keys
+        payloadData._keys = Object.keys(payload).filter(k => 
+          k !== 'spreadsheetId' && 
+          k !== 'sheetTab' && 
+          k !== 'isUpdate' && 
+          k !== '_rowIndex' && 
+          k !== 'sampleType' &&
+          k !== 'controlNumber'
+        );
+
         delete payloadData.spreadsheetId;
         delete payloadData.sheetTab;
         delete payloadData.isUpdate;
         delete payloadData._rowIndex;
         delete payloadData.sampleType;
+        delete payloadData.controlNumber;
         
         // Properly extract the sample name based on known column headers to prevent creating duplicate rows on updates
         const sampleNameStr = String(
