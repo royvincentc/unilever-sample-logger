@@ -328,8 +328,7 @@ export async function fetchLiveSheetData(sheetTab: string): Promise<any[]> {
       throw new Error(errorText || `HTTP ${response.status}`);
     }
     const rawData = await response.json();
-    const data = Array.isArray(rawData) ? rawData.map((row: any) => row.sheet_data) : [];
-    return data;
+    return Array.isArray(rawData) ? rawData : [];
   } catch (error) {
     console.error('Live sheet fetch failed:', error);
     throw error;

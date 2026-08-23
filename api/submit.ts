@@ -77,31 +77,51 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (payload._rowIndex) {
         sheetRowNumber = parseInt(payload._rowIndex, 10);
       } else {
-        // Find the row to update based on CONTROL #
-        const colIndexControl = headers.findIndex(h => h.toUpperCase().includes('CONTROL'));
-        
-        if (colIndexControl === -1) {
-          return res.status(400).json({ error: 'Could not find a CONTROL # column in the sheet.' });
-        }
-
-        // Read all control numbers to find the row index
-        const idColumnRange = String.fromCharCode(65 + colIndexControl); // e.g. A, B, C...
-        const idResponse = await sheets.spreadsheets.values.get({
+        // Fetch all rows to match exactly Control Number AND Sample Name
+        const allRowsResponse = await sheets.spreadsheets.values.get({
           spreadsheetId,
-          range: `'${sheetTab}'!${idColumnRange}:${idColumnRange}`,
+          range: `'${sheetTab}'!A:E`, // Usually Control # is A, Sample Name is B
         });
 
-        const ids = idResponse.data.values?.map(r => r[0]) || [];
+        const allRows = allRowsResponse.data.values || [];
+        const targetCleanCtrl = controlNumber.replace(/^RM-?/i, '').toLowerCase().trim();
         
-        // Control number might have "RM-" stripped in the app but present in the sheet, so compare loosely
-        const targetClean = controlNumber.replace(/^RM-?/i, '').toLowerCase().trim();
-        const rowIndex = ids.findIndex(id => {
-          if (!id) return false;
-          return String(id).replace(/^RM-?/i, '').toLowerCase().trim() === targetClean;
+        // Try to get sample name from payload to match
+        const targetCleanSample = String(
+          payload['SAMPLE NAME'] || 
+          payload['SAMPLE'] || 
+          payload['WATER SOURCE'] || 
+          payload['SAMPLING POINT'] || 
+          payload['POINT'] || 
+          ''
+        ).toLowerCase().trim();
+
+        // Headers are at row 0 (or wherever, we'll just scan all rows)
+        const rowIndex = allRows.findIndex(r => {
+          if (!r || r.length < 2) return false;
+          
+          let rowCtrl = '';
+          let rowSample = '';
+          
+          // Normally A is Control, B is Sample, but let's just check the first 3 columns
+          for (let i = 0; i < 3; i++) {
+             if (r[i] && String(r[i]).replace(/^RM-?/i, '').toLowerCase().trim() === targetCleanCtrl) {
+                rowCtrl = targetCleanCtrl;
+             }
+             if (r[i] && String(r[i]).toLowerCase().trim() === targetCleanSample) {
+                rowSample = targetCleanSample;
+             }
+          }
+          
+          if (targetCleanSample) {
+             return rowCtrl === targetCleanCtrl && rowSample === targetCleanSample;
+          } else {
+             return rowCtrl === targetCleanCtrl; // Fallback if no sample name
+          }
         });
 
         if (rowIndex !== -1) {
-          sheetRowNumber = rowIndex + 1;
+          sheetRowNumber = rowIndex + 1; // 1-indexed for sheets
         }
       }
 
