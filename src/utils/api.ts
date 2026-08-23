@@ -186,10 +186,8 @@ export async function fetchActiveIncubationsFromSheet(): Promise<any[]> {
   for (const sampleType of types) {
     const tabName = getSheetTabName(sampleType);
     try {
-      const response = await fetch(`/api/sheet-data?sheetId=${settings.spreadsheetId}&tab=${encodeURIComponent(tabName)}`);
-      if (!response.ok) continue;
-      
-      const dataRows = await response.json();
+      // Point directly to Supabase to make Incubations and Calendar lightning fast!
+      const dataRows = await fetchLiveSheetData(tabName);
       if (!Array.isArray(dataRows) || dataRows.length === 0) continue;
 
       for (const row of dataRows) {
@@ -202,9 +200,6 @@ export async function fetchActiveIncubationsFromSheet(): Promise<any[]> {
           const rawType = sampleType === 'RawMats' ? String(row['TYPE'] || '').toUpperCase() : undefined;
           
           let batchNumber = row['BATCH #'] || row['MIXING BATCH #'] || row['BATCH NO'] || '';
-          if (sampleType === 'RawMats') {
-            batchNumber = row['__rawRow']?.[2] || batchNumber; // Column C
-          }
 
           activeIncubations.push({
             id: String(row['_rowIndex'] || Math.random().toString()),
@@ -215,9 +210,9 @@ export async function fetchActiveIncubationsFromSheet(): Promise<any[]> {
             rawMatsType: rawType,
             submittedBy: String(row['ANALYST'] || row['ANALYZED BY'] || row['SWABBED BY'] || ''),
             batchNumber: batchNumber,
-            apc: row['__rawRow']?.[27] || row['(C) Aerobic Plate Count'] || '', // Column AB (shifted from AC)
-            my: row['__rawRow']?.[29] || row['(C) Yeast and Molds'] || '',     // Column AD (shifted from AE)
-            indicativeRemarks: row['REMARKS'] || row['REMARKS '] || row['__rawRow']?.[33] || row['INDICATIVE RESULT'] || '', // Prioritize REMARKS column
+            apc: row['(C) Aerobic Plate Count'] || '', 
+            my: row['(C) Yeast and Molds'] || '',     
+            indicativeRemarks: row['REMARKS'] || row['REMARKS '] || row['INDICATIVE RESULT'] || '', // Prioritize REMARKS column
             time: row['TIME'] || '',
             size: row['PACK SIZE'] || row['SIZE'] || row['VOLUME'] || '',
           });

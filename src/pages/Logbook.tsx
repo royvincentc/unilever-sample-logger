@@ -83,7 +83,7 @@ export default function Logbook() {
         originalRow: row,
         sheetName: row.__sheetName,
         control,
-        batchNumber: row.__rawRow?.[2] || row['MIXING BATCH #'] || '-',
+        batchNumber: row['BATCH #'] || row['MIXING BATCH #'] || '-',
         name,
         type,
         category,

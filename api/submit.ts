@@ -70,10 +70,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     let success = false;
     let message = '';
+    let finalRowData: string[] | null = null;
+    let sheetRowNumber = -1;
 
     if (isUpdate) {
-      let sheetRowNumber = -1;
-      
       if (payload._rowIndex) {
         sheetRowNumber = parseInt(payload._rowIndex, 10);
       } else {
@@ -135,7 +135,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         
         const existingRowData = existingRowResponse.data.values?.[0] || [];
         
-        const finalRowData = headers.map((header, i) => {
+        finalRowData = headers.map((header, i) => {
           if (payload[header] !== undefined) {
              return String(payload[header]);
           }
@@ -209,32 +209,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // --- SUPABASE DUAL WRITE ---
     if (success && supabase) {
       try {
-        const payloadData = { ...payload };
+        let fullPayloadData: Record<string, any> = {};
         
-        // Preserve original column order since Postgres JSONB scrambles keys
-        payloadData._keys = Object.keys(payload).filter(k => 
-          k !== 'spreadsheetId' && 
-          k !== 'sheetTab' && 
-          k !== 'isUpdate' && 
-          k !== '_rowIndex' && 
-          k !== 'sampleType' &&
-          k !== 'controlNumber'
-        );
+        if (isUpdate && typeof sheetRowNumber !== 'undefined' && sheetRowNumber !== -1 && finalRowData && headers) {
+           // On update, use the full merged row data so we don't insert partial records
+           headers.forEach((h: string, i: number) => {
+              fullPayloadData[h] = finalRowData[i] || '';
+           });
+        } else {
+           // On insert, just use the rowData array mapped to headers
+           headers.forEach((h: string, i: number) => {
+              fullPayloadData[h] = rowData[i] || '';
+           });
+        }
 
-        delete payloadData.spreadsheetId;
-        delete payloadData.sheetTab;
-        delete payloadData.isUpdate;
-        delete payloadData._rowIndex;
-        delete payloadData.sampleType;
-        delete payloadData.controlNumber;
-        
-        // Properly extract the sample name based on known column headers to prevent creating duplicate rows on updates
+        // Properly extract the sample name based on known column headers
         const sampleNameStr = String(
-          payloadData['SAMPLE NAME'] || 
-          payloadData['SAMPLE'] || 
-          payloadData['WATER SOURCE'] || 
-          payloadData['SAMPLING POINT'] || 
-          payloadData['POINT'] || 
+          fullPayloadData['SAMPLE NAME'] || 
+          fullPayloadData['SAMPLE'] || 
+          fullPayloadData['WATER SOURCE'] || 
+          fullPayloadData['SAMPLING POINT'] || 
+          fullPayloadData['POINT'] || 
           'Unknown'
         ).trim();
 
@@ -245,8 +240,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             sample_name: sampleNameStr,
             sample_type: sampleType || 'UNKNOWN',
             sheet_tab: sheetTab,
-            status: payload['STATUS'] || payload['Status'] || payload.status || 'ON GOING',
-            sheet_data: payloadData,
+            status: fullPayloadData['STATUS'] || fullPayloadData['Status'] || 'ON GOING',
+            sheet_data: fullPayloadData,
             updated_at: new Date().toISOString()
           }, { onConflict: 'control_number,sample_name' });
           

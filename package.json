@@ -26,6 +26,7 @@
     "@vitejs/plugin-react": "^6.0.1",
     "date-fns": "^4.4.0",
     "docxtemplater": "^3.69.3",
+    "dotenv": "^17.4.2",
     "file-saver": "^2.0.5",
     "firebase": "^12.13.0",
     "framer-motion": "^12.38.0",

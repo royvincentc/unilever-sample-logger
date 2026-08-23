@@ -36,10 +36,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const sheets = await getSheetsClient();
     
-    // Read the sheet data
+    const range = schemaOnly === 'true' ? `'${tab}'!A1:AZ10` : `'${tab}'!A:AZ`;
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: sheetId,
-      range: `'${tab}'!A:AZ`, 
+      range, 
     });
 
     const rows = response.data.values || [];
