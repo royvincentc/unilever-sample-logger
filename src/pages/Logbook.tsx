@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { BookOpen, RefreshCw, AlertCircle, Search, User } from 'lucide-react';
 import Header from '../components/Layout/Header';
+import CustomSelect from '../components/ui/CustomSelect';
 import { fetchLiveSheetData } from '../utils/api';
 import { useTheme } from '../hooks/useTheme';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
@@ -144,25 +145,21 @@ export default function Logbook() {
           </div>
 
           <div className="flex flex-col md:flex-row items-center gap-2">
-            <div className="relative w-full md:w-36">
-               <select 
-                 value={sortBy} 
-                 onChange={e => setSortBy(e.target.value as any)}
-                 className="w-full bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-xl py-2 px-3 text-xs text-[var(--text-primary)] focus:outline-none focus:border-primary-500 appearance-none cursor-pointer font-medium"
-               >
-                 <option value="datetime">Sort by Date/Time</option>
-                 <option value="analyst">Sort by Analyst</option>
-               </select>
-            </div>
-            <div className="relative w-full md:w-48">
-               <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)]" />
-               <select 
-                 value={selectedAnalyst} 
-                 onChange={e => setSelectedAnalyst(e.target.value)}
-                 className="w-full bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-xl py-2 pl-9 pr-4 text-xs text-[var(--text-primary)] focus:outline-none focus:border-primary-500 appearance-none cursor-pointer"
-               >
-                 {analysts.map(a => <option key={a} value={a}>{a}</option>)}
-               </select>
+             <CustomSelect 
+               value={sortBy} 
+               onChange={(v) => setSortBy(v as any)}
+               options={[
+                 { value: 'datetime', label: 'Sort by Date/Time' },
+                 { value: 'analyst', label: 'Sort by Analyst' }
+               ]}
+               className="w-full md:w-48 z-40"
+             />
+             <CustomSelect 
+               value={selectedAnalyst} 
+               onChange={setSelectedAnalyst}
+               options={analysts.map(a => ({ value: a, label: a }))}
+               className="w-full md:w-48 z-40"
+             />
             </div>
             <div className="relative w-full md:w-64">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)]" />

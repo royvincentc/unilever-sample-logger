@@ -12,6 +12,7 @@ import {
   Filter,
   Send
 } from 'lucide-react';
+import CustomSelect from '../components/ui/CustomSelect';
 import Header from '../components/Layout/Header';
 import { useToast } from '../components/ui/Toast';
 import { useTheme } from '../hooks/useTheme';
@@ -346,16 +347,15 @@ export default function Incubation() {
         <div className="flex flex-col gap-5">
           <div className="flex items-center gap-3">
             <span className="text-sm font-semibold text-[var(--text-muted)]">Filter Analyst (Today):</span>
-            <select
+            <CustomSelect
               value={analystFilter}
-              onChange={(e) => setAnalystFilter(e.target.value)}
-              className="bg-[var(--bg-card)] border border-[var(--border-subtle)] text-[var(--text-primary)] text-sm rounded-md px-3 py-1.5 focus:outline-none focus:border-cyan-500/50 font-medium cursor-pointer transition-colors shadow-sm"
-            >
-              <option value="All">All Analysts</option>
-              {uniqueAnalysts.map(analyst => (
-                <option key={analyst} value={analyst}>{analyst}</option>
-              ))}
-            </select>
+              onChange={setAnalystFilter}
+              options={[
+                { value: 'All', label: 'All Analysts' },
+                ...uniqueAnalysts.map(a => ({ value: a, label: a }))
+              ]}
+              className="w-48 z-40"
+            />
           </div>
 
           {/* Universal Filter Tabs */}

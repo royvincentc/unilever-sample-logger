@@ -5,6 +5,7 @@ import {
   FlaskConical, Droplets, Package, Link2, Info, X
 } from 'lucide-react';
 import Header from '../components/Layout/Header';
+import CustomSelect from '../components/ui/CustomSelect';
 import { useTheme } from '../hooks/useTheme';
 import { fetchActiveIncubationsFromSheet } from '../utils/api';
 import { auth } from '../utils/firebase';
@@ -279,15 +280,12 @@ async function createCalendarEvent(accessToken: string, event: IncubationEvent):
             <p className="text-sm text-[var(--text-secondary)] mt-1">Track reading dates in a visual grid</p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
-            <select
+            <CustomSelect
               value={selectedAnalyst}
-              onChange={(e) => setSelectedAnalyst(e.target.value)}
-              className="px-4 py-2 rounded-xl bg-[var(--bg-input)] border border-[var(--border-subtle)] text-sm font-bold text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-primary-500/50 cursor-pointer appearance-none min-w-[140px]"
-            >
-              {uniqueAnalysts.map(analyst => (
-                <option key={analyst} value={analyst}>{analyst}</option>
-              ))}
-            </select>
+              onChange={setSelectedAnalyst}
+              options={uniqueAnalysts.map(a => ({ value: a, label: a }))}
+              className="w-48 z-40"
+            />
             <button
               onClick={handleSyncToGoogleCalendar}
               disabled={syncing || filteredEvents.length === 0}

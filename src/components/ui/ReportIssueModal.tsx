@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom';
 import { HelpCircle, X, CheckCircle, AlertTriangle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useToast } from './Toast';
+import CustomSelect from './CustomSelect';
 import { getUserName } from '../../utils/auth';
 import { submitIssueReport, type IssueReport } from '../../utils/db';
 import Button from './Button';
@@ -140,16 +141,16 @@ ${description.trim()}
                   <label className="block text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider">
                     Severity Level
                   </label>
-                  <select
+                  <CustomSelect
                     value={severity}
-                    onChange={(e) => setSeverity(e.target.value as any)}
-                    disabled={loading}
-                  >
-                    <option value="low">Low (UI glitch, minor text error)</option>
-                    <option value="medium">Medium (Annoyance, slow load, styling)</option>
-                    <option value="high">High (Feature not working, logic error)</option>
-                    <option value="critical">Critical (App crash, cannot submit data)</option>
-                  </select>
+                    onChange={(v) => setSeverity(v as any)}
+                    options={[
+                      { value: 'low', label: 'Low (UI glitch, minor text error)' },
+                      { value: 'medium', label: 'Medium (Annoyance, slow load, styling)' },
+                      { value: 'high', label: 'High (Feature not working, logic error)' },
+                      { value: 'critical', label: 'Critical (App crash, cannot submit data)' }
+                    ]}
+                  />
                 </div>
 
                 {/* Description */}

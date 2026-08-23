@@ -4,6 +4,7 @@ import { Clock, X, FileText, Trash2, ChevronDown, Download } from 'lucide-react'
 import Header from '../components/Layout/Header';
 import StatusBadge from '../components/ui/StatusBadge';
 import { useToast } from '../components/ui/Toast';
+import CustomSelect from '../components/ui/CustomSelect';
 import { getHistory, listenToHistory, deleteFromHistory } from '../utils/db';
 import { fetchHistoryFromSheet } from '../utils/api';
 import { getSettings } from '../utils/auth';
@@ -197,16 +198,15 @@ export default function SampleHistory() {
             {/* Analyst Filter Dropdown */}
             <div className="w-full md:w-auto flex flex-col md:flex-row items-center gap-3">
               <span className="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider hidden md:block">Sort By</span>
-              <select
+              <CustomSelect
                 value={activeAnalyst}
-                onChange={(e) => setActiveAnalyst(e.target.value)}
-                className="w-full md:w-64 bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded-xl px-4 py-2 text-sm font-bold text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-primary-500/20 transition-all shadow-sm"
-              >
-                <option value="All">All Analysts</option>
-                {allAnalysts.map(analyst => (
-                  <option key={analyst} value={analyst}>{analyst}</option>
-                ))}
-              </select>
+                onChange={setActiveAnalyst}
+                options={[
+                  { value: 'All', label: 'All Analysts' },
+                  ...allAnalysts.map(a => ({ value: a, label: a }))
+                ]}
+                className="w-full md:w-64 z-40"
+              />
             </div>
           </div>
 
