@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getSheetsClient } from './_sheets.js';
+import { supabase } from './_supabase.js';
 
 /**
  * Vercel Serverless Function to append or update a row in Google Sheets.
@@ -132,58 +133,93 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         
         success = true;
         message = 'Row updated';
-        return res.status(200).json({ success, message, controlNumber });
       } 
       // If not found, fall through to insert-empty-row logic below
     }
 
-    // Insert new row logic: Find the first empty row below the headers instead of using append (which skips formatted rows)
-    const allDataResponse = await sheets.spreadsheets.values.get({
-      spreadsheetId,
-      range: `'${sheetTab}'!A:Z`,
-    });
-    
-    const allRows = allDataResponse.data.values || [];
-    let emptyRowIndex = -1;
-    
-    // Search starting right after the header row (headerRowIndex + 1 is 0-indexed)
-    // If the spreadsheet has fewer rows than we need, we'll insert after the last row
-    for (let i = headerRowIndex + 1; i < Math.max(allRows.length + 50, 5000); i++) {
-      const row = allRows[i] || [];
-      const isEmpty = row.every(cell => !cell || String(cell).trim() === '');
-      if (isEmpty) {
-        emptyRowIndex = i;
-        break;
+    if (!success) {
+      // Insert new row logic: Find the first empty row below the headers instead of using append (which skips formatted rows)
+      const allDataResponse = await sheets.spreadsheets.values.get({
+        spreadsheetId,
+        range: `'${sheetTab}'!A:Z`,
+      });
+      
+      const allRows = allDataResponse.data.values || [];
+      let emptyRowIndex = -1;
+      
+      // Search starting right after the header row (headerRowIndex + 1 is 0-indexed)
+      // If the spreadsheet has fewer rows than we need, we'll insert after the last row
+      for (let i = headerRowIndex + 1; i < Math.max(allRows.length + 50, 5000); i++) {
+        const row = allRows[i] || [];
+        const isEmpty = row.every(cell => !cell || String(cell).trim() === '');
+        if (isEmpty) {
+          emptyRowIndex = i;
+          break;
+        }
       }
+
+        if (emptyRowIndex !== -1) {
+          const sheetRowNumber = emptyRowIndex + 1;
+          await sheets.spreadsheets.values.update({
+            spreadsheetId,
+            range: `'${sheetTab}'!A${sheetRowNumber}`,
+            valueInputOption: 'USER_ENTERED',
+            requestBody: {
+              values: [rowData.map(v => v === null ? '' : v)]
+            }
+          });
+          success = true;
+          message = 'Inserted into first empty row';
+        } else {
+          // Fallback: Append new row if no empty rows exist
+          await sheets.spreadsheets.values.append({
+            spreadsheetId,
+            range: `'${sheetTab}'!A1`,
+            valueInputOption: 'USER_ENTERED',
+            insertDataOption: 'INSERT_ROWS',
+            requestBody: {
+              values: [rowData.map(v => v === null ? '' : v)]
+            }
+          });
+          success = true;
+          message = 'Row appended';
+        }
     }
 
-      if (emptyRowIndex !== -1) {
-        const sheetRowNumber = emptyRowIndex + 1;
-        await sheets.spreadsheets.values.update({
-          spreadsheetId,
-          range: `'${sheetTab}'!A${sheetRowNumber}`,
-          valueInputOption: 'USER_ENTERED',
-          requestBody: {
-            values: [rowData.map(v => v === null ? '' : v)]
-          }
-        });
-        success = true;
-        message = 'Inserted into first empty row';
-        return res.status(200).json({ success, message, controlNumber });
-      }
+    // --- SUPABASE DUAL WRITE ---
+    if (success && supabase) {
+      try {
+        const payloadData = { ...payload };
+        delete payloadData.spreadsheetId;
+        delete payloadData.sheetTab;
+        delete payloadData.isUpdate;
+        delete payloadData._rowIndex;
+        delete payloadData.sampleType;
+        
+        // Find the sample name from the payload (it's whatever matches the 2nd header in the sheet)
+        // Since we don't know the exact header name here, we'll try to find it.
+        // It's usually the key that has "UNILEVER" or "SAMPLE" and is not the control number.
+        // As a fallback, we grab the value of the 2nd key in the payload.
+        const keys = Object.keys(payloadData);
+        const sampleNameStr = keys.length > 1 ? String(payloadData[keys[1]]).trim() : 'Unknown';
 
-    // Fallback: Append new row if no empty rows exist
-    await sheets.spreadsheets.values.append({
-      spreadsheetId,
-      range: `'${sheetTab}'!A1`,
-      valueInputOption: 'USER_ENTERED',
-      insertDataOption: 'INSERT_ROWS',
-      requestBody: {
-        values: [rowData.map(v => v === null ? '' : v)]
+        await supabase
+          .from('samples')
+          .upsert({
+            control_number: controlNumber,
+            sample_name: sampleNameStr,
+            sample_type: sampleType || 'UNKNOWN',
+            sheet_tab: sheetTab,
+            status: payload['STATUS'] || payload['Status'] || payload.status || 'ON GOING',
+            sheet_data: payloadData,
+            updated_at: new Date().toISOString()
+          }, { onConflict: 'control_number,sample_name' });
+          
+      } catch (sbError) {
+        console.error('Supabase dual-write error:', sbError);
+        // We don't fail the request if Supabase write fails, to ensure Sheets still works
       }
-    });
-    success = true;
-    message = 'Row appended';
+    }
 
     return res.status(200).json({ 
       success, 
