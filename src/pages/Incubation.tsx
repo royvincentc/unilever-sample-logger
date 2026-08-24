@@ -258,12 +258,14 @@ export default function Incubation() {
   };
 
   const generateReportText = (dayTasks: IncubationTask[], day: number) => {
-    if (dayTasks.length === 0) return null;
-
     const hour = new Date().getHours();
     let greeting = 'Good evening';
     if (hour < 12) greeting = 'Good morning';
     else if (hour < 18) greeting = 'Good afternoon';
+
+    if (dayTasks.length === 0) {
+      return `${greeting}\n\nNo indicative readings for Day ${day} today.\n\nThank you.`;
+    }
 
     let text = `${greeting}\n\nIndicative Result for Day ${day}\n`;
 
@@ -309,11 +311,7 @@ export default function Incubation() {
 
   const handleCopyReport = (dayTasks: IncubationTask[], day: number) => {
     const text = generateReportText(dayTasks, day);
-    if (!text) {
-      showToast('info', 'No Data', `No indicative readings for Day ${day} today.`);
-      return;
-    }
-
+    
     navigator.clipboard.writeText(text)
       .then(() => showToast('success', 'Copied!', `Day ${day} report copied to clipboard.`))
       .catch(() => showToast('error', 'Error', 'Failed to copy to clipboard.'));
@@ -321,10 +319,6 @@ export default function Incubation() {
 
   const handleSendTelegram = async (dayTasks: IncubationTask[], day: number) => {
     const text = generateReportText(dayTasks, day);
-    if (!text) {
-      showToast('info', 'No Data', `No indicative readings for Day ${day} today.`);
-      return;
-    }
 
     try {
       const response = await fetch('/api/telegram', {

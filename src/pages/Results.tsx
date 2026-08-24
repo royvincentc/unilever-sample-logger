@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  FileSpreadsheet, RefreshCw, AlertCircle, Search, Edit2, X, Save, FileText
+  FileSpreadsheet, RefreshCw, AlertCircle, Search, Edit2, X, Save, FileText,
+  ArrowUpDown, ArrowUp, ArrowDown
 } from 'lucide-react';
 import Header from '../components/Layout/Header';
 import { fetchLiveSheetData, fetchSheetSchema } from '../utils/api';
@@ -25,6 +26,73 @@ const TABS: { id: TabOption; label: string }[] = [
   { id: 'AIR', label: 'AIR 2026' },
 ];
 
+/**
+ * Extracts the Control Number value from a row object across known variations.
+ */
+function getRowControl(row: any, headersList?: string[]): string {
+  if (!row) return '';
+  const knownKeys = ['CONTROL #', 'CONTROL NUMBER', 'CONTROL', 'CONTROLNUMBER', 'SAMPLE ID', 'CUC', 'control_number'];
+  for (const k of knownKeys) {
+    if (row[k] !== undefined && row[k] !== null && String(row[k]).trim() !== '') {
+      return String(row[k]).trim();
+    }
+  }
+  if (headersList) {
+    for (const h of headersList) {
+      const up = h.toUpperCase().trim();
+      if (up.includes('CONTROL') || up === 'SAMPLE ID' || up === 'CUC') {
+        if (row[h] !== undefined && row[h] !== null && String(row[h]).trim() !== '') {
+          return String(row[h]).trim();
+        }
+      }
+    }
+  }
+  for (const key of Object.keys(row)) {
+    const up = key.toUpperCase().trim();
+    if (up.includes('CONTROL') || up === 'SAMPLE ID' || up === 'CUC') {
+      if (row[key] !== undefined && row[key] !== null && String(row[key]).trim() !== '') {
+        return String(row[key]).trim();
+      }
+    }
+  }
+  return '';
+}
+
+/**
+ * Natural comparison of control numbers (e.g. E26-1222 < E26-1235, 26-9 < 26-10, RM-26-01 < RM-26-02).
+ */
+function compareControlNumbers(aStr: string, bStr: string): number {
+  if (!aStr && !bStr) return 0;
+  if (!aStr) return 1;
+  if (!bStr) return -1;
+
+  const regex = /^([a-zA-Z\s_-]*?)(\d{2,4})?[-_/\s]?(\d+)$/;
+  const matchA = aStr.trim().match(regex);
+  const matchB = bStr.trim().match(regex);
+
+  if (matchA && matchB) {
+    const prefixA = (matchA[1] || '').toUpperCase().trim();
+    const prefixB = (matchB[1] || '').toUpperCase().trim();
+    if (prefixA !== prefixB) {
+      return prefixA.localeCompare(prefixB);
+    }
+
+    const yearA = matchA[2] ? parseInt(matchA[2], 10) : 0;
+    const yearB = matchB[2] ? parseInt(matchB[2], 10) : 0;
+    if (yearA !== yearB) {
+      return yearA - yearB;
+    }
+
+    const seqA = parseInt(matchA[3], 10);
+    const seqB = parseInt(matchB[3], 10);
+    if (seqA !== seqB) {
+      return seqA - seqB;
+    }
+  }
+
+  return aStr.localeCompare(bStr, undefined, { numeric: true, sensitivity: 'base' });
+}
+
 export default function Results() {
   const { theme, setTheme } = useTheme();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -34,6 +102,8 @@ export default function Results() {
   const [headers, setHeaders] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [sortColumn, setSortColumn] = useState<string | null>(null); // null means default to Control #
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const isOnline = useOnlineStatus();
   const { showToast } = useToast();
 
@@ -47,6 +117,12 @@ export default function Results() {
       setSearchQuery(search);
     }
   }, [searchParams]);
+
+  // Reset sorting state when switching tabs to ensure Control # ascending default
+  useEffect(() => {
+    setSortColumn(null);
+    setSortDirection('asc');
+  }, [selectedTab]);
 
   const [editingRow, setEditingRow] = useState<any | null>(null);
   const [editForm, setEditForm] = useState<Record<string, string>>({});
@@ -145,14 +221,71 @@ export default function Results() {
     }
   };
 
-  const filteredData = data.filter(row => {
-    if (!searchQuery) return true;
-    const query = searchQuery.toLowerCase();
-    // Search across all values in the row
-    return Object.values(row).some(val => 
-      String(val).toLowerCase().includes(query)
-    );
-  });
+  const isControlHeader = (headerName: string) => {
+    const up = headerName.toUpperCase().trim();
+    return up.includes('CONTROL') || up === 'SAMPLE ID' || up === 'CUC';
+  };
+
+  const handleHeaderClick = (columnName: string) => {
+    const isControl = isControlHeader(columnName);
+    const isCurrentlyActive = (sortColumn === columnName) || (!sortColumn && isControl);
+
+    if (isCurrentlyActive) {
+      setSortDirection(prev => (prev === 'asc' ? 'desc' : 'asc'));
+      if (!sortColumn) setSortColumn(columnName);
+    } else {
+      setSortColumn(columnName);
+      setSortDirection('asc');
+    }
+  };
+
+  const processedData = useMemo(() => {
+    // 1. Filter by search query
+    let result = data;
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim();
+      result = result.filter(row =>
+        Object.values(row).some(val =>
+          String(val).toLowerCase().includes(query)
+        )
+      );
+    }
+
+    // 2. Sort by active column (default: Control # ascending)
+    return [...result].sort((a, b) => {
+      let cmp = 0;
+      const targetCol = sortColumn;
+      const isControlSort = !targetCol || isControlHeader(targetCol);
+
+      if (isControlSort) {
+        const ctrlA = getRowControl(a, headers);
+        const ctrlB = getRowControl(b, headers);
+        cmp = compareControlNumbers(ctrlA, ctrlB);
+      } else if (targetCol) {
+        const valA = String(a[targetCol] ?? '').trim();
+        const valB = String(b[targetCol] ?? '').trim();
+        if (!valA && !valB) cmp = 0;
+        else if (!valA) cmp = 1;
+        else if (!valB) cmp = -1;
+        else {
+          cmp = valA.localeCompare(valB, undefined, { numeric: true, sensitivity: 'base' });
+        }
+      }
+
+      if (cmp !== 0) {
+        return sortDirection === 'asc' ? cmp : -cmp;
+      }
+
+      // Tie breaker 1: Control Number ascending
+      const fallbackCtrlA = getRowControl(a, headers);
+      const fallbackCtrlB = getRowControl(b, headers);
+      const ctrlCmp = compareControlNumbers(fallbackCtrlA, fallbackCtrlB);
+      if (ctrlCmp !== 0) return ctrlCmp;
+
+      // Tie breaker 2: Original Sheet Row Index
+      return (a._rowIndex || 0) - (b._rowIndex || 0);
+    });
+  }, [data, searchQuery, sortColumn, sortDirection, headers]);
 
   return (
     <div className="min-h-screen bg-transparent flex flex-col">
@@ -214,7 +347,7 @@ export default function Results() {
           <button 
             onClick={() => loadData(selectedTab)}
             disabled={loading || !isOnline}
-            className="flex items-center gap-2 px-4 py-2.5 bg-[var(--bg-surface)] border border-[var(--border-subtle)] text-[var(--text-primary)] rounded-xl text-sm font-bold hover:bg-[var(--bg-hover)] disabled:opacity-50 transition-all"
+            className="flex items-center gap-2 px-4 py-2.5 bg-[var(--bg-surface)] border border-[var(--border-subtle)] text-[var(--text-primary)] rounded-xl text-sm font-bold hover:bg-[var(--bg-hover)] disabled:opacity-50 transition-all cursor-pointer"
           >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
             {loading ? 'Syncing...' : 'Sync Sheet'}
@@ -236,7 +369,7 @@ export default function Results() {
               <RefreshCw className="w-8 h-8 animate-spin mb-4 text-primary-500" />
               <p>Fetching live records...</p>
             </div>
-          ) : filteredData.length === 0 ? (
+          ) : processedData.length === 0 ? (
             <div className="flex-1 flex flex-col items-center justify-center p-12 text-[var(--text-muted)] text-center">
               <FileSpreadsheet className="w-12 h-12 mb-4 opacity-50" />
               <h3 className="text-lg font-bold text-[var(--text-primary)]">No Records Found</h3>
@@ -248,21 +381,43 @@ export default function Results() {
                 <thead className="sticky top-0 z-10 shadow-sm">
                   <tr>
                     <th className="px-3 py-2 font-bold text-[var(--text-secondary)] border border-[var(--border-subtle)] bg-[var(--bg-sidebar)] uppercase tracking-wider text-[10px]">Actions</th>
-                    {headers.map((h, i) => (
-                      <th key={i} className="px-3 py-2 font-bold text-[var(--text-secondary)] border border-[var(--border-subtle)] bg-[var(--bg-sidebar)] uppercase tracking-wider text-[10px] whitespace-nowrap">
-                        {h}
-                      </th>
-                    ))}
+                    {headers.map((h, i) => {
+                      const isControl = isControlHeader(h);
+                      const isSorted = (sortColumn === h) || (!sortColumn && isControl);
+                      return (
+                        <th 
+                          key={i} 
+                          onClick={() => handleHeaderClick(h)}
+                          className="px-3 py-2 font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-subtle)] bg-[var(--bg-sidebar)] hover:bg-[var(--bg-hover)] uppercase tracking-wider text-[10px] whitespace-nowrap cursor-pointer select-none transition-colors group"
+                          title={`Sort by ${h}`}
+                        >
+                          <div className="flex items-center justify-between gap-1.5">
+                            <span>{h}</span>
+                            <span className="shrink-0">
+                              {isSorted ? (
+                                sortDirection === 'asc' ? (
+                                  <ArrowUp className="w-3 h-3 text-primary-500" />
+                                ) : (
+                                  <ArrowDown className="w-3 h-3 text-primary-500" />
+                                )
+                              ) : (
+                                <ArrowUpDown className="w-3 h-3 opacity-30 group-hover:opacity-100 transition-opacity" />
+                              )}
+                            </span>
+                          </div>
+                        </th>
+                      );
+                    })}
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredData.map((row, rowIndex) => (
+                  {processedData.map((row, rowIndex) => (
                     <tr key={rowIndex} className="hover:bg-[var(--bg-hover)] transition-colors group">
                       <td className="px-3 py-1.5 border border-[var(--border-subtle)] bg-[var(--bg-surface)]">
                         <div className="flex items-center gap-2">
                           <button
                             onClick={() => handleEditClick(row)}
-                            className="flex items-center gap-1.5 px-2 py-1 rounded bg-[var(--bg-card)] border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-primary-500 hover:border-primary-500 transition-colors shadow-sm"
+                            className="flex items-center gap-1.5 px-2 py-1 rounded bg-[var(--bg-card)] border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-primary-500 hover:border-primary-500 transition-colors shadow-sm cursor-pointer"
                             title="Edit Row"
                           >
                             <Edit2 className="w-3.5 h-3.5" />
@@ -270,7 +425,7 @@ export default function Results() {
                           </button>
                           <button
                             onClick={() => handleGenerateReport(row)}
-                            className="flex items-center gap-1.5 px-2 py-1 rounded bg-[var(--bg-card)] border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-success-500 hover:border-success-500 transition-colors shadow-sm"
+                            className="flex items-center gap-1.5 px-2 py-1 rounded bg-[var(--bg-card)] border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-success-500 hover:border-success-500 transition-colors shadow-sm cursor-pointer"
                             title="Generate Report"
                           >
                             <FileText className="w-3.5 h-3.5" />
@@ -341,7 +496,13 @@ export default function Results() {
                         'TSA',
                         'SDA',
                         'MCA',
-                        'REMARKS'
+                        'REMARKS',
+                        'REPEATED RESULTS',
+                        'STATUS',
+                        'DATE RELEASED',
+                        'RELEASED BY',
+                        'DATE ANALYZED',
+                        'ANALYZED BY'
                       ];
                       if (editablePatterns.some(pattern => upperH.includes(pattern))) return false;
                       return true;
@@ -350,7 +511,13 @@ export default function Results() {
                     if (selectedTab === 'ENVI') {
                       const editablePatterns = [
                         'TVC (COUNT)',
-                        'GRAM STAINING'
+                        'GRAM STAINING',
+                        'REMARKS',
+                        'STATUS',
+                        'DATE RELEASED',
+                        'RELEASED BY',
+                        'DATE ANALYZED',
+                        'ANALYZED BY'
                       ];
                       if (editablePatterns.some(pattern => upperH.includes(pattern))) return false;
                       return true;
@@ -360,7 +527,12 @@ export default function Results() {
                       const editablePatterns = [
                         'TVC (COUNT)',
                         'GRAM NEGATIVE (COUNT)',
-                        'REMARKS'
+                        'REMARKS',
+                        'STATUS',
+                        'DATE RELEASED',
+                        'RELEASED BY',
+                        'DATE ANALYZED',
+                        'ANALYZED BY'
                       ];
                       if (editablePatterns.some(pattern => upperH.includes(pattern))) return false;
                       return true;
@@ -369,7 +541,10 @@ export default function Results() {
                     if (selectedTab === 'AIR') {
                       const editablePatterns = [
                         'TVC (COUNT)',
-                        'REMARKS'
+                        'REMARKS',
+                        'STATUS',
+                        'DATE RELEASED',
+                        'RELEASED BY'
                       ];
                       if (editablePatterns.some(pattern => upperH.includes(pattern))) return false;
                       return true;
@@ -379,11 +554,7 @@ export default function Results() {
                   })();
 
                   const isHidden = (() => {
-                    // We only want to hide fields on RawMats, ENVI, WATER, and AIR
-                    // (which is all of them, so we just return false if it's not one of these, but they are the only tabs)
-                    
-                    // Hide all read-only fields except CONTROL and SAMPLE for context
-                    if (isReadOnly && !upperH.includes('CONTROL') && !upperH.includes('SAMPLE') && !upperH.includes('POINT')) {
+                    if (isReadOnly && !upperH.includes('CONTROL') && !upperH.includes('SAMPLE') && !upperH.includes('POINT') && !upperH.includes('BATCH') && !upperH.includes('CUC')) {
                       return true;
                     }
                     return false;

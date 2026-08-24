@@ -29,15 +29,17 @@ export async function generateDocxReport(data: any, analyzedBy: string, tab: str
       return cat || 'N/A';
     };
 
-    const getBatchNo = (cat: string) => {
-      return raw[2] || 'N/A'; // Column C
+    const getBatchNo = () => {
+      const mix = String(data['MIXING BATCH #'] || data['BATCH #'] || raw[2] || '').trim();
+      const cuc = String(data['CUC #'] || raw[3] || '').trim();
+      if (mix && cuc) return `${mix} / ${cuc}`;
+      return cuc || mix || 'N/A';
     };
 
     if (tab === 'RawMats') {
-      // D=3, E=4, H=7, I=8, J=9, M=12, O=14, V=21, W=22, X=23, Y=24, Z=25, AA=26
-      const apcSpec = String(raw[21] || '');
-      const mySpec = String(raw[23] || '');
-      const gnSpec = String(raw[22] || '');
+      const apcSpec = String(data['(S) Aerobic Plate Count'] || raw[22] || raw[21] || '<300 cfu/g');
+      const gnSpec = String(data['(S) Gram- Negative'] || raw[23] || raw[22] || 'No Growth');
+      const mySpec = String(data['(S) Yeast and Molds'] || raw[24] || raw[23] || '<100 cfu/g');
 
       const formatResult = (specStr: string, resultStr: string) => {
         if (!specStr || !resultStr) return resultStr;
@@ -53,11 +55,13 @@ export async function generateDocxReport(data: any, analyzedBy: string, tab: str
         return resultStr;
       };
 
-      const apcResultStr = formatResult(apcSpec, String(data['(A) Aerobic Plate Count'] || data['Aerobic Plate Count'] || data['TVC (count)'] || raw[27] || ''));
-      const myResultStr = formatResult(mySpec, String(data['(A) Yeast and Molds'] || data['Yeast and Molds'] || data['Molds & Yeast'] || raw[29] || ''));
+      const rawApc = data['(C) Aerobic Plate Count'] || data['(A) Aerobic Plate Count'] || data['Aerobic Plate Count'] || data['TVC (count)'] || raw[28] || raw[25] || raw[27] || '';
+      const apcResultStr = formatResult(apcSpec, String(rawApc));
+
+      const rawMy = data['(C) Yeast and Molds'] || data['(A) Yeast and Molds'] || data['Yeast and Molds'] || data['Molds & Yeast'] || raw[30] || raw[27] || raw[29] || '';
+      const myResultStr = formatResult(mySpec, String(rawMy));
       
-      // The user specified that Gram Negative actual result is in column AD (index 29) - now AC (index 28)
-      const gnResultStr = String(raw[28] || '');
+      const gnResultStr = String(data['(C) Gram- Negative'] || data['(A) Gram- Negative'] || raw[29] || raw[26] || raw[28] || '');
 
       const apcRemarks = apcResultStr ? ((apcResultStr.includes('<300') || apcResultStr === apcSpec || apcResultStr.startsWith('<')) ? 'Passed' : 'Failed') : '';
       const myRemarks = myResultStr ? ((myResultStr.includes('<100') || myResultStr === mySpec || myResultStr.startsWith('<')) ? 'Passed' : 'Failed') : '';
@@ -66,7 +70,7 @@ export async function generateDocxReport(data: any, analyzedBy: string, tab: str
       let gnRemarks = '';
       if (gnResultStr) {
         const cleanGn = gnResultStr.toLowerCase().replace(/\s/g, '').replace('cfu/g', '');
-        if (cleanGn === '<100' || cleanGn === 'nogrowth' || cleanGn === 'absent') {
+        if (cleanGn === '<100' || cleanGn === 'nogrowth' || cleanGn === 'absent' || cleanGn.includes('negative')) {
           gnRemarks = 'Passed';
         } else {
           const match = cleanGn.match(/(\d+(\.\d+)?)/);
@@ -78,8 +82,7 @@ export async function generateDocxReport(data: any, analyzedBy: string, tab: str
               gnRemarks = 'Failed';
             }
           } else {
-             // If it's something like "Growth" or anything else unrecognized
-             if (cleanGn === 'growth' || cleanGn === 'present') {
+             if (cleanGn === 'growth' || cleanGn === 'present' || cleanGn.includes('positive')) {
                gnRemarks = 'Failed';
              } else {
                gnRemarks = gnResultStr;
@@ -88,20 +91,22 @@ export async function generateDocxReport(data: any, analyzedBy: string, tab: str
         }
       }
 
-      // OverallRemarks exactly from column AH (index 33)
-      const overallRemarks = String(raw[33] || '');
+      // OverallRemarks from REMARKS / REMARKS2 / column AI/AH
+      const overallRemarks = String(data['REMARKS '] || data['REMARKS'] || raw[34] || raw[33] || raw[17] || '');
+
+      const fillVol = [data['QTY'] || raw[7], data['UNIT'] || raw[8]].filter(v => v && String(v).trim().length > 0).join(' ') || raw[7] || 'N/A';
 
       templateData = {
-        Category: mapCategory(raw[3]),
-        SampleName: raw[4] || 'Unknown Sample',
+        Category: mapCategory(data['TYPE'] || raw[4] || raw[3]),
+        SampleName: data['SAMPLE'] || raw[5] || raw[4] || 'Unknown Sample',
         DateMfd: 'N/A',
         ExpiryDate: 'N/A',
         Purpose: 'Microbial Analysis',
-        DateReceived: [raw[8], raw[9]].filter(v => v && String(v).trim().length > 0).join('; '),
-        DateReleased: [raw[14], new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })].filter(v => v && String(v).trim().length > 0).join('; '),
-        FillVol: raw[7] || 'N/A',
-        RequestedBy: '[REFER TO RFAF]',
-        BatchNo: getBatchNo(raw[3]),
+        DateReceived: [data['DATE RECEIVED/SAMPLED'] || raw[9] || raw[8], data['TIME'] || raw[10] || raw[9]].filter(v => v && String(v).trim().length > 0).join('; '),
+        DateReleased: [data['DATE RELEASED'] || raw[15] || raw[14], new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })].filter(v => v && String(v).trim().length > 0).join('; '),
+        FillVol: fillVol,
+        RequestedBy: data['RFAF'] || '[REFER TO RFAF]',
+        BatchNo: getBatchNo(),
         Logbook: '[TO BE FILLED UP]',
         
         // Spec
@@ -110,18 +115,18 @@ export async function generateDocxReport(data: any, analyzedBy: string, tab: str
         GN_Spec: gnSpec,
         
         // Result
-        APC_Result: apcResultStr, // AB
-        MY_Result: myResultStr, // AD
-        GN_Result: gnResultStr, // AC
+        APC_Result: apcResultStr,
+        MY_Result: myResultStr,
+        GN_Result: gnResultStr,
         
         APC_Remarks: apcRemarks,
         MY_Remarks: myRemarks,
         GN_Remarks: gnRemarks,
         
         OverallRemarks: overallRemarks,
-        AnalyzedBy: raw[12] || analyzedBy || 'Jasmin C. Barangan',
-        DateAnalyzed: new Date().toLocaleDateString(),
-        DateReleasedOnly: raw[14] || ''
+        AnalyzedBy: data['ANALYZED BY'] || raw[13] || raw[12] || analyzedBy || 'Jasmin C. Barangan',
+        DateAnalyzed: data['DATE ANALYZED'] || raw[12] || new Date().toLocaleDateString(),
+        DateReleasedOnly: data['DATE RELEASED'] || raw[15] || raw[14] || ''
       };
     } else {
       // Generic fallback for other tabs until specified

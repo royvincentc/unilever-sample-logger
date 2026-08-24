@@ -34,6 +34,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     const payload = req.body;
+    console.log('--- POST /api/submit ---');
+    console.log('Payload:', JSON.stringify(payload));
+    
     const { spreadsheetId, sheetTab, controlNumber, isUpdate, sampleType } = payload;
 
     if (!spreadsheetId || !sheetTab || !controlNumber) {
@@ -73,113 +76,133 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     let finalRowData: string[] | null = null;
     let sheetRowNumber = -1;
 
-    if (isUpdate) {
-      if (payload._rowIndex) {
-        sheetRowNumber = parseInt(payload._rowIndex, 10);
-      } else {
-        // Fetch all rows to match exactly Control Number AND Sample Name
-        const allRowsResponse = await sheets.spreadsheets.values.get({
-          spreadsheetId,
-          range: `'${sheetTab}'!A:E`, // Usually Control # is A, Sample Name is B
-        });
+    // We will always try to find an existing row to update first, even if isUpdate is false.
+    // This allows users to pre-fill Sample Names in the sheet, and the app will fill in the rest.
+    
+    // 1. Identify Target Control Number and Target Sample Name
+    const targetCleanCtrl = controlNumber.replace(/^RM-?/i, '').toLowerCase().trim();
+    const targetCleanSample = String(
+      payload['SAMPLE NAME'] || 
+      payload['SAMPLE'] || 
+      payload['WATER SOURCE'] || 
+      payload['SAMPLING POINT'] || 
+      payload['POINT'] || 
+      ''
+    ).toLowerCase().trim();
 
-        const allRows = allRowsResponse.data.values || [];
-        const targetCleanCtrl = controlNumber.replace(/^RM-?/i, '').toLowerCase().trim();
+function getColumnLetter(colNumber: number): string {
+  let temp, letter = '';
+  let col = colNumber;
+  while (col > 0) {
+    temp = (col - 1) % 26;
+    letter = String.fromCharCode(temp + 65) + letter;
+    col = Math.floor((col - temp - 1) / 26);
+  }
+  return letter || 'Z';
+}
+
+    // 2. Fetch all rows to scan for a match, or to find the first empty row
+    const allRowsResponse = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: `'${sheetTab}'!A:Z`,
+    });
+    const allRows = allRowsResponse.data.values || [];
+
+    if (payload._rowIndex && isUpdate) {
+      sheetRowNumber = parseInt(payload._rowIndex, 10);
+    } else {
+      let lastControlNumber = '';
+      
+      // Determine which column index holds the Sample Name (usually 1, 2, 3, 4, or 5)
+      let sampleNameColIndex = headers.findIndex(h => {
+        const u = h.toUpperCase();
+        return u === 'SAMPLE' || u === 'SAMPLE NAME' || u === 'WATER SOURCE' || u === 'SAMPLING POINT' || u === 'POINT';
+      });
+      if (sampleNameColIndex === -1) sampleNameColIndex = 1; // Default to B
+      
+      let controlColIndex = headers.findIndex(h => h.toUpperCase().includes('CONTROL #') || h.toUpperCase().includes('CONTROL'));
+      if (controlColIndex === -1) controlColIndex = 0; // Default to A
+
+      for (let i = headerRowIndex + 1; i < allRows.length; i++) {
+        const r = allRows[i] || [];
         
-        // Try to get sample name from payload to match
-        const targetCleanSample = String(
-          payload['SAMPLE NAME'] || 
-          payload['SAMPLE'] || 
-          payload['WATER SOURCE'] || 
-          payload['SAMPLING POINT'] || 
-          payload['POINT'] || 
-          ''
-        ).toLowerCase().trim();
-
-        // Headers are at row 0 (or wherever, we'll just scan all rows)
-        const rowIndex = allRows.findIndex(r => {
-          if (!r || r.length < 2) return false;
-          
-          let rowCtrl = '';
-          let rowSample = '';
-          
-          // Normally A is Control, B is Sample, but let's just check the first 3 columns
-          for (let i = 0; i < 3; i++) {
-             if (r[i] && String(r[i]).replace(/^RM-?/i, '').toLowerCase().trim() === targetCleanCtrl) {
-                rowCtrl = targetCleanCtrl;
-             }
-             if (r[i] && String(r[i]).toLowerCase().trim() === targetCleanSample) {
-                rowSample = targetCleanSample;
-             }
-          }
-          
-          if (targetCleanSample) {
-             return rowCtrl === targetCleanCtrl && rowSample === targetCleanSample;
-          } else {
-             return rowCtrl === targetCleanCtrl; // Fallback if no sample name
-          }
-        });
-
-        if (rowIndex !== -1) {
-          sheetRowNumber = rowIndex + 1; // 1-indexed for sheets
+        // Track last control number for merged cells
+        const rawCtrl = r[controlColIndex] ? String(r[controlColIndex]).trim() : '';
+        if (rawCtrl) {
+          lastControlNumber = rawCtrl.replace(/^RM-?/i, '').toLowerCase().trim();
+        }
+        
+        const rowSample = r[sampleNameColIndex] ? String(r[sampleNameColIndex]).toLowerCase().trim() : '';
+        
+        if (targetCleanSample) {
+           if (lastControlNumber === targetCleanCtrl && rowSample === targetCleanSample) {
+              sheetRowNumber = i + 1;
+              break;
+           }
+        } else {
+           if (lastControlNumber === targetCleanCtrl && !rowSample) {
+              sheetRowNumber = i + 1;
+              break;
+           }
         }
       }
-
-      if (sheetRowNumber !== -1) {
-        
-        // Before updating, read the existing row to not overwrite fields missing in the payload
-        const existingRowResponse = await sheets.spreadsheets.values.get({
-          spreadsheetId,
-          range: `'${sheetTab}'!A${sheetRowNumber}:${String.fromCharCode(64 + headers.length)}${sheetRowNumber}`
-        });
-        
-        const existingRowData = existingRowResponse.data.values?.[0] || [];
-        
-        finalRowData = headers.map((header, i) => {
-          if (payload[header] !== undefined) {
-             return String(payload[header]);
-          }
-          return existingRowData[i] || ''; // preserve existing
-        });
-
-        await sheets.spreadsheets.values.update({
-          spreadsheetId,
-          range: `'${sheetTab}'!A${sheetRowNumber}`,
-          valueInputOption: 'USER_ENTERED',
-          requestBody: {
-            values: [finalRowData]
-          }
-        });
-        
-        success = true;
-        message = 'Row updated';
-      } 
-      // If not found, fall through to insert-empty-row logic below
     }
 
-    if (!success) {
-      // Insert new row logic: Find the first empty row below the headers instead of using append (which skips formatted rows)
-      const allDataResponse = await sheets.spreadsheets.values.get({
+    if (sheetRowNumber !== -1) {
+      // We found the row, UPDATE IT.
+      const endColLetter = getColumnLetter(headers.length);
+      const existingRowResponse = await sheets.spreadsheets.values.get({
         spreadsheetId,
-        range: `'${sheetTab}'!A:Z`,
+        range: `'${sheetTab}'!A${sheetRowNumber}:${endColLetter}${sheetRowNumber}`
       });
       
-      const allRows = allDataResponse.data.values || [];
+      const existingRowData = existingRowResponse.data.values?.[0] || [];
+      
+      finalRowData = headers.map((header, i) => {
+        if (payload[header] !== undefined) {
+           return String(payload[header]);
+        }
+        return existingRowData[i] || ''; // preserve existing
+      });
+
+      await sheets.spreadsheets.values.update({
+        spreadsheetId,
+        range: `'${sheetTab}'!A${sheetRowNumber}`,
+        valueInputOption: 'USER_ENTERED',
+        requestBody: {
+          values: [finalRowData]
+        }
+      });
+      
+      success = true;
+      message = 'Row updated successfully';
+    } else {
+      // Insert new row logic: Find the first empty row below the headers
+      // A row is considered empty if its Control Number AND Sample Name are blank.
       let emptyRowIndex = -1;
       
-      // Search starting right after the header row (headerRowIndex + 1 is 0-indexed)
-      // If the spreadsheet has fewer rows than we need, we'll insert after the last row
+      let sampleNameColIndex = headers.findIndex(h => {
+        const u = h.toUpperCase();
+        return u === 'SAMPLE' || u === 'SAMPLE NAME' || u === 'WATER SOURCE' || u === 'SAMPLING POINT' || u === 'POINT';
+      });
+      if (sampleNameColIndex === -1) sampleNameColIndex = 1;
+      let controlColIndex = headers.findIndex(h => h.toUpperCase().includes('CONTROL #') || h.toUpperCase().includes('CONTROL'));
+      if (controlColIndex === -1) controlColIndex = 0;
+
       for (let i = headerRowIndex + 1; i < Math.max(allRows.length + 50, 5000); i++) {
-        const row = allRows[i] || [];
-        const isEmpty = row.every(cell => !cell || String(cell).trim() === '');
-        if (isEmpty) {
+        const r = allRows[i] || [];
+        const ctrl = r[controlColIndex] ? String(r[controlColIndex]).trim() : '';
+        const smpl = r[sampleNameColIndex] ? String(r[sampleNameColIndex]).trim() : '';
+        
+        if (!ctrl && !smpl) {
           emptyRowIndex = i;
           break;
         }
       }
 
-        if (emptyRowIndex !== -1) {
-          const sheetRowNumber = emptyRowIndex + 1;
+      if (emptyRowIndex !== -1) {
+        sheetRowNumber = emptyRowIndex + 1;
+        try {
           await sheets.spreadsheets.values.update({
             spreadsheetId,
             range: `'${sheetTab}'!A${sheetRowNumber}`,
@@ -190,20 +213,36 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           });
           success = true;
           message = 'Inserted into first empty row';
-        } else {
-          // Fallback: Append new row if no empty rows exist
-          await sheets.spreadsheets.values.append({
-            spreadsheetId,
-            range: `'${sheetTab}'!A1`,
-            valueInputOption: 'USER_ENTERED',
-            insertDataOption: 'INSERT_ROWS',
-            requestBody: {
-              values: [rowData.map(v => v === null ? '' : v)]
-            }
-          });
-          success = true;
-          message = 'Row appended';
+        } catch (updateErr: any) {
+          if (updateErr.message && updateErr.message.includes('exceeds grid limits')) {
+            await sheets.spreadsheets.values.append({
+              spreadsheetId,
+              range: `'${sheetTab}'!A1`,
+              valueInputOption: 'USER_ENTERED',
+              insertDataOption: 'INSERT_ROWS',
+              requestBody: {
+                values: [rowData.map(v => v === null ? '' : v)]
+              }
+            });
+            success = true;
+            message = 'Row appended (fallback after grid limit)';
+          } else {
+            throw updateErr;
+          }
         }
+      } else {
+        await sheets.spreadsheets.values.append({
+          spreadsheetId,
+          range: `'${sheetTab}'!A1`,
+          valueInputOption: 'USER_ENTERED',
+          insertDataOption: 'INSERT_ROWS',
+          requestBody: {
+            values: [rowData.map(v => v === null ? '' : v)]
+          }
+        });
+        success = true;
+        message = 'Row appended';
+      }
     }
 
     // --- SUPABASE DUAL WRITE ---
@@ -211,7 +250,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       try {
         let fullPayloadData: Record<string, any> = {};
         
-        if (isUpdate && typeof sheetRowNumber !== 'undefined' && sheetRowNumber !== -1 && finalRowData && headers) {
+        if (typeof sheetRowNumber !== 'undefined' && sheetRowNumber !== -1 && finalRowData && headers) {
            // On update, use the full merged row data so we don't insert partial records
            headers.forEach((h: string, i: number) => {
               fullPayloadData[h] = finalRowData[i] || '';

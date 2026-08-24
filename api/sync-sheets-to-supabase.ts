@@ -26,11 +26,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     
     let totalSynced = 0;
     const syncedRecords = [];
+    
+    // 1. Collect all rows from all tabs first (to ensure no data loss if Google API fails)
+    const allRowsToUpsert: any[] = [];
 
     for (const tab of tabs) {
-       const rowsToUpsert: any[] = [];
-       // Only sync specific tabs or all tabs? 
-       // Usually these are the data tabs: WATER, SWAB, RM, AIR
        if (!tab.toUpperCase().includes('WATER') && !tab.toUpperCase().includes('SWAB') && !tab.toUpperCase().includes('RM') && !tab.toUpperCase().includes('AIR')) {
          continue;
        }
@@ -59,11 +59,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
              }
           });
           
-          // identify control number
-          const controlNumber = payloadData['CONTROL #'] || payloadData['CONTROL'] || payloadData['CUC'];
-          if (!controlNumber || String(controlNumber).trim() === '') continue;
+          payloadData['__rawRow'] = rowData;
+          payloadData['_rowIndex'] = i + 1; // 1-indexed for sheets
 
-          // sample name
+          
+          let controlNumber = payloadData['CONTROL #'] || payloadData['CONTROL'] || payloadData['CUC'];
+          if (!controlNumber || String(controlNumber).trim() === '') continue;
+          
+          controlNumber = String(controlNumber).replace(/^RM-?/i, '').trim();
+
           const sampleNameStr = String(
             payloadData['SAMPLE NAME'] || 
             payloadData['SAMPLE'] || 
@@ -76,36 +80,43 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           let sampleType = 'UNKNOWN';
           if (tab.toUpperCase().includes('WATER')) sampleType = 'WATER';
           else if (tab.toUpperCase().includes('SWAB')) sampleType = 'ENVI';
-          else if (tab.toUpperCase().includes('RM') || tab.toUpperCase().includes('FG')) sampleType = 'RawMats';
           else if (tab.toUpperCase().includes('AIR')) sampleType = 'AIR';
+          else if (tab.toUpperCase().includes('RM')) sampleType = 'RawMats';
 
-          rowsToUpsert.push({
-              control_number: String(controlNumber),
-              sample_name: sampleNameStr,
-              sample_type: sampleType,
-              sheet_tab: tab,
-              status: payloadData['STATUS'] || payloadData['Status'] || 'ON GOING',
-              sheet_data: payloadData,
-              updated_at: new Date().toISOString()
+          allRowsToUpsert.push({
+            control_number: controlNumber,
+            sample_name: sampleNameStr,
+            sample_type: sampleType,
+            sheet_tab: tab,
+            status: payloadData['STATUS'] || payloadData['Status'] || 'ON GOING',
+            sheet_data: payloadData,
+            updated_at: new Date().toISOString()
           });
           
           syncedRecords.push(controlNumber);
        }
+    }
+    
+    // 2. Safely wipe the existing Supabase table now that we have all data perfectly formatted
+    if (allRowsToUpsert.length > 0) {
+       const { error: delErr } = await supabase.from('samples').delete().neq('control_number', 'DELETE_ALL_HACK');
+       if (delErr) {
+           console.error('Delete error:', delErr);
+           return res.status(500).json({ error: 'Failed to clear existing records', details: delErr });
+       }
        
-       if (rowsToUpsert.length > 0) {
-           // Batch upsert up to 1000 rows at a time
-           const chunkSize = 1000;
-           for (let i = 0; i < rowsToUpsert.length; i += chunkSize) {
-               const chunk = rowsToUpsert.slice(i, i + chunkSize);
-               const { error: upsertErr } = await supabase
-                 .from('samples')
-                 .upsert(chunk, { onConflict: 'control_number,sample_name' });
-                 
-               if (upsertErr) {
-                   console.error('Batch upsert error:', upsertErr);
-               } else {
-                   totalSynced += chunk.length;
-               }
+       // 3. Batch upsert the new fresh rows
+       const chunkSize = 1000;
+       for (let i = 0; i < allRowsToUpsert.length; i += chunkSize) {
+           const chunk = allRowsToUpsert.slice(i, i + chunkSize);
+           const { error: upsertErr } = await supabase
+             .from('samples')
+             .upsert(chunk, { onConflict: 'control_number,sample_name' });
+             
+           if (upsertErr) {
+               console.error('Batch upsert error:', upsertErr);
+           } else {
+               totalSynced += chunk.length;
            }
        }
     }

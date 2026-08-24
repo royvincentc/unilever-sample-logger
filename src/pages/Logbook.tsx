@@ -15,7 +15,7 @@ export default function Logbook() {
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedAnalyst, setSelectedAnalyst] = useState<string>('All');
-  const [sortBy, setSortBy] = useState<'datetime' | 'analyst'>('datetime');
+  const [sortBy, setSortBy] = useState<'type' | 'datetime' | 'analyst'>('type');
   const isOnline = useOnlineStatus();
 
   const loadData = useCallback(async () => {
@@ -50,8 +50,8 @@ export default function Logbook() {
       
       const control = String(row['CONTROL #'] || row['CONTROL NUMBER'] || row['CONTROLNUMBER'] || '');
       const name = String(row['SAMPLE NAME'] || row['SAMPLE'] || row['POINT'] || row['SAMPLE DETAILS'] || '');
-      const type = String(row['SAMPLE TYPE'] || row['CATEGORY'] || row['__sheetName'].split(' ')[0] || '');
-      const category = String(row['SAMPLE TYPE'] || row['CATEGORY'] || '');
+      const type = String(row['TYPE'] || row['SAMPLE TYPE'] || row['CATEGORY'] || row['__sheetName']?.split(' ')[0] || '');
+      const category = String(row['CATEGORY'] || row['SAMPLE TYPE'] || row['TYPE'] || '');
       
       // Date and Time parsing
       const dateKey = Object.keys(row).find(k => {
@@ -78,12 +78,18 @@ export default function Logbook() {
       const dateReleased = String(row['DATE RELEASED'] || row['DATE & TIME RELEASED'] || row['DATE'] || '');
       const status = String(row['STATUS'] || row['REMARKS'] || '');
 
+      let batchNumber = '-';
+      const mix = row['MIXING BATCH #'] || row['BATCH #'] || '';
+      const cuc = row['CUC #'] || '';
+      if (mix && cuc) batchNumber = `${mix} / ${cuc}`;
+      else if (cuc || mix) batchNumber = cuc || mix;
+
       return {
         id: `${row.__sheetName}-${index}`,
         originalRow: row,
         sheetName: row.__sheetName,
         control,
-        batchNumber: row['BATCH #'] || row['MIXING BATCH #'] || '-',
+        batchNumber,
         name,
         type,
         category,
@@ -110,13 +116,33 @@ export default function Logbook() {
       if (selectedAnalyst !== 'All' && r.analyst !== selectedAnalyst) return false;
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
-        return r.control.toLowerCase().includes(q) || r.name.toLowerCase().includes(q) || r.analyst.toLowerCase().includes(q);
+        return (
+          r.control.toLowerCase().includes(q) ||
+          r.name.toLowerCase().includes(q) ||
+          r.analyst.toLowerCase().includes(q) ||
+          r.type.toLowerCase().includes(q) ||
+          r.category.toLowerCase().includes(q)
+        );
       }
       return true;
     });
 
     return filtered.sort((a, b) => {
-      if (sortBy === 'analyst') {
+      if (sortBy === 'type') {
+        const typeA = (a.type || '').trim();
+        const typeB = (b.type || '').trim();
+        const typeCompare = typeA.localeCompare(typeB);
+        if (typeCompare !== 0) return typeCompare;
+
+        const catA = (a.category || '').trim();
+        const catB = (b.category || '').trim();
+        const catCompare = catA.localeCompare(catB);
+        if (catCompare !== 0) return catCompare;
+
+        const timeDiff = a.parsedDate.getTime() - b.parsedDate.getTime();
+        if (timeDiff !== 0) return timeDiff;
+        return a.control.localeCompare(b.control, undefined, { numeric: true });
+      } else if (sortBy === 'analyst') {
         const analystCompare = a.analyst.localeCompare(b.analyst);
         if (analystCompare !== 0) return analystCompare;
         return a.parsedDate.getTime() - b.parsedDate.getTime();
@@ -140,7 +166,13 @@ export default function Logbook() {
             </div>
             <div>
               <h3 className="font-bold text-[var(--text-primary)]">Combined Logbook</h3>
-              <p className="text-[10px] text-[var(--text-muted)] font-medium">Viewing all samples sorted by date and time</p>
+              <p className="text-[10px] text-[var(--text-muted)] font-medium">
+                {sortBy === 'type' 
+                  ? 'Viewing all samples sorted by type/category' 
+                  : sortBy === 'analyst' 
+                    ? 'Viewing all samples sorted by analyst' 
+                    : 'Viewing all samples sorted by date and time'}
+              </p>
             </div>
           </div>
 
@@ -149,10 +181,11 @@ export default function Logbook() {
                value={sortBy} 
                onChange={(v) => setSortBy(v as any)}
                options={[
+                 { value: 'type', label: 'Sort by Type/Category' },
                  { value: 'datetime', label: 'Sort by Date/Time' },
                  { value: 'analyst', label: 'Sort by Analyst' }
                ]}
-               className="w-full md:w-48 z-40"
+               className="w-full md:w-52 z-40"
              />
              <CustomSelect 
                value={selectedAnalyst} 

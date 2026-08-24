@@ -235,7 +235,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const sheets = await getSheetsClient();
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId,
-      range: `'${sheetTab}'!A:Z`,
+      range: `'${sheetTab}'!A:AZ`,
     });
     
     const rows = response.data.values || [];
@@ -270,32 +270,46 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (type === 'ENVI') {
       headerData = {
         'Category':            'Environmental Monitoring',
-        'Date&Time Received':  getVal(matchedRows[0], ['DATE RECEIVED', 'DATE & TIME RECEIVED']) + '; ' + getVal(matchedRows[0], ['TIME RECEIVED']),
+        'Date&Time Received':  getVal(matchedRows[0], ['DATE RECEIVED', 'DATE & TIME RECEIVED', 'DATE RECEIVED/SAMPLED', 'DATE SWABBED']) + '; ' + getVal(matchedRows[0], ['TIME RECEIVED', 'TIME', 'TIME SWABBED']),
         'Name of Sample':      getVal(matchedRows[0], ['SAMPLE', 'NAME OF SAMPLE', 'SAMPLE NAME']),
         'Date&Time Released':  getVal(matchedRows[0], ['DATE RELEASED', 'DATE & TIME RELEASED']) + '; ' + getVal(matchedRows[0], ['TIME RELEASED']),
         'Date Mfd.':           getVal(matchedRows[0], ['MFG DATE']) || 'N/A',
-        'Batch/Lot No.':       getVal(matchedRows[0], ['BATCH / LOT NO.', 'CONTROL #']),
+        'Batch/Lot No.':       getVal(matchedRows[0], ['BATCH / LOT NO.', 'BATCH #', 'CONTROL #']),
         'Fill Vol./Wt.':       'N/A',
         'Expiry Date':         getVal(matchedRows[0], ['EXPIRY DATE']) || 'N/A',
         'Batch/Lot Size':      getVal(matchedRows[0], ['BATCH/LOT SIZE']) || 'N/A',
-        'Requested by':        getVal(matchedRows[0], ['SUBMITTED BY', 'ENDORSED TO', 'REQUESTED BY']),
+        'Requested by':        getVal(matchedRows[0], ['SUBMITTED BY', 'ENDORSED TO', 'REQUESTED BY', 'SWABBED BY']),
         'Purpose':             'Microbial Analysis - Environmental Monitoring',
-        'Logbook':             getVal(matchedRows[0], ['LOGBOOK NO.']),
+        'Logbook':             getVal(matchedRows[0], ['LOGBOOK NO.']) || '[TO BE FILLED UP]',
       };
     } else if (type === 'RawMats') {
+      const rawType = getVal(matchedRows[0], ['TYPE']).toUpperCase();
+      let category = 'Raw Material';
+      if (rawType === 'SFG') category = 'Semi-finished Goods';
+      else if (rawType === 'CUC' || rawType === 'FG') category = 'Finished Goods';
+      else if (rawType === 'ROH') category = 'Raw Materials';
+
+      const mixBatch = getVal(matchedRows[0], ['MIXING BATCH #', 'BATCH #', 'BATCH / LOT NO.']);
+      const cucNo = getVal(matchedRows[0], ['CUC #', 'CUC']);
+      const batchLotNo = (mixBatch && cucNo) ? `${mixBatch} / ${cucNo}` : (cucNo || mixBatch || getVal(matchedRows[0], ['CONTROL #']));
+
+      const qty = getVal(matchedRows[0], ['QTY']);
+      const unit = getVal(matchedRows[0], ['UNIT']);
+      const fillVol = [qty, unit].filter(Boolean).join(' ') || 'N/A';
+
       headerData = {
-        'Category':            'Raw Material',
-        'Date&Time Received':  getVal(matchedRows[0], ['DATE RECEIVED', 'DATE & TIME RECEIVED']) + '; ' + getVal(matchedRows[0], ['TIME RECEIVED']),
+        'Category':            category,
+        'Date&Time Received':  getVal(matchedRows[0], ['DATE RECEIVED/SAMPLED', 'DATE RECEIVED', 'DATE & TIME RECEIVED']) + '; ' + getVal(matchedRows[0], ['TIME', 'TIME RECEIVED']),
         'Name of Sample':      getVal(matchedRows[0], ['SAMPLE', 'NAME OF SAMPLE', 'SAMPLE NAME']),
         'Date&Time Released':  getVal(matchedRows[0], ['DATE RELEASED', 'DATE & TIME RELEASED']) + '; ' + getVal(matchedRows[0], ['TIME RELEASED']),
         'Date Mfd.':           getVal(matchedRows[0], ['MFG DATE']) || 'N/A',
-        'Batch/Lot No.':       getVal(matchedRows[0], ['BATCH / LOT NO.', 'CONTROL #']),
-        'Fill Vol./Wt.':       'N/A',
+        'Batch/Lot No.':       batchLotNo,
+        'Fill Vol./Wt.':       fillVol,
         'Expiry Date':         getVal(matchedRows[0], ['EXPIRY DATE']) || 'N/A',
         'Batch/Lot Size':      getVal(matchedRows[0], ['BATCH/LOT SIZE']) || 'N/A',
-        'Requested by':        getVal(matchedRows[0], ['SUBMITTED BY', 'ENDORSED TO', 'REQUESTED BY']),
+        'Requested by':        getVal(matchedRows[0], ['RFAF', 'SUBMITTED BY', 'ENDORSED TO', 'REQUESTED BY']) || '[REFER TO RFAF]',
         'Purpose':             'Microbial Analysis',
-        'Logbook':             getVal(matchedRows[0], ['LOGBOOK NO.']),
+        'Logbook':             getVal(matchedRows[0], ['LOGBOOK NO.']) || '[TO BE FILLED UP]',
       };
     }
     
@@ -303,19 +317,40 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     let tableData: any[] = [];
     if (type === 'ENVI') {
       tableData = matchedRows.map(r => ({
-        location: getVal(r, ['LOCATION', 'SAMPLE LOCATION']),
+        location: getVal(r, ['LOCATION', 'SAMPLE LOCATION', 'SAMPLE']),
         tvc_count: getVal(r, ['TVC COUNT', 'TVC (COUNT)']),
         tvc_cfu: getVal(r, ['TVC CFU', 'TVC (cfu/100cm2)', 'TVC (cfu/100cmA)']),
         gram_staining: getVal(r, ['GRAM STAINING', 'GRAM STAIN']),
         remarks: getVal(r, ['REMARKS', 'STATUS'])
       }));
     } else if (type === 'RawMats') {
-      tableData = matchedRows.map(r => ({
-        parameter: getVal(r, ['PARAMETERS', 'PARAMETER']),
-        specifications: getVal(r, ['SPECIFICATION', 'SPECIFICATIONS']),
-        results: getVal(r, ['RESULT', 'RESULTS']),
-        remarks: getVal(r, ['REMARKS', 'STATUS'])
-      }));
+      const apcSpec = getVal(matchedRows[0], ['(S) Aerobic Plate Count', 'SPECIFICATION', 'SPECIFICATIONS']) || '<300 cfu/g';
+      const apcResult = getVal(matchedRows[0], ['(C) Aerobic Plate Count', '(A) Aerobic Plate Count', 'RESULT', 'RESULTS']);
+      const gnSpec = getVal(matchedRows[0], ['(S) Gram- Negative']) || 'No Growth';
+      const gnResult = getVal(matchedRows[0], ['(C) Gram- Negative', '(A) Gram- Negative']);
+      const mySpec = getVal(matchedRows[0], ['(S) Yeast and Molds']) || '<100 cfu/g';
+      const myResult = getVal(matchedRows[0], ['(C) Yeast and Molds', '(A) Yeast and Molds']);
+
+      tableData = [
+        {
+          parameter: 'Aerobic Plate Count',
+          specifications: apcSpec,
+          results: apcResult,
+          remarks: (apcResult && (apcResult.includes('<300') || apcResult.startsWith('<') || apcResult === apcSpec)) ? 'Passed' : (apcResult ? 'Failed' : '')
+        },
+        {
+          parameter: 'Gram-Negative Bacilli',
+          specifications: gnSpec,
+          results: gnResult,
+          remarks: (gnResult && (gnResult.toLowerCase().includes('no growth') || gnResult.toLowerCase().includes('negative') || gnResult.startsWith('<'))) ? 'Passed' : (gnResult ? 'Failed' : '')
+        },
+        {
+          parameter: 'Molds & Yeast Count',
+          specifications: mySpec,
+          results: myResult,
+          remarks: (myResult && (myResult.includes('<100') || myResult.startsWith('<') || myResult === mySpec)) ? 'Passed' : (myResult ? 'Failed' : '')
+        }
+      ];
     }
     
     const content = fs.readFileSync(absolutePath, 'binary');

@@ -105,17 +105,20 @@ export function useSheetSchema(
  */
 const FIELD_KEYWORDS: Record<string, string[]> = {
   // Shared / General
-  'controlNumber':         ['control'],
+  'controlNumber':         ['control #', 'control number', 'control'],
   'status':                ['status'],
-  'remarks':               ['remark', 'note', 'comment'],
-  'dateAnalyzed':          ['date anal', 'analyzed date', 'analysis date'],
+  'remarks':               ['remarks', 'remark', 'note', 'comment'],
+  'dateAnalyzed':          ['date analyzed', 'date anal', 'analyzed date', 'analysis date'],
   'analyzedBy':            ['analyzed by', 'analyst'],
-  'endorsedTo':            ['endorsed', 'endorse'],
+  'endorsedTo':            ['endorsed to', 'endorsed', 'endorse'],
+  'dateReleased':          ['date released', 'released date', 'date'],
+  'releasedBy':            ['released by', 'release by'],
+  'repeatedResults':       ['repeated results', 'repeated result', 'repeated'],
   
   // ENVI specific
-  'sample':                ['sample', 'material', 'product'],
+  'sample':                ['sample', 'sample name', 'material', 'product'],
   'category':              ['category'],
-  'dateSampled':           ['date received', 'received date', 'date swabbed', 'date sampled', 'swab date', 'date performed'],
+  'dateSampled':           ['date received/sampled', 'date received', 'received date', 'date swabbed', 'date sampled', 'swab date', 'date performed'],
   'timeSampled':           ['time swabbed', 'time sampled', 'swab time', 'time', 'time performed'],
   'swabbedBy':             ['swabbed by', 'swab by'],
 
@@ -127,8 +130,15 @@ const FIELD_KEYWORDS: Record<string, string[]> = {
   'type':                  ['type'],
   'rfaf':                  ['rfaf'],
   'batchNo':               ['batch #', 'batch no', 'mixing batch', 'mix batch', 'batch', 'cuc', 'cuc #'],
+  'mixingBatchNo':         ['batch #', 'mixing batch #', 'mixing batch', 'mix batch'],
+  'cucNo':                 ['cuc #', 'cuc no', 'cuc', 'batch #'],
+  'unit':                  ['unit', 'units'],
+  'qty':                   ['qty', 'quantity'],
   'source':                ['source', 'supplier', 'vendor', 'origin'],
   'receivedBy':            ['received by', 'sampled by', 'collected by'],
+  'indicativeResult':      ['indicative result', 'indicative'],
+  'comments':              ['comments', 'comment'],
+  'remarks2':              ['remarks2'],
 
   // AIR specific
   'method':                ['method'],

@@ -57,6 +57,10 @@ export interface RawMatsFormData {
   timeSampled: string;
   rfaf: RfafOption | '';
   batchNo: string;
+  mixingBatchNo?: string;
+  cucNo?: string;
+  qty?: string;
+  unit?: string;
   type: RawMatsType | '';
   sample: string;
   source: string;
@@ -64,8 +68,11 @@ export interface RawMatsFormData {
   dateAnalyzed: string;
   analyzedBy: string;
   status: SampleStatus;
+  dateReleased?: string;
+  releasedBy?: string;
   endorsedTo?: string;
   remarks?: string;
+  repeatedResults?: string;
 }
 
 // ===== AIR =====

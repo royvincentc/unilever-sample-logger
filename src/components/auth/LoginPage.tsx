@@ -104,6 +104,36 @@ export default function LoginPage({ onLogin, onPinLogin, onGoogleLogin }: LoginP
     return () => unsubscribe();
   }, []);
 
+  // ===== KEYBOARD SUPPORT FOR PIN =====
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't intercept if user is typing in a text input field (like Password or Name setup)
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        return;
+      }
+
+      if (mode === 'pin') {
+        if (/^[0-9]$/.test(e.key)) handlePinDigit(e.key);
+        else if (e.key === 'Backspace') handlePinDelete();
+      } else if (mode === 'google_access_code') {
+        if (/^[0-9]$/.test(e.key)) handleAccessCodeDigit(e.key);
+        else if (e.key === 'Backspace') {
+          setAccessCode((c) => c.slice(0, -1));
+          setError('');
+        }
+      } else if (mode === 'google_setup' && (setupStep === 'pin' || setupStep === 'pin_confirm')) {
+        const isConfirm = setupStep === 'pin_confirm';
+        if (/^[0-9]$/.test(e.key)) handleSetupPinDigit(e.key, isConfirm);
+        else if (e.key === 'Backspace') handleSetupPinDelete(isConfirm);
+        else if (e.key === 'Enter' && setupStep === 'pin' && setupPin.length === 8) handleSetupSubmit();
+        else if (e.key === 'Enter' && setupStep === 'pin_confirm' && setupPinConfirm.length === 8) handleSetupSubmit();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [mode, pin, accessCode, setupStep, setupPin, setupPinConfirm]);
+
   // ===== PASSWORD LOGIN =====
   const handlePasswordLogin = async (e: React.FormEvent) => {
     e.preventDefault();

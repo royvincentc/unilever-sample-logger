@@ -199,22 +199,36 @@ export async function fetchActiveIncubationsFromSheet(): Promise<any[]> {
         if (dateAnalyzed && dateAnalyzed !== '-' && status !== 'RELEASED' && status !== 'COMPLETED') {
           const rawType = sampleType === 'RawMats' ? String(row['TYPE'] || '').toUpperCase() : undefined;
           
-          let batchNumber = row['BATCH #'] || row['MIXING BATCH #'] || row['BATCH NO'] || '';
+          let batchNumber = '';
+          const mixBatch = row['MIXING BATCH #'] || row['BATCH #'] || row['BATCH NO'] || '';
+          const cucNo = row['CUC #'] || row['CUC'] || '';
+          if (mixBatch && cucNo) {
+            batchNumber = `${mixBatch} / ${cucNo}`;
+          } else {
+            batchNumber = cucNo || mixBatch || '';
+          }
+
+          let size = '';
+          if (row['QTY']) {
+            size = `${row['QTY']} ${row['UNIT'] || ''}`.trim();
+          } else {
+            size = row['PACK SIZE'] || row['SIZE'] || row['VOLUME'] || '';
+          }
 
           activeIncubations.push({
             id: String(row['_rowIndex'] || Math.random().toString()),
             sampleType: sampleType,
             controlNumber: row['CONTROL #'] || '',
-            sampleName: row['SAMPLE'] || row['SAMPLE DESCRIPTION'] || '',
+            sampleName: row['SAMPLE'] || row['SAMPLE DESCRIPTION'] || row['SAMPLE NAME'] || row['WATER SOURCE'] || row['SAMPLING POINT'] || '',
             dateAnalyzed: dateAnalyzed,
             rawMatsType: rawType,
             submittedBy: String(row['ANALYST'] || row['ANALYZED BY'] || row['SWABBED BY'] || ''),
             batchNumber: batchNumber,
-            apc: row['(C) Aerobic Plate Count'] || '', 
-            my: row['(C) Yeast and Molds'] || '',     
-            indicativeRemarks: row['REMARKS'] || row['REMARKS '] || row['INDICATIVE RESULT'] || '', // Prioritize REMARKS column
+            apc: row['(C) Aerobic Plate Count'] || row['(A) Aerobic Plate Count'] || '', 
+            my: row['(C) Yeast and Molds'] || row['(A) Yeast and Molds'] || '',     
+            indicativeRemarks: row['REMARKS '] || row['REMARKS'] || row['INDICATIVE RESULT'] || '',
             time: row['TIME'] || '',
-            size: row['PACK SIZE'] || row['SIZE'] || row['VOLUME'] || '',
+            size: size,
           });
         }
       }

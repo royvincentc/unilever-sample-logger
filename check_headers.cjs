@@ -9,17 +9,14 @@ async function main() {
   });
   const sheets = google.sheets({ version: 'v4', auth });
   
-  const spreadsheetId = '10ZTitLYObaWll2p8waWfQ0LJzuPu77Of0IDPL42zzwo';
-  
-  try {
-    const res = await sheets.spreadsheets.values.get({
-      spreadsheetId,
-      range: "'RM,FG,SFG 2026'!A1:Z2",
-    });
-    console.log("Headers:", res.data.values[0]);
-    console.log("Row 1:", res.data.values[1]);
-  } catch (e) {
-    console.error("Error:", e.message);
-  }
+  const spreadsheetId = '1yfoeCEFrL6AYftrmjcuAqsWU6Pu2bZ_mahaUvs9TzbI';
+  const res = await sheets.spreadsheets.values.get({
+    spreadsheetId,
+    range: "'RM,FG,SFG 2026'!A1:AJ10",
+  });
+  const rows = res.data.values || [];
+  rows.forEach((r, i) => {
+    console.log(`Row ${i+1}:`, JSON.stringify(r));
+  });
 }
 main();

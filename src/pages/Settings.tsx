@@ -32,7 +32,7 @@ export default function Settings({ onLogout }: { onLogout?: () => void }) {
   const EXPECTED_FIELDS: Record<string, string[]> = {
     ENVI: ['CONTROL #', 'SAMPLE', 'QTY', 'UNIT', 'DATE SWABBED', 'TIME SWABBED', 'SWABBED BY', 'ENDORSED TO', 'DATE ANALYZED', 'ANALYZED BY', 'STATUS', 'REMARKS'],
     WATER: ['CONTROL #', 'WATER SOURCE', 'QTY', 'UNIT', 'DATE SAMPLED', 'TIME', 'SAMPLED BY', 'ENDORSED TO', 'DATE ANALYZED', 'ANALYZED BY', 'STATUS', 'REMARKS'],
-    RawMats: ['CONTROL #', 'TYPE', 'RFAF', 'BATCH #', 'SAMPLE', 'SOURCE', 'QTY', 'UNIT', 'DATE RECEIVED/SAMPLED', 'TIME', 'RECEIVED BY', 'ENDORSED TO', 'DATE ANALYZED', 'ANALYZED BY', 'STATUS', 'REMARKS'],
+    RawMats: ['CONTROL #', 'RFAF', 'BATCH #', 'TYPE', 'SAMPLE', 'UNIT', 'QTY', 'SOURCE', 'DATE RECEIVED/SAMPLED', 'TIME', 'RECEIVED BY', 'DATE ANALYZED', 'ANALYZED BY', 'STATUS', 'DATE RELEASED', 'RELEASED BY', 'REPEATED RESULTS', 'REMARKS', '(S) Aerobic Plate Count', '(S) Gram- Negative', '(S) Yeast and Molds', '(A) Aerobic Plate Count', '(A) Gram- Negative', '(A) Yeast and Molds', '(C) Aerobic Plate Count', '(C) Gram- Negative', '(C) Yeast and Molds', 'TSA', 'SDA', 'MCA', 'INDICATIVE RESULT', 'Comments', 'REMARKS2'],
   };
 
   const today = new Date().toISOString().split('T')[0];

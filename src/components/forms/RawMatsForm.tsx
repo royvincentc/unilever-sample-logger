@@ -37,6 +37,10 @@ export default function RawMatsForm({ onSubmit, onBack }: RawMatsFormProps) {
     timeSampled: '',
     rfaf: '',
     batchNo: '',
+    mixingBatchNo: '',
+    cucNo: '',
+    qty: '1',
+    unit: '120 mL',
     type: '',
     sample: '',
     source: '',
@@ -51,7 +55,11 @@ export default function RawMatsForm({ onSubmit, onBack }: RawMatsFormProps) {
     e.preventDefault();
     setLoading(true);
     try {
-      await onSubmit(form);
+      const submissionData: RawMatsFormData = {
+        ...form,
+        batchNo: form.mixingBatchNo || form.cucNo || form.batchNo,
+      };
+      await onSubmit(submissionData);
     } finally {
       setLoading(false);
     }
@@ -89,20 +97,25 @@ export default function RawMatsForm({ onSubmit, onBack }: RawMatsFormProps) {
           </div>
         </motion.div>
 
-        {/* RFAF, Batch */}
+        {/* RFAF, Batch # */}
         <motion.div variants={fadeUp} className="glass rounded-2xl p-5 space-y-4">
           <h4 className="text-sm font-semibold text-[var(--text-primary)] uppercase tracking-wider">Reference</h4>
           <RadioGroup label="RFAF" value={form.rfaf} options={RFAF_OPTIONS} onChange={(v) => setForm({ ...form, rfaf: v as RfafOption })} required />
-          <div className="grid grid-cols-1 gap-4">
-            <TextInput label="Batch #" value={form.batchNo} onChange={(v) => setForm({ ...form, batchNo: v })} placeholder="Optional" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <TextInput label="Batch #" value={form.batchNo} onChange={(v) => setForm({ ...form, batchNo: v, mixingBatchNo: v })} placeholder="e.g. LP01 010526 or 1401262A21" />
+            <TextInput label="CUC / Sub-Batch (Optional)" value={form.cucNo || ''} onChange={(v) => setForm({ ...form, cucNo: v })} placeholder="e.g. 0601262A2" />
           </div>
         </motion.div>
 
-        {/* Type, Sample, Source */}
+        {/* Type, Sample, Unit, Quantity & Source */}
         <motion.div variants={fadeUp} className="glass rounded-2xl p-5 space-y-4">
           <h4 className="text-sm font-semibold text-[var(--text-primary)] uppercase tracking-wider">Sample Details</h4>
           <RadioGroup label="Type" value={form.type} options={RAWMATS_TYPES} onChange={(v) => setForm({ ...form, type: v as RawMatsType })} required />
           <ComboBox label="Sample" value={form.sample} options={RAWMATS_SAMPLES} onChange={(v) => setForm({ ...form, sample: v })} placeholder="Select sample..." required />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <TextInput label="Unit" value={form.unit || '120 mL'} onChange={(v) => setForm({ ...form, unit: v })} placeholder="e.g. 120 mL, 25 mL, 40 mL, 2.5 L" />
+            <TextInput label="Quantity" value={form.qty || '1'} onChange={(v) => setForm({ ...form, qty: v })} placeholder="e.g. 1, 12, 6" />
+          </div>
           <Dropdown label="Source" value={form.source} options={RAWMATS_SOURCES} onChange={(v) => setForm({ ...form, source: v })} placeholder="Select source..." required />
         </motion.div>
 
