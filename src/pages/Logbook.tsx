@@ -139,17 +139,19 @@ export default function Logbook() {
         const catCompare = catA.localeCompare(catB);
         if (catCompare !== 0) return catCompare;
 
-        const timeDiff = a.parsedDate.getTime() - b.parsedDate.getTime();
+        const timeDiff = b.parsedDate.getTime() - a.parsedDate.getTime();
         if (timeDiff !== 0) return timeDiff;
-        return a.control.localeCompare(b.control, undefined, { numeric: true });
+        return b.control.localeCompare(a.control, undefined, { numeric: true });
       } else if (sortBy === 'analyst') {
         const analystCompare = a.analyst.localeCompare(b.analyst);
         if (analystCompare !== 0) return analystCompare;
-        return a.parsedDate.getTime() - b.parsedDate.getTime();
-      } else {
-        const timeDiff = a.parsedDate.getTime() - b.parsedDate.getTime();
+        const timeDiff = b.parsedDate.getTime() - a.parsedDate.getTime();
         if (timeDiff !== 0) return timeDiff;
-        return a.analyst.localeCompare(b.analyst);
+        return b.control.localeCompare(a.control, undefined, { numeric: true });
+      } else {
+        const timeDiff = b.parsedDate.getTime() - a.parsedDate.getTime();
+        if (timeDiff !== 0) return timeDiff;
+        return b.control.localeCompare(a.control, undefined, { numeric: true });
       }
     });
   }, [normalizedData, selectedAnalyst, searchQuery, sortBy]);
@@ -262,7 +264,9 @@ export default function Logbook() {
                       <td className="p-3">
                          <div className="flex flex-col">
                            <span className="text-[10px] font-bold text-primary-500">{row.type}</span>
-                           <span className="text-[10px] text-[var(--text-muted)]">{row.category}</span>
+                           {row.category && row.category !== row.type && (
+                             <span className="text-[10px] text-[var(--text-muted)]">{row.category}</span>
+                           )}
                          </div>
                       </td>
                       <td className="p-3">

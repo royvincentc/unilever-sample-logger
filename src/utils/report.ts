@@ -94,8 +94,6 @@ export async function generateDocxReport(data: any, analyzedBy: string, tab: str
       // OverallRemarks from REMARKS / REMARKS2 / column AI/AH
       const overallRemarks = String(data['REMARKS '] || data['REMARKS'] || raw[34] || raw[33] || raw[17] || '');
 
-      const fillVol = [data['QTY'] || raw[7], data['UNIT'] || raw[8]].filter(v => v && String(v).trim().length > 0).join(' ') || raw[7] || 'N/A';
-
       templateData = {
         Category: mapCategory(data['TYPE'] || raw[4] || raw[3]),
         SampleName: data['SAMPLE'] || raw[5] || raw[4] || 'Unknown Sample',
@@ -104,7 +102,7 @@ export async function generateDocxReport(data: any, analyzedBy: string, tab: str
         Purpose: 'Microbial Analysis',
         DateReceived: [data['DATE RECEIVED/SAMPLED'] || raw[9] || raw[8], data['TIME'] || raw[10] || raw[9]].filter(v => v && String(v).trim().length > 0).join('; '),
         DateReleased: [data['DATE RELEASED'] || raw[15] || raw[14], new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })].filter(v => v && String(v).trim().length > 0).join('; '),
-        FillVol: fillVol,
+        FillVol: 'N/A',
         RequestedBy: data['RFAF'] || '[REFER TO RFAF]',
         BatchNo: getBatchNo(),
         Logbook: '[TO BE FILLED UP]',

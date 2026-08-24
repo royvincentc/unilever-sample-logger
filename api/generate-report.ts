@@ -293,10 +293,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const cucNo = getVal(matchedRows[0], ['CUC #', 'CUC']);
       const batchLotNo = (mixBatch && cucNo) ? `${mixBatch} / ${cucNo}` : (cucNo || mixBatch || getVal(matchedRows[0], ['CONTROL #']));
 
-      const qty = getVal(matchedRows[0], ['QTY']);
-      const unit = getVal(matchedRows[0], ['UNIT']);
-      const fillVol = [qty, unit].filter(Boolean).join(' ') || 'N/A';
-
       headerData = {
         'Category':            category,
         'Date&Time Received':  getVal(matchedRows[0], ['DATE RECEIVED/SAMPLED', 'DATE RECEIVED', 'DATE & TIME RECEIVED']) + '; ' + getVal(matchedRows[0], ['TIME', 'TIME RECEIVED']),
@@ -304,7 +300,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         'Date&Time Released':  getVal(matchedRows[0], ['DATE RELEASED', 'DATE & TIME RELEASED']) + '; ' + getVal(matchedRows[0], ['TIME RELEASED']),
         'Date Mfd.':           getVal(matchedRows[0], ['MFG DATE']) || 'N/A',
         'Batch/Lot No.':       batchLotNo,
-        'Fill Vol./Wt.':       fillVol,
+        'Fill Vol./Wt.':       'N/A',
         'Expiry Date':         getVal(matchedRows[0], ['EXPIRY DATE']) || 'N/A',
         'Batch/Lot Size':      getVal(matchedRows[0], ['BATCH/LOT SIZE']) || 'N/A',
         'Requested by':        getVal(matchedRows[0], ['RFAF', 'SUBMITTED BY', 'ENDORSED TO', 'REQUESTED BY']) || '[REFER TO RFAF]',
