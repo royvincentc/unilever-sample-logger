@@ -102,7 +102,7 @@ export async function generateDocxReport(data: any, analyzedBy: string, tab: str
         Purpose: 'Microbial Analysis',
         DateReceived: [data['DATE RECEIVED/SAMPLED'] || raw[9] || raw[8], data['TIME'] || raw[10] || raw[9]].filter(v => v && String(v).trim().length > 0).join('; '),
         DateReleased: [data['DATE RELEASED'] || raw[15] || raw[14], new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })].filter(v => v && String(v).trim().length > 0).join('; '),
-        FillVol: 'N/A',
+        FillVol: String(data['UNIT'] || raw[5] || 'N/A').trim() || 'N/A',
         RequestedBy: data['RFAF'] || '[REFER TO RFAF]',
         BatchNo: getBatchNo(),
         Logbook: '[TO BE FILLED UP]',

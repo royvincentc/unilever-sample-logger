@@ -300,7 +300,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         'Date&Time Released':  getVal(matchedRows[0], ['DATE RELEASED', 'DATE & TIME RELEASED']) + '; ' + getVal(matchedRows[0], ['TIME RELEASED']),
         'Date Mfd.':           getVal(matchedRows[0], ['MFG DATE']) || 'N/A',
         'Batch/Lot No.':       batchLotNo,
-        'Fill Vol./Wt.':       'N/A',
+        'Fill Vol./Wt.':       getVal(matchedRows[0], ['UNIT', 'PACK SIZE', 'VOLUME', 'SIZE']) || 'N/A',
         'Expiry Date':         getVal(matchedRows[0], ['EXPIRY DATE']) || 'N/A',
         'Batch/Lot Size':      getVal(matchedRows[0], ['BATCH/LOT SIZE']) || 'N/A',
         'Requested by':        getVal(matchedRows[0], ['RFAF', 'SUBMITTED BY', 'ENDORSED TO', 'REQUESTED BY']) || '[REFER TO RFAF]',
