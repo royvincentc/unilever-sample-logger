@@ -81,8 +81,7 @@ export default function Logbook() {
       let batchNumber = '-';
       const mix = row['MIXING BATCH #'] || row['BATCH #'] || '';
       const cuc = row['CUC #'] || '';
-      if (mix && cuc) batchNumber = `${mix} / ${cuc}`;
-      else if (cuc || mix) batchNumber = cuc || mix;
+      batchNumber = mix || String(row['CONTROL #'] || '').trim() || '-';
 
       return {
         id: `${row.__sheetName}-${index}`,

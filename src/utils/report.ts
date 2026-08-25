@@ -31,9 +31,7 @@ export async function generateDocxReport(data: any, analyzedBy: string, tab: str
 
     const getBatchNo = () => {
       const mix = String(data['MIXING BATCH #'] || data['BATCH #'] || raw[2] || '').trim();
-      const cuc = String(data['CUC #'] || raw[3] || '').trim();
-      if (mix && cuc) return `${mix} / ${cuc}`;
-      return cuc || mix || 'N/A';
+      return mix || String(data['CONTROL #'] || '').trim() || 'N/A';
     };
 
     if (tab === 'RawMats') {
