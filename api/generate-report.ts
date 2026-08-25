@@ -290,8 +290,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       else if (rawType === 'ROH') category = 'Raw Materials';
 
       const mixBatch = getVal(matchedRows[0], ['MIXING BATCH #', 'BATCH #', 'BATCH / LOT NO.']);
-      const cucNo = getVal(matchedRows[0], ['CUC #', 'CUC']);
-      const batchLotNo = (mixBatch && cucNo) ? `${mixBatch} / ${cucNo}` : (cucNo || mixBatch || getVal(matchedRows[0], ['CONTROL #']));
+      const batchLotNo = mixBatch || getVal(matchedRows[0], ['CONTROL #']);
 
       headerData = {
         'Category':            category,

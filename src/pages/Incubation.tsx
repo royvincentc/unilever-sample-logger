@@ -287,8 +287,7 @@ export default function Incubation() {
       text += `${index + 1}. ${typePrefix}${task.sampleName}${sizeSuffix}\n`;
       
       if (task.batchNumber) {
-        const timeSuffix = task.time ? ` I ${task.time}` : '';
-        text += `Batch #: ${task.batchNumber}${timeSuffix}\n`;
+        text += `Batch #: ${task.batchNumber}\n`;
       }
       
       text += `APC: ${task.apc || 'N/A'}\n`;

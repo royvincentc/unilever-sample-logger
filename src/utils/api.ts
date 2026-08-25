@@ -199,14 +199,8 @@ export async function fetchActiveIncubationsFromSheet(): Promise<any[]> {
         if (dateAnalyzed && dateAnalyzed !== '-' && status !== 'RELEASED' && status !== 'COMPLETED') {
           const rawType = sampleType === 'RawMats' ? String(row['TYPE'] || '').toUpperCase() : undefined;
           
-          let batchNumber = '';
           const mixBatch = row['MIXING BATCH #'] || row['BATCH #'] || row['BATCH NO'] || '';
-          const cucNo = row['CUC #'] || row['CUC'] || '';
-          if (mixBatch && cucNo) {
-            batchNumber = `${mixBatch} / ${cucNo}`;
-          } else {
-            batchNumber = cucNo || mixBatch || '';
-          }
+          const batchNumber = mixBatch || row['CONTROL #'] || '';
 
           let size = '';
           if (row['QTY']) {
