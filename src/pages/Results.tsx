@@ -1,8 +1,8 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   FileSpreadsheet, RefreshCw, AlertCircle, Search, Edit2, X, Save, FileText,
-  ArrowUpDown, ArrowUp, ArrowDown
+  ArrowUpDown, ArrowUp, ArrowDown, Eye
 } from 'lucide-react';
 import Header from '../components/Layout/Header';
 import { fetchLiveSheetData, fetchSheetSchema } from '../utils/api';
@@ -104,8 +104,23 @@ export default function Results() {
   const [error, setError] = useState<string | null>(null);
   const [sortColumn, setSortColumn] = useState<string | null>(null); // null means default to Control #
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  
+  const [hiddenColumns, setHiddenColumns] = useState<Set<string>>(new Set());
+  const [showColumnDropdown, setShowColumnDropdown] = useState(false);
+  const colDropdownRef = useRef<HTMLDivElement>(null);
+  
   const isOnline = useOnlineStatus();
   const { showToast } = useToast();
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (colDropdownRef.current && !colDropdownRef.current.contains(e.target as Node)) {
+        setShowColumnDropdown(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   useEffect(() => {
     const tab = searchParams.get('tab') as TabOption;
@@ -122,6 +137,7 @@ export default function Results() {
   useEffect(() => {
     setSortColumn(null);
     setSortDirection('asc');
+    setHiddenColumns(new Set());
   }, [selectedTab]);
 
   const [editingRow, setEditingRow] = useState<any | null>(null);
@@ -239,6 +255,19 @@ export default function Results() {
     }
   };
 
+  const toggleColumnVisibility = (header: string) => {
+    setHiddenColumns(prev => {
+      const next = new Set(prev);
+      if (next.has(header)) next.delete(header);
+      else next.add(header);
+      return next;
+    });
+  };
+
+  const visibleHeaders = useMemo(() => {
+    return headers.filter(h => !hiddenColumns.has(h));
+  }, [headers, hiddenColumns]);
+
   const processedData = useMemo(() => {
     // 1. Filter by search query
     let result = data;
@@ -333,21 +362,68 @@ export default function Results() {
 
         {/* Toolbar */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-          <div className="relative w-full md:w-96">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)]" />
-            <input
-              type="text"
-              placeholder="Search any column..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded-xl py-2.5 pl-9 pr-4 text-sm text-[var(--text-primary)] focus:outline-none focus:border-primary-500 transition-colors"
-            />
+          <div className="flex items-center gap-2 w-full md:w-auto">
+            <div className="relative w-full md:w-96">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)]" />
+              <input
+                type="text"
+                placeholder="Search any column..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded-xl py-2.5 pl-9 pr-4 text-sm text-[var(--text-primary)] focus:outline-none focus:border-primary-500 transition-colors"
+              />
+            </div>
+
+            <div className="relative" ref={colDropdownRef}>
+              <button 
+                onClick={() => setShowColumnDropdown(!showColumnDropdown)}
+                className="flex items-center gap-2 px-4 py-2.5 bg-[var(--bg-surface)] border border-[var(--border-subtle)] text-[var(--text-primary)] rounded-xl text-sm font-bold hover:bg-[var(--bg-hover)] transition-all cursor-pointer"
+              >
+                <Eye className="w-4 h-4" />
+                <span className="hidden sm:inline">Columns</span>
+              </button>
+
+              <AnimatePresence>
+                {showColumnDropdown && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                    transition={{ duration: 0.15 }}
+                    className="absolute right-0 top-full mt-2 w-64 max-h-96 overflow-y-auto bg-[var(--bg-card-solid)] border border-[var(--border-color)] rounded-xl shadow-xl z-50 p-2 custom-scrollbar"
+                  >
+                    <div className="flex items-center justify-between px-2 pb-2 mb-2 border-b border-[var(--border-subtle)]">
+                      <span className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">Visible Columns</span>
+                      <button 
+                        onClick={() => setHiddenColumns(new Set())}
+                        className="text-[10px] text-primary-500 hover:underline"
+                      >
+                        Reset
+                      </button>
+                    </div>
+                    {headers.map(header => (
+                      <label key={header} className="flex items-center gap-2 px-2 py-1.5 hover:bg-[var(--bg-hover)] rounded-lg cursor-pointer">
+                        <input 
+                          type="checkbox" 
+                          checked={!hiddenColumns.has(header)}
+                          onChange={() => toggleColumnVisibility(header)}
+                          className="rounded text-primary-500 focus:ring-primary-500"
+                        />
+                        <span className="text-xs text-[var(--text-primary)] truncate" title={header}>
+                          {header}
+                        </span>
+                      </label>
+                    ))}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
           </div>
           
           <button 
             onClick={() => loadData(selectedTab)}
             disabled={loading || !isOnline}
-            className="flex items-center gap-2 px-4 py-2.5 bg-[var(--bg-surface)] border border-[var(--border-subtle)] text-[var(--text-primary)] rounded-xl text-sm font-bold hover:bg-[var(--bg-hover)] disabled:opacity-50 transition-all cursor-pointer"
+            className="flex items-center justify-center gap-2 px-4 py-2.5 bg-[var(--bg-surface)] border border-[var(--border-subtle)] text-[var(--text-primary)] rounded-xl text-sm font-bold hover:bg-[var(--bg-hover)] disabled:opacity-50 transition-all cursor-pointer w-full md:w-auto"
           >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
             {loading ? 'Syncing...' : 'Sync Sheet'}
@@ -363,7 +439,7 @@ export default function Results() {
         )}
 
         {/* Data Grid */}
-        <div className="flex-1 glass rounded-2xl border border-[var(--border-subtle)] overflow-hidden flex flex-col">
+        <div className="flex-1 glass rounded-2xl border border-[var(--border-subtle)] overflow-hidden flex flex-col min-h-[400px]">
           {loading ? (
             <div className="flex-1 flex flex-col items-center justify-center p-12 text-[var(--text-muted)]">
               <RefreshCw className="w-8 h-8 animate-spin mb-4 text-primary-500" />
@@ -371,17 +447,17 @@ export default function Results() {
             </div>
           ) : processedData.length === 0 ? (
             <div className="flex-1 flex flex-col items-center justify-center p-12 text-[var(--text-muted)] text-center">
-              <FileSpreadsheet className="w-12 h-12 mb-4 opacity-50" />
-              <h3 className="text-lg font-bold text-[var(--text-primary)]">No Records Found</h3>
-              <p className="text-sm mt-1">There are no records in the {getSheetTabName(selectedTab as SampleType)} sheet, or they don't match your search.</p>
+              <FileSpreadsheet className="w-12 h-12 mb-4 opacity-20" />
+              <h3 className="text-lg font-bold text-[var(--text-primary)] mb-1">No Records Found</h3>
+              <p>Try adjusting your search or sync the sheet.</p>
             </div>
           ) : (
-            <div className="overflow-x-auto overflow-y-auto flex-1 custom-scrollbar">
+            <div className="flex-1 overflow-auto custom-scrollbar">
               <table className="w-full text-left border-collapse text-sm min-w-max">
                 <thead className="sticky top-0 z-10 shadow-sm">
                   <tr>
                     <th className="px-3 py-2 font-bold text-[var(--text-secondary)] border border-[var(--border-subtle)] bg-[var(--bg-sidebar)] uppercase tracking-wider text-[10px]">Actions</th>
-                    {headers.map((h, i) => {
+                    {visibleHeaders.map((h, i) => {
                       const isControl = isControlHeader(h);
                       const isSorted = (sortColumn === h) || (!sortColumn && isControl);
                       return (
@@ -433,7 +509,7 @@ export default function Results() {
                           </button>
                         </div>
                       </td>
-                      {headers.map((h, colIndex) => (
+                      {visibleHeaders.map((h, colIndex) => (
                         <td key={colIndex} className="px-3 py-1.5 text-xs text-[var(--text-primary)] border border-[var(--border-subtle)] whitespace-nowrap max-w-sm truncate bg-[var(--bg-card)]">
                           {row[h] !== undefined && row[h] !== null && String(row[h]).trim() !== '' ? String(row[h]) : '-'}
                         </td>
