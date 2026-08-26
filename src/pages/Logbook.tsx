@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BookOpen, RefreshCw, AlertCircle, Search, ArrowUp, ArrowDown, ArrowUpDown, Eye, EyeOff } from 'lucide-react';
 import Header from '../components/Layout/Header';
+import CustomSelect from '../components/ui/CustomSelect';
 import { fetchLiveSheetData } from '../utils/api';
 import { useTheme } from '../hooks/useTheme';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
@@ -23,6 +24,46 @@ function getRowControl(row: any): string {
     }
   }
   return '';
+}
+
+function getRowAnalyst(row: any): string {
+  if (!row) return '';
+  return String(row['ANALYZED BY'] || row['TESTED BY'] || row['SUBMITTED BY'] || row['ANALYST'] || row['ANALYSTS'] || row['WHO COLLECTED'] || '').trim();
+}
+
+function getRowType(row: any): string {
+  if (!row) return '';
+  return String(row['TYPE'] || row['SAMPLE TYPE'] || row['CATEGORY'] || row['__sheetName']?.split(' ')[0] || '').trim();
+}
+
+function getRowCategory(row: any): string {
+  if (!row) return '';
+  return String(row['CATEGORY'] || row['SAMPLE TYPE'] || row['TYPE'] || '').trim();
+}
+
+function getRowDate(row: any): Date {
+  if (!row) return new Date(0);
+  const dateKey = Object.keys(row).find(k => {
+    const up = k.toUpperCase();
+    return up.includes('DATE RECEIVED') || up.includes('DATE SAMPLED') || up.includes('DATE ANALYZED') || up.includes('DATE COLLECTED') || up.includes('TIMESTAMP') || up === 'DATE' || up === 'DATE & TIME ANALYZED';
+  });
+  const timeKey = Object.keys(row).find(k => {
+    const up = k.toUpperCase();
+    return up.includes('TIME RECEIVED') || up.includes('TIME SAMPLED') || up.includes('TIME ANALYZED') || up.includes('TIME COLLECTED');
+  });
+
+  const dateReceived = dateKey ? String(row[dateKey] || '') : '';
+  const timeReceived = timeKey ? String(row[timeKey] || '') : '';
+  
+  let parsedDate = new Date(0);
+  if (dateReceived) {
+     try {
+       const d = new Date(dateReceived + ' ' + (timeReceived || '00:00'));
+       if (!isNaN(d.getTime())) parsedDate = d;
+       else if (!isNaN(new Date(dateReceived).getTime())) parsedDate = new Date(dateReceived);
+     } catch(e) {}
+  }
+  return parsedDate;
 }
 
 function compareControlNumbers(aStr: string, bStr: string): number {
@@ -56,8 +97,12 @@ export default function Logbook() {
   const [error, setError] = useState<string | null>(null);
   
   const [searchQuery, setSearchQuery] = useState('');
-  const [sortColumn, setSortColumn] = useState<string | null>(null);
+  const [sortColumn, setSortColumn] = useState<string | null>(null); // For table header clicks
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  
+  // Restored filters
+  const [selectedAnalyst, setSelectedAnalyst] = useState<string>('All');
+  const [sortBy, setSortBy] = useState<'type' | 'datetime' | 'analyst' | 'custom'>('type');
   
   const [allHeaders, setAllHeaders] = useState<string[]>([]);
   const [hiddenColumns, setHiddenColumns] = useState<Set<string>>(new Set());
@@ -119,12 +164,22 @@ export default function Logbook() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  const analysts = useMemo(() => {
+    const set = new Set<string>();
+    data.forEach(r => {
+      const a = getRowAnalyst(r);
+      if (a) set.add(a);
+    });
+    return ['All', ...Array.from(set).sort()];
+  }, [data]);
+
   const isControlHeader = (headerName: string) => {
     const up = headerName.toUpperCase().trim();
     return up.includes('CONTROL') || up === 'SAMPLE ID' || up === 'CUC';
   };
 
   const handleHeaderClick = (columnName: string) => {
+    setSortBy('custom'); // Switch to custom column sorting
     const isControl = isControlHeader(columnName);
     const isCurrentlyActive = (sortColumn === columnName) || (!sortColumn && isControl);
 
@@ -152,6 +207,11 @@ export default function Logbook() {
 
   const processedData = useMemo(() => {
     let result = data;
+    
+    if (selectedAnalyst !== 'All') {
+      result = result.filter(row => getRowAnalyst(row) === selectedAnalyst);
+    }
+    
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase().trim();
       result = result.filter(row =>
@@ -162,35 +222,62 @@ export default function Logbook() {
     }
 
     return [...result].sort((a, b) => {
-      let cmp = 0;
-      const targetCol = sortColumn;
-      const isControlSort = !targetCol || isControlHeader(targetCol);
+      if (sortBy === 'type') {
+        const typeA = getRowType(a);
+        const typeB = getRowType(b);
+        const typeCompare = typeA.localeCompare(typeB);
+        if (typeCompare !== 0) return typeCompare;
 
-      if (isControlSort) {
-        const ctrlA = getRowControl(a);
-        const ctrlB = getRowControl(b);
-        cmp = compareControlNumbers(ctrlA, ctrlB);
-      } else if (targetCol) {
-        const valA = String(a[targetCol] ?? '').trim();
-        const valB = String(b[targetCol] ?? '').trim();
-        if (!valA && !valB) cmp = 0;
-        else if (!valA) cmp = 1;
-        else if (!valB) cmp = -1;
-        else {
-          cmp = valA.localeCompare(valB, undefined, { numeric: true, sensitivity: 'base' });
+        const catA = getRowCategory(a);
+        const catB = getRowCategory(b);
+        const catCompare = catA.localeCompare(catB);
+        if (catCompare !== 0) return catCompare;
+
+        const timeDiff = getRowDate(b).getTime() - getRowDate(a).getTime();
+        if (timeDiff !== 0) return timeDiff;
+        return compareControlNumbers(getRowControl(b), getRowControl(a));
+      } else if (sortBy === 'analyst') {
+        const analystCompare = getRowAnalyst(a).localeCompare(getRowAnalyst(b));
+        if (analystCompare !== 0) return analystCompare;
+        const timeDiff = getRowDate(b).getTime() - getRowDate(a).getTime();
+        if (timeDiff !== 0) return timeDiff;
+        return compareControlNumbers(getRowControl(b), getRowControl(a));
+      } else if (sortBy === 'datetime') {
+        const timeDiff = getRowDate(b).getTime() - getRowDate(a).getTime();
+        if (timeDiff !== 0) return timeDiff;
+        return compareControlNumbers(getRowControl(b), getRowControl(a));
+      } else {
+        // Custom column sorting (from table headers)
+        let cmp = 0;
+        const targetCol = sortColumn;
+        const isControlSort = !targetCol || isControlHeader(targetCol);
+
+        if (isControlSort) {
+          const ctrlA = getRowControl(a);
+          const ctrlB = getRowControl(b);
+          cmp = compareControlNumbers(ctrlA, ctrlB);
+        } else if (targetCol) {
+          const valA = String(a[targetCol] ?? '').trim();
+          const valB = String(b[targetCol] ?? '').trim();
+          if (!valA && !valB) cmp = 0;
+          else if (!valA) cmp = 1;
+          else if (!valB) cmp = -1;
+          else {
+            cmp = valA.localeCompare(valB, undefined, { numeric: true, sensitivity: 'base' });
+          }
         }
-      }
 
-      if (cmp !== 0) {
-        return sortDirection === 'asc' ? cmp : -cmp;
-      }
+        if (cmp !== 0) {
+          return sortDirection === 'asc' ? cmp : -cmp;
+        }
 
-      // Fallback
-      const fallbackCtrlA = getRowControl(a);
-      const fallbackCtrlB = getRowControl(b);
-      return compareControlNumbers(fallbackCtrlA, fallbackCtrlB);
+        // Fallback
+        const fallbackCtrlA = getRowControl(a);
+        const fallbackCtrlB = getRowControl(b);
+        return compareControlNumbers(fallbackCtrlA, fallbackCtrlB);
+      }
     });
-  }, [data, searchQuery, sortColumn, sortDirection]);
+  }, [data, searchQuery, sortColumn, sortDirection, sortBy, selectedAnalyst]);
 
   return (
     <div className="min-h-screen bg-transparent flex flex-col">
@@ -210,7 +297,25 @@ export default function Logbook() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <CustomSelect 
+               value={sortBy} 
+               onChange={(v) => setSortBy(v as any)}
+               options={[
+                 { value: 'type', label: 'Sort by Type/Category' },
+                 { value: 'datetime', label: 'Sort by Date/Time' },
+                 { value: 'analyst', label: 'Sort by Analyst' },
+                 { value: 'custom', label: 'Custom Header Sort' }
+               ]}
+               className="w-full md:w-52 z-40"
+            />
+            <CustomSelect 
+               value={selectedAnalyst} 
+               onChange={setSelectedAnalyst}
+               options={analysts.map(a => ({ value: a, label: a }))}
+               className="w-full md:w-48 z-40"
+            />
+
             <div className="relative w-full md:w-64">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)]" />
               <input
