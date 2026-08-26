@@ -164,6 +164,46 @@ export default function Logbook() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  const [columnOrder, setColumnOrder] = useState<string[]>([]);
+  const [draggedColumn, setDraggedColumn] = useState<string | null>(null);
+
+  useEffect(() => {
+    setColumnOrder(prevOrder => {
+      const newOrder = [...prevOrder];
+      allHeaders.forEach(h => {
+        if (!newOrder.includes(h)) newOrder.push(h);
+      });
+      return newOrder.filter(h => allHeaders.includes(h));
+    });
+  }, [allHeaders]);
+
+  const handleDragStart = (e: React.DragEvent, col: string) => {
+    setDraggedColumn(col);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleDrop = (e: React.DragEvent, targetCol: string) => {
+    e.preventDefault();
+    if (!draggedColumn || draggedColumn === targetCol) return;
+
+    setColumnOrder(prev => {
+      const newOrder = [...prev];
+      const fromIndex = newOrder.indexOf(draggedColumn);
+      const toIndex = newOrder.indexOf(targetCol);
+      if (fromIndex !== -1 && toIndex !== -1) {
+        newOrder.splice(fromIndex, 1);
+        newOrder.splice(toIndex, 0, draggedColumn);
+      }
+      return newOrder;
+    });
+    setDraggedColumn(null);
+  };
+
   const analysts = useMemo(() => {
     const set = new Set<string>();
     data.forEach(r => {
@@ -202,8 +242,8 @@ export default function Logbook() {
   };
 
   const visibleHeaders = useMemo(() => {
-    return allHeaders.filter(h => !hiddenColumns.has(h));
-  }, [allHeaders, hiddenColumns]);
+    return columnOrder.filter(h => !hiddenColumns.has(h));
+  }, [columnOrder, hiddenColumns]);
 
   const processedData = useMemo(() => {
     let result = data;
@@ -407,10 +447,14 @@ export default function Logbook() {
                       const headerTitle = h === '__sheetName' ? 'SOURCE SHEET' : h;
                       return (
                         <th 
-                          key={i} 
+                          key={h} 
+                          draggable
+                          onDragStart={(e) => handleDragStart(e, h)}
+                          onDragOver={handleDragOver}
+                          onDrop={(e) => handleDrop(e, h)}
                           onClick={() => handleHeaderClick(h)}
                           className="px-3 py-2 font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-subtle)] bg-[var(--bg-sidebar)] hover:bg-[var(--bg-hover)] uppercase tracking-wider text-[10px] whitespace-nowrap cursor-pointer select-none transition-colors group"
-                          title={`Sort by ${headerTitle}`}
+                          title={`Sort by ${headerTitle} (Drag to reorder)`}
                         >
                           <div className="flex items-center justify-between gap-1.5">
                             <span>{headerTitle}</span>
