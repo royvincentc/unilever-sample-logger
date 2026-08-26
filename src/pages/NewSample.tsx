@@ -190,7 +190,8 @@ export default function NewSample({ onQueueUpdate }: NewSampleProps) {
 
     for (let i = 0; i < total; i++) {
       const sample = data.selectedSamples[i];
-      await submitSample('ENVI', data, sample, sharedControlNumber);
+      const rowData = { ...data, qty: '1', unit: '1 Swab' };
+      await submitSample('ENVI', rowData as unknown as EnviFormData, sample, sharedControlNumber);
     }
   };
 

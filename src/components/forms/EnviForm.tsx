@@ -27,6 +27,8 @@ const fadeUp = {
 
 export default function EnviForm({ onSubmit, onBack }: EnviFormProps) {
   const [loading, setLoading] = useState(false);
+  const [customOtherInput, setCustomOtherInput] = useState('');
+  const [customOtherSamples, setCustomOtherSamples] = useState<string[]>([]);
   const [form, setForm] = useState<EnviFormData>({
     dateSampled: new Date().toISOString().split('T')[0],
     timeSampled: '',
@@ -42,6 +44,25 @@ export default function EnviForm({ onSubmit, onBack }: EnviFormProps) {
   const equipmentGroups: EnviEquipmentGroup[] = form.categories.length > 0
     ? getEquipmentForCategories(form.categories)
     : [];
+
+  const handleAddCustomOther = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (customOtherInput.trim()) {
+        const val = customOtherInput.trim();
+        if (!customOtherSamples.includes(val)) {
+          setCustomOtherSamples((prev) => [...prev, val]);
+          if (!form.selectedSamples.includes(val)) {
+            setForm((prev) => ({
+              ...prev,
+              selectedSamples: [...prev.selectedSamples, val],
+            }));
+          }
+        }
+        setCustomOtherInput('');
+      }
+    }
+  };
 
   const handleToggleSample = useCallback((sample: string) => {
     setForm((prev) => ({
@@ -64,7 +85,10 @@ export default function EnviForm({ onSubmit, onBack }: EnviFormProps) {
     });
   }, []);
 
-  const allAvailableSamples = equipmentGroups.flatMap(g => g.samples);
+  const allAvailableSamples = [
+    ...equipmentGroups.flatMap((g) => g.samples),
+    ...(form.categories.includes('Other') ? customOtherSamples : []),
+  ];
   const allSamplesSelected = allAvailableSamples.length > 0 && 
     allAvailableSamples.every(s => form.selectedSamples.includes(s));
 
@@ -142,7 +166,7 @@ export default function EnviForm({ onSubmit, onBack }: EnviFormProps) {
         </motion.div>
 
         {/* Equipment & Samples */}
-        {equipmentGroups.length > 0 && (
+        {(equipmentGroups.length > 0 || form.categories.includes('Other')) && (
           <motion.div variants={fadeUp} className="glass rounded-2xl p-5 space-y-4">
             <div className="flex items-center justify-between">
               <h4 className="text-sm font-semibold text-[var(--text-primary)] uppercase tracking-wider">
@@ -173,6 +197,40 @@ export default function EnviForm({ onSubmit, onBack }: EnviFormProps) {
                   onToggleAll={handleToggleAll}
                 />
               ))}
+
+              {form.categories.includes('Other') && (
+                <div className="space-y-3 pt-2">
+                  <h5 className="text-sm font-medium text-[var(--text-primary)]">Other (Custom Swab Points)</h5>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={customOtherInput}
+                      onChange={(e) => setCustomOtherInput(e.target.value)}
+                      onKeyDown={handleAddCustomOther}
+                      placeholder="Type a custom swab point and press Enter"
+                      className="flex-1 px-4 py-3 rounded-xl bg-[var(--bg-input)] border border-[var(--border-color)] text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-primary-500/40 focus:border-primary-500 transition-all duration-200"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleAddCustomOther({ key: 'Enter', preventDefault: () => {} } as React.KeyboardEvent<HTMLInputElement>)}
+                      disabled={!customOtherInput.trim()}
+                      className="px-4 py-2 rounded-xl bg-primary-500 text-white font-medium text-sm hover:bg-primary-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      Add
+                    </button>
+                  </div>
+                  {customOtherSamples.length > 0 && (
+                    <CollapsibleGroup
+                      id="custom-other"
+                      label="Custom Swab Points"
+                      samples={customOtherSamples}
+                      selectedSamples={form.selectedSamples}
+                      onToggleSample={handleToggleSample}
+                      onToggleAll={handleToggleAll}
+                    />
+                  )}
+                </div>
+              )}
             </div>
           </motion.div>
         )}
@@ -182,7 +240,6 @@ export default function EnviForm({ onSubmit, onBack }: EnviFormProps) {
           <h4 className="text-sm font-semibold text-[var(--text-primary)] uppercase tracking-wider">Details</h4>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Dropdown label="Swabbed By" value={form.swabbedBy} options={PERSONNEL} onChange={(v) => setForm({ ...form, swabbedBy: v })} required />
-            <Dropdown label="Endorsed To (Optional)" value={form.endorsedTo || 'None'} options={['None', ...PERSONNEL]} onChange={(v) => setForm({ ...form, endorsedTo: v === 'None' ? '' : v })} />
             <DatePicker label="Date Analyzed" value={form.dateAnalyzed} onChange={(v) => setForm({ ...form, dateAnalyzed: v })} />
             <Dropdown label="Analyzed By" value={form.analyzedBy} options={PERSONNEL} onChange={(v) => setForm({ ...form, analyzedBy: v })} />
             <Dropdown label="Status" value={form.status} options={STATUS_OPTIONS} onChange={(v) => setForm({ ...form, status: v as any })} />

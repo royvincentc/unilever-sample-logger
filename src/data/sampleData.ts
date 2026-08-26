@@ -37,6 +37,11 @@ export const ENVI_CATEGORIES: { id: EnviCategory; label: string; equipmentIds: s
     label: 'MV01',
     equipmentIds: ['MV01'],
   },
+  {
+    id: 'Other',
+    label: 'Other',
+    equipmentIds: [],
+  },
 ];
 
 // ===== ALL EQUIPMENT GROUPS WITH SAMPLES =====

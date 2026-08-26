@@ -12,7 +12,8 @@ export type EnviCategory =
   | 'FILLING - AKASH 1'
   | 'FILLING - AKASH 2'
   | 'FILLING - LEEPACK'
-  | 'MV01';
+  | 'MV01'
+  | 'Other';
 
 export interface EnviEquipmentGroup {
   id: string;
@@ -31,6 +32,8 @@ export interface EnviFormData {
   status: SampleStatus;
   endorsedTo?: string;
   remarks?: string;
+  qty?: string;
+  unit?: string;
 }
 
 // ===== WATER =====
