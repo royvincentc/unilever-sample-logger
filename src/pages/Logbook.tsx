@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { BookOpen, RefreshCw, AlertCircle, Search, ArrowUp, ArrowDown, ArrowUpDown, Eye, EyeOff } from 'lucide-react';
 import Header from '../components/Layout/Header';
 import CustomSelect from '../components/ui/CustomSelect';
+import MultiSelect from '../components/ui/MultiSelect';
 import { fetchLiveSheetData } from '../utils/api';
 import { useTheme } from '../hooks/useTheme';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
@@ -101,7 +102,7 @@ export default function Logbook() {
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   
   // Restored filters
-  const [selectedAnalyst, setSelectedAnalyst] = useState<string>('All');
+  const [selectedAnalysts, setSelectedAnalysts] = useState<string[]>(['All']);
   const [sortBy, setSortBy] = useState<'type' | 'datetime' | 'analyst' | 'custom'>('type');
   
   const [allHeaders, setAllHeaders] = useState<string[]>([]);
@@ -248,8 +249,8 @@ export default function Logbook() {
   const processedData = useMemo(() => {
     let result = data;
     
-    if (selectedAnalyst !== 'All') {
-      result = result.filter(row => getRowAnalyst(row) === selectedAnalyst);
+    if (selectedAnalysts.length > 0 && !selectedAnalysts.includes('All')) {
+      result = result.filter(row => selectedAnalysts.includes(getRowAnalyst(row)));
     }
     
     if (searchQuery.trim()) {
@@ -317,7 +318,7 @@ export default function Logbook() {
         return compareControlNumbers(fallbackCtrlA, fallbackCtrlB);
       }
     });
-  }, [data, searchQuery, sortColumn, sortDirection, sortBy, selectedAnalyst]);
+  }, [data, searchQuery, sortColumn, sortDirection, sortBy, selectedAnalysts]);
 
   return (
     <div className="min-h-screen bg-transparent flex flex-col">
@@ -349,9 +350,9 @@ export default function Logbook() {
                ]}
                className="w-full md:w-52 z-40"
             />
-            <CustomSelect 
-               value={selectedAnalyst} 
-               onChange={setSelectedAnalyst}
+            <MultiSelect 
+               values={selectedAnalysts} 
+               onChange={setSelectedAnalysts}
                options={analysts.map(a => ({ value: a, label: a }))}
                className="w-full md:w-48 z-40"
             />
