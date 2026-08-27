@@ -118,7 +118,7 @@ const FIELD_KEYWORDS: Record<string, string[]> = {
   // ENVI specific
   'sample':                ['sample', 'sample name', 'material', 'product'],
   'category':              ['category'],
-  'dateSampled':           ['date received/sampled', 'date received', 'received date', 'date swabbed', 'date sampled', 'swab date', 'date performed'],
+  'dateSampled':           ['date received/sampled', 'date received', 'received date', 'date swabbed', 'date sampled', 'swab date', 'date performed', 'date'],
   'timeSampled':           ['time swabbed', 'time sampled', 'swab time', 'time', 'time performed'],
   'swabbedBy':             ['swabbed by', 'swab by'],
 

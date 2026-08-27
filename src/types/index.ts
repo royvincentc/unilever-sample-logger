@@ -49,6 +49,8 @@ export interface WaterFormData {
   status: SampleStatus;
   endorsedTo?: string;
   remarks?: string;
+  qty?: string;
+  unit?: string;
 }
 
 // ===== RAWMATS =====

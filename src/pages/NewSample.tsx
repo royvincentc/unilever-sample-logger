@@ -196,7 +196,8 @@ export default function NewSample({ onQueueUpdate }: NewSampleProps) {
   };
 
   const handleWaterSubmit = async (data: WaterFormData) => {
-    await submitSample('WATER', data, data.waterSource);
+    const rowData = { ...data, qty: '1', unit: '120 mL' };
+    await submitSample('WATER', rowData as WaterFormData, data.waterSource);
   };
 
   const handleRawMatsSubmit = async (data: RawMatsFormData) => {
