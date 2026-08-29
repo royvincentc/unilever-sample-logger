@@ -12,7 +12,7 @@ import {
   Filter,
   Send
 } from 'lucide-react';
-import CustomSelect from '../components/ui/CustomSelect';
+import MultiSelect from '../components/ui/MultiSelect';
 import Header from '../components/Layout/Header';
 import { useToast } from '../components/ui/Toast';
 import { useTheme } from '../hooks/useTheme';
@@ -51,7 +51,7 @@ export default function Incubation() {
   const [tasks, setTasks] = useState<IncubationTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<FilterTab>('All');
-  const [analystFilter, setAnalystFilter] = useState<string>('All');
+  const [selectedAnalysts, setSelectedAnalysts] = useState<string[]>(['All']);
   const navigate = useNavigate();
   const { showToast } = useToast();
 
@@ -180,7 +180,9 @@ export default function Incubation() {
   
   const uniqueAnalysts = Array.from(new Set(dueTodayBase.map(t => t.analyzedBy))).sort();
   
-  const dueTodayFiltered = dueTodayBase.filter(t => analystFilter === 'All' || t.analyzedBy === analystFilter);
+  const dueTodayFiltered = dueTodayBase.filter(t => 
+    selectedAnalysts.length === 0 || selectedAnalysts.includes('All') || selectedAnalysts.includes(t.analyzedBy)
+  );
   
   const priority1 = dueTodayFiltered.filter(t => t.category === 'Priority 1');
   const priority2 = dueTodayFiltered.filter(t => t.category === 'Priority 2');
@@ -349,9 +351,9 @@ export default function Incubation() {
         <div className="flex flex-col gap-5">
           <div className="flex items-center gap-3">
             <span className="text-sm font-semibold text-[var(--text-muted)]">Filter Analyst (Today):</span>
-            <CustomSelect
-              value={analystFilter}
-              onChange={setAnalystFilter}
+            <MultiSelect
+              values={selectedAnalysts}
+              onChange={setSelectedAnalysts}
               options={[
                 { value: 'All', label: 'All Analysts' },
                 ...uniqueAnalysts.map(a => ({ value: a, label: a }))
