@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { RefreshCw, Key, Shield, AlertCircle, X, Check, Save, Search } from 'lucide-react';
 import Header from '../components/Layout/Header';
+import Pagination from '../components/ui/Pagination';
 import { useTheme } from '../hooks/useTheme';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 
@@ -24,7 +25,11 @@ export default function LiveSheetView() {
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(100);
+  
   const [passwordPromptVisible, setPasswordPromptVisible] = useState(false);
+  // ... (rest of the state remains)
   const [passwordInput, setPasswordInput] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [lastAuthTime, setLastAuthTime] = useState<number>(() => {
@@ -32,7 +37,6 @@ export default function LiveSheetView() {
     return saved ? parseInt(saved, 10) : 0;
   });
   
-  // cell editing state: id of row, field can be root key ('control_number') or sheet_data key ('QTY')
   const [editingCell, setEditingCell] = useState<{ id: string, field: string, isSheetData: boolean } | null>(null);
   const [editValue, setEditValue] = useState<string>('');
   const [savingId, setSavingId] = useState<string | null>(null);
@@ -48,7 +52,8 @@ export default function LiveSheetView() {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(`/api/supabase-samples?sheet_tab=${encodeURIComponent(tabId)}&limit=200`);
+      // Changed limit to 1000 so we can actually paginate through more records
+      const response = await fetch(`/api/supabase-samples?sheet_tab=${encodeURIComponent(tabId)}&limit=1000`);
       if (!response.ok) throw new Error(await response.text());
       const rows = await response.json();
       setData(rows || []);
@@ -62,6 +67,11 @@ export default function LiveSheetView() {
   useEffect(() => {
     loadData(activeTab);
   }, [activeTab, loadData]);
+
+  // Reset page when tab or search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab, searchQuery]);
 
   // Cleanup auth on interval
   useEffect(() => {
@@ -158,6 +168,11 @@ export default function LiveSheetView() {
     });
   }, [data, searchQuery]);
 
+  const paginatedData = useMemo(() => {
+    const start = (currentPage - 1) * rowsPerPage;
+    return filteredData.slice(start, start + rowsPerPage);
+  }, [filteredData, currentPage, rowsPerPage]);
+
   // Extract dynamic columns from sheet_data across all filtered rows
   const dynamicColumns = useMemo(() => {
     const keys = new Set<string>();
@@ -231,8 +246,8 @@ export default function LiveSheetView() {
         )}
 
         {/* Spreadsheet Data Grid */}
-        <div className="flex-1 glass rounded-2xl border border-[var(--border-subtle)] overflow-hidden flex flex-col relative">
-          <div className="overflow-auto flex-1 relative custom-scrollbar">
+        <div className="flex-1 glass rounded-2xl border border-[var(--border-subtle)] overflow-hidden flex flex-col relative min-h-0">
+          <div className="flex-1 overflow-auto relative custom-scrollbar">
             <table className="w-full text-left border-collapse text-xs whitespace-nowrap">
               <thead className="sticky top-0 z-10 bg-[var(--bg-card)] shadow-sm after:content-[''] after:absolute after:bottom-0 after:left-0 after:right-0 after:border-b after:border-[var(--border-subtle)]">
                 <tr>
@@ -263,14 +278,14 @@ export default function LiveSheetView() {
                       <p className="font-medium">Loading records...</p>
                     </td>
                   </tr>
-                ) : filteredData.length === 0 ? (
+                ) : paginatedData.length === 0 ? (
                   <tr>
                     <td colSpan={dynamicColumns.length + 4} className="px-4 py-12 text-center">
                       <p className="font-medium text-[var(--text-secondary)]">No records found for this tab.</p>
                     </td>
                   </tr>
                 ) : (
-                  filteredData.map((row) => (
+                  paginatedData.map((row) => (
                     <tr key={row.id} className="hover:bg-[var(--bg-hover)] transition-colors group">
                       
                       {/* Base Columns */}
@@ -350,10 +365,13 @@ export default function LiveSheetView() {
             </table>
           </div>
           
-          <div className="h-10 border-t border-[var(--border-subtle)] bg-[var(--bg-card)] flex items-center px-4 justify-between shrink-0 text-xs text-[var(--text-secondary)] font-medium">
-            <span>{filteredData.length} records in view</span>
-            {savingId && <span className="flex items-center gap-2 text-primary-500"><RefreshCw className="w-3.5 h-3.5 animate-spin" /> Saving changes...</span>}
-          </div>
+          <Pagination
+            currentPage={currentPage}
+            totalRows={filteredData.length}
+            rowsPerPage={rowsPerPage}
+            onPageChange={setCurrentPage}
+            onRowsPerPageChange={(val) => { setRowsPerPage(val); setCurrentPage(1); }}
+          />
         </div>
       </div>
 
