@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   FileSpreadsheet, RefreshCw, AlertCircle, Search, Edit2, X, Save, FileText,
-  ArrowUpDown, ArrowUp, ArrowDown, Eye
+  ArrowUpDown, ArrowUp, ArrowDown, Eye, GripVertical
 } from 'lucide-react';
 import Header from '../components/Layout/Header';
 import { fetchLiveSheetData, fetchSheetSchema } from '../utils/api';
@@ -464,14 +464,24 @@ export default function Results() {
                         onClick={() => {
                           setHiddenColumns(new Set());
                           localStorage.removeItem(`reports_hiddenColumns_${selectedTab}`);
+                          setColumnOrder([...headers]);
+                          localStorage.removeItem(`reports_columnOrder_${selectedTab}`);
                         }}
                         className="text-[10px] text-primary-500 hover:underline"
                       >
                         Reset
                       </button>
                     </div>
-                    {headers.map(header => (
-                      <label key={header} className="flex items-center gap-2 px-2 py-1.5 hover:bg-[var(--bg-hover)] rounded-lg cursor-pointer">
+                    {columnOrder.map(header => (
+                      <label 
+                        key={header} 
+                        draggable
+                        onDragStart={(e) => handleDragStart(e, header)}
+                        onDragOver={handleDragOver}
+                        onDrop={(e) => handleDrop(e, header)}
+                        className="flex items-center gap-2 px-2 py-1.5 hover:bg-[var(--bg-hover)] rounded-lg cursor-pointer"
+                      >
+                        <GripVertical className="w-3 h-3 text-[var(--text-muted)] cursor-grab opacity-50 hover:opacity-100" />
                         <input 
                           type="checkbox" 
                           checked={!hiddenColumns.has(header)}

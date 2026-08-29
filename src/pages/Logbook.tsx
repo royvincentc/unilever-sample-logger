@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { BookOpen, RefreshCw, AlertCircle, Search, ArrowUp, ArrowDown, ArrowUpDown, Eye, EyeOff } from 'lucide-react';
+import { BookOpen, RefreshCw, AlertCircle, Search, ArrowUp, ArrowDown, ArrowUpDown, Eye, EyeOff, GripVertical } from 'lucide-react';
 import Header from '../components/Layout/Header';
 import CustomSelect from '../components/ui/CustomSelect';
 import MultiSelect from '../components/ui/MultiSelect';
@@ -416,14 +416,27 @@ export default function Logbook() {
                     <div className="flex items-center justify-between px-2 pb-2 mb-2 border-b border-[var(--border-subtle)]">
                       <span className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">Visible Columns</span>
                       <button 
-                        onClick={() => setHiddenColumns(new Set())}
+                        onClick={() => {
+                          setHiddenColumns(new Set());
+                          localStorage.removeItem('logbook_hiddenColumns');
+                          setColumnOrder([...allHeaders]);
+                          localStorage.removeItem('logbook_columnOrder');
+                        }}
                         className="text-[10px] text-primary-500 hover:underline"
                       >
                         Reset
                       </button>
                     </div>
-                    {allHeaders.map(header => (
-                      <label key={header} className="flex items-center gap-2 px-2 py-1.5 hover:bg-[var(--bg-hover)] rounded-lg cursor-pointer">
+                    {columnOrder.map(header => (
+                      <label 
+                        key={header} 
+                        draggable
+                        onDragStart={(e) => handleDragStart(e, header)}
+                        onDragOver={handleDragOver}
+                        onDrop={(e) => handleDrop(e, header)}
+                        className="flex items-center gap-2 px-2 py-1.5 hover:bg-[var(--bg-hover)] rounded-lg cursor-pointer"
+                      >
+                        <GripVertical className="w-3 h-3 text-[var(--text-muted)] cursor-grab opacity-50 hover:opacity-100" />
                         <input 
                           type="checkbox" 
                           checked={!hiddenColumns.has(header)}
