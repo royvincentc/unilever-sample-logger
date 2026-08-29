@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { RefreshCw, Key, Shield, AlertCircle, X, Check, Save, Search } from 'lucide-react';
+import { RefreshCw, Key, Shield, AlertCircle, X, Check, Save, Search, ArrowDown, ArrowUp, ArrowRightToLine } from 'lucide-react';
 import Header from '../components/Layout/Header';
 import Pagination from '../components/ui/Pagination';
 import { useTheme } from '../hooks/useTheme';
@@ -28,6 +28,9 @@ export default function LiveSheetView() {
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   
+  // Sorting: Default to descending order on _rowIndex (latest samples first)
+  const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' }>({ key: '_rowIndex', direction: 'desc' });
+  
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(100);
   
@@ -43,6 +46,11 @@ export default function LiveSheetView() {
   const [editValue, setEditValue] = useState<string>('');
   const [savingId, setSavingId] = useState<string | null>(null);
   
+  // Frozen columns configuration
+  const theadRef = useRef<HTMLTableSectionElement>(null);
+  const [colWidths, setColWidths] = useState<Record<string, number>>({});
+  const [manualFreezeIndex, setManualFreezeIndex] = useState<number | null>(null); // null means use default behavior
+
   const isOnline = useOnlineStatus();
 
   const loadData = useCallback(async (tabId: string) => {
@@ -59,7 +67,6 @@ export default function LiveSheetView() {
         throw new Error('Google Spreadsheet ID is not configured in Settings.');
       }
       
-      // Fetch data and exact schema order in parallel
       const [response, schemaHeaders] = await Promise.all([
         fetch(`/api/sheet-data?sheetId=${settings.spreadsheetId}&tab=${encodeURIComponent(tabId)}`),
         fetchSheetSchema(tabId)
@@ -81,12 +88,33 @@ export default function LiveSheetView() {
     loadData(activeTab);
   }, [activeTab, loadData]);
 
+  // Measure column widths for sticky positioning
+  useEffect(() => {
+    if (theadRef.current && headers.length > 0 && data.length > 0) {
+      // Need a tiny timeout to allow the browser to paint and calculate widths
+      const timer = setTimeout(() => {
+        if (!theadRef.current) return;
+        const ths = Array.from(theadRef.current.querySelectorAll('th'));
+        const newWidths: Record<string, number> = {};
+        
+        if (ths.length > 0) {
+          newWidths['__row'] = (ths[0] as HTMLElement).offsetWidth;
+          headers.forEach((col, i) => {
+            const th = ths[i + 1]; // +1 because index 0 is Row
+            if (th) newWidths[col] = (th as HTMLElement).offsetWidth;
+          });
+          setColWidths(newWidths);
+        }
+      }, 50);
+      return () => clearTimeout(timer);
+    }
+  }, [headers, data, currentPage, sortConfig]);
+
   // Reset page when tab or search changes
   useEffect(() => {
     setCurrentPage(1);
   }, [activeTab, searchQuery]);
 
-  // Cleanup auth on interval
   useEffect(() => {
     const interval = setInterval(() => {
       if (lastAuthTime > 0 && Date.now() - lastAuthTime > PASSWORD_VALIDITY_MS) {
@@ -122,7 +150,6 @@ export default function LiveSheetView() {
   const saveCellEdit = async () => {
     if (!editingCell) return;
     
-    // Check auth again
     if (Date.now() - lastAuthTime > PASSWORD_VALIDITY_MS) {
       setEditingCell(null);
       setPasswordPromptVisible(true);
@@ -136,22 +163,18 @@ export default function LiveSheetView() {
       const rowToEdit = data.find(r => String(r._rowIndex) === String(id));
       if (!rowToEdit) throw new Error('Row not found');
 
-      // Find the control number column dynamically
       const controlCol = Object.keys(rowToEdit).find(k => k.toUpperCase().includes('CONTROL'));
       const controlNumber = controlCol ? rowToEdit[controlCol] : '';
 
       const updatePayload = {
-        _rowIndex: id, // api/submit uses _rowIndex to precisely target the Google Sheet row
+        _rowIndex: id,
         [field]: editValue
       };
 
       const result = await updateSheetRow(activeTab, controlNumber, updatePayload);
       
-      if (!result.success) {
-        throw new Error(result.error);
-      }
+      if (!result.success) throw new Error(result.error);
       
-      // Update local state
       setData(prev => prev.map(row => String(row._rowIndex) === String(id) ? { ...row, [field]: editValue } : row));
       setEditingCell(null);
     } catch (err: any) {
@@ -161,10 +184,21 @@ export default function LiveSheetView() {
     }
   };
 
+  const handleSort = (key: string) => {
+    let direction: 'asc' | 'desc' = 'asc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    } else if (sortConfig.key === key && sortConfig.direction === 'desc') {
+      // Third click: remove sorting, revert to default _rowIndex desc
+      setSortConfig({ key: '_rowIndex', direction: 'desc' });
+      return;
+    }
+    setSortConfig({ key, direction });
+  };
+
   const filteredData = useMemo(() => {
     return data.filter(row => {
       const query = searchQuery.toLowerCase();
-      // search across all values in the row
       const rowValues = Object.values(row)
         .filter(v => typeof v === 'string' || typeof v === 'number')
         .join(' ')
@@ -173,13 +207,59 @@ export default function LiveSheetView() {
     });
   }, [data, searchQuery]);
 
+  const sortedData = useMemo(() => {
+    let sortableItems = [...filteredData];
+    if (sortConfig.key) {
+      sortableItems.sort((a, b) => {
+        let aVal = a[sortConfig.key];
+        let bVal = b[sortConfig.key];
+        
+        if (typeof aVal === 'string') aVal = aVal.toLowerCase();
+        if (typeof bVal === 'string') bVal = bVal.toLowerCase();
+        
+        if (!isNaN(Number(aVal)) && !isNaN(Number(bVal)) && aVal !== '' && bVal !== '') {
+          aVal = Number(aVal);
+          bVal = Number(bVal);
+        }
+
+        if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
+        if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+        return 0;
+      });
+    }
+    return sortableItems;
+  }, [filteredData, sortConfig]);
+
   const paginatedData = useMemo(() => {
     const start = (currentPage - 1) * rowsPerPage;
-    return filteredData.slice(start, start + rowsPerPage);
-  }, [filteredData, currentPage, rowsPerPage]);
+    return sortedData.slice(start, start + rowsPerPage);
+  }, [sortedData, currentPage, rowsPerPage]);
 
-  // Use the exact ordered headers fetched from Google Sheets schema
   const dynamicColumns = useMemo(() => headers, [headers]);
+
+  // Determine if a column should be frozen based on default criteria or manual override
+  const getIsFrozen = useCallback((colName: string, index: number) => {
+    if (manualFreezeIndex !== null) return index <= manualFreezeIndex;
+    const upper = colName.toUpperCase();
+    return upper.includes('CONTROL') || upper.includes('BATCH') || upper.includes('SAMPLE');
+  }, [manualFreezeIndex]);
+
+  // Calculate the left offsets for sticky positioning
+  const frozenLeftOffsets = useMemo(() => {
+    const offsets: Record<string, number> = {};
+    let currentLeft = 0;
+    
+    offsets['__row'] = currentLeft;
+    currentLeft += colWidths['__row'] || 0; // if 0, it means not measured yet
+
+    headers.forEach((col, index) => {
+      if (getIsFrozen(col, index)) {
+        offsets[col] = currentLeft;
+        currentLeft += colWidths[col] || 0;
+      }
+    });
+    return offsets;
+  }, [headers, colWidths, getIsFrozen]);
 
   return (
     <div className="min-h-screen bg-transparent flex flex-col">
@@ -206,6 +286,27 @@ export default function LiveSheetView() {
           </div>
 
           <div className="flex items-center gap-3">
+            
+            {/* Freeze columns slider/adjuster */}
+            <div className="hidden lg:flex items-center gap-2 px-3 py-2 bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded-xl text-[var(--text-primary)]" title="Adjust frozen columns">
+              <ArrowRightToLine className="w-4 h-4 text-[var(--text-muted)]" />
+              <input
+                type="range"
+                min="0"
+                max={dynamicColumns.length}
+                value={manualFreezeIndex !== null ? manualFreezeIndex + 1 : -1}
+                onChange={e => {
+                  const val = parseInt(e.target.value, 10);
+                  if (val === -1) setManualFreezeIndex(null); // Return to default
+                  else setManualFreezeIndex(val - 1);
+                }}
+                className="w-24 accent-primary-500"
+              />
+              <span className="text-[10px] font-bold text-[var(--text-muted)] whitespace-nowrap w-4 text-center">
+                {manualFreezeIndex !== null ? manualFreezeIndex + 1 : 'Auto'}
+              </span>
+            </div>
+
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)]" />
               <input
@@ -213,7 +314,7 @@ export default function LiveSheetView() {
                 placeholder="Search any field..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full lg:w-64 bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded-xl py-2 pl-9 pr-4 text-xs text-[var(--text-primary)] focus:outline-none focus:border-primary-500 transition-colors"
+                className="w-full lg:w-48 bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded-xl py-2 pl-9 pr-4 text-xs text-[var(--text-primary)] focus:outline-none focus:border-primary-500 transition-colors"
               />
             </div>
             <button 
@@ -243,19 +344,42 @@ export default function LiveSheetView() {
         <div className="flex-1 glass rounded-2xl border border-[var(--border-subtle)] overflow-hidden flex flex-col relative min-h-0">
           <div className="flex-1 overflow-auto relative custom-scrollbar">
             <table className="w-full text-left border-collapse text-xs whitespace-nowrap">
-              <thead className="sticky top-0 z-10 bg-[var(--bg-card)] shadow-sm after:content-[''] after:absolute after:bottom-0 after:left-0 after:right-0 after:border-b after:border-[var(--border-subtle)]">
+              <thead ref={theadRef} className="sticky top-0 z-30 shadow-sm after:content-[''] after:absolute after:bottom-0 after:left-0 after:right-0 after:border-b after:border-[var(--border-subtle)]">
                 <tr>
-                  <th className="px-3 py-2 font-bold text-[var(--text-muted)] uppercase tracking-wider bg-[var(--bg-card)] border-r border-[var(--border-subtle)]">
-                    Row
+                  <th 
+                    className="px-3 py-2 font-bold text-[var(--text-muted)] uppercase tracking-wider bg-[var(--bg-card)] border-r border-[var(--border-subtle)] cursor-pointer hover:bg-[var(--bg-hover)] transition-colors select-none"
+                    style={{ position: 'sticky', left: frozenLeftOffsets['__row'], zIndex: 30 }}
+                    onClick={() => handleSort('_rowIndex')}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span>Row</span>
+                      {sortConfig.key === '_rowIndex' && (
+                        sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
+                      )}
+                    </div>
                   </th>
-                  {dynamicColumns.map(col => (
-                    <th key={col} className="px-4 py-3 font-bold text-[var(--text-secondary)] uppercase tracking-wider bg-[var(--bg-card)] border-r border-[var(--border-subtle)] max-w-[200px] truncate" title={col}>
-                      {col}
-                    </th>
-                  ))}
+                  {dynamicColumns.map((col, index) => {
+                    const frozen = getIsFrozen(col, index);
+                    return (
+                      <th 
+                        key={col} 
+                        className="px-4 py-3 font-bold text-[var(--text-secondary)] uppercase tracking-wider bg-[var(--bg-card)] border-r border-[var(--border-subtle)] max-w-[200px] cursor-pointer hover:bg-[var(--bg-hover)] transition-colors select-none" 
+                        title={col}
+                        style={frozen ? { position: 'sticky', left: frozenLeftOffsets[col], zIndex: 30 } : {}}
+                        onClick={() => handleSort(col)}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="truncate">{col}</span>
+                          {sortConfig.key === col && (
+                            sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3 shrink-0" /> : <ArrowDown className="w-3 h-3 shrink-0" />
+                          )}
+                        </div>
+                      </th>
+                    );
+                  })}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[var(--border-subtle)] text-[var(--text-primary)] bg-[var(--bg-app)]">
+              <tbody className="divide-y divide-[var(--border-subtle)] text-[var(--text-primary)] bg-[var(--bg-app)] relative z-0">
                 {loading && data.length === 0 ? (
                   <tr>
                     <td colSpan={dynamicColumns.length + 1} className="px-4 py-12 text-center text-[var(--text-muted)]">
@@ -273,18 +397,24 @@ export default function LiveSheetView() {
                   paginatedData.map((row) => (
                     <tr key={row._rowIndex} className="hover:bg-[var(--bg-hover)] transition-colors group">
                       
-                      <td className="px-3 py-2 border-r border-[var(--border-subtle)] text-[var(--text-muted)] font-mono text-[10px] bg-[var(--bg-card)]/50">
+                      <td 
+                        className="px-3 py-2 border-r border-[var(--border-subtle)] text-[var(--text-muted)] font-mono text-[10px] bg-[var(--bg-card)]/95 backdrop-blur-sm"
+                        style={{ position: 'sticky', left: frozenLeftOffsets['__row'], zIndex: 10 }}
+                      >
                         {row._rowIndex}
                       </td>
 
                       {/* Dynamic Columns */}
-                      {dynamicColumns.map(col => {
+                      {dynamicColumns.map((col, index) => {
                         const cellValue = row[col] || '';
                         const isEditingThis = editingCell?.id === String(row._rowIndex) && editingCell?.field === col;
+                        const frozen = getIsFrozen(col, index);
+                        
                         return (
                           <td 
                             key={col}
-                            className={`px-4 py-2 border-r border-[var(--border-subtle)] cursor-cell relative max-w-[250px] ${isEditingThis ? 'p-0' : ''}`}
+                            className={`px-4 py-2 border-r border-[var(--border-subtle)] cursor-cell relative max-w-[250px] ${isEditingThis ? 'p-0' : ''} ${frozen ? 'bg-[var(--bg-card)]/95 backdrop-blur-sm' : ''}`}
+                            style={frozen ? { position: 'sticky', left: frozenLeftOffsets[col], zIndex: 10 } : {}}
                             onDoubleClick={() => handleCellDoubleClick(String(row._rowIndex), col, cellValue)}
                           >
                             {isEditingThis ? (
