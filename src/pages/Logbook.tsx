@@ -106,7 +106,20 @@ export default function Logbook() {
   const [sortBy, setSortBy] = useState<'type' | 'datetime' | 'analyst' | 'custom'>('type');
   
   const [allHeaders, setAllHeaders] = useState<string[]>([]);
-  const [hiddenColumns, setHiddenColumns] = useState<Set<string>>(new Set());
+  const [hiddenColumns, setHiddenColumns] = useState<Set<string>>(() => {
+    const saved = localStorage.getItem('logbook_hiddenColumns');
+    if (saved) {
+      try {
+        return new Set(JSON.parse(saved));
+      } catch (e) {}
+    }
+    return new Set();
+  });
+
+  useEffect(() => {
+    localStorage.setItem('logbook_hiddenColumns', JSON.stringify(Array.from(hiddenColumns)));
+  }, [hiddenColumns]);
+
   const [showColumnDropdown, setShowColumnDropdown] = useState(false);
   const colDropdownRef = useRef<HTMLDivElement>(null);
 
@@ -165,10 +178,24 @@ export default function Logbook() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const [columnOrder, setColumnOrder] = useState<string[]>([]);
+  const [columnOrder, setColumnOrder] = useState<string[]>(() => {
+    const saved = localStorage.getItem('logbook_columnOrder');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {}
+    }
+    return [];
+  });
+
+  useEffect(() => {
+    localStorage.setItem('logbook_columnOrder', JSON.stringify(columnOrder));
+  }, [columnOrder]);
+
   const [draggedColumn, setDraggedColumn] = useState<string | null>(null);
 
   useEffect(() => {
+    if (allHeaders.length === 0) return;
     setColumnOrder(prevOrder => {
       const newOrder = [...prevOrder];
       allHeaders.forEach(h => {

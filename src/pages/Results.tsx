@@ -133,26 +133,49 @@ export default function Results() {
     }
   }, [searchParams]);
 
-  // Reset sorting state when switching tabs to ensure Control # ascending default
-  useEffect(() => {
-    setSortColumn(null);
-    setSortDirection('asc');
-    setHiddenColumns(new Set());
-    setColumnOrder([]); // reset order on tab switch
-  }, [selectedTab]);
-
   const [columnOrder, setColumnOrder] = useState<string[]>([]);
   const [draggedColumn, setDraggedColumn] = useState<string | null>(null);
 
+  // Reset sorting state and load persisted columns when switching tabs
   useEffect(() => {
+    setSortColumn(null);
+    setSortDirection('asc');
+    
+    const savedHidden = localStorage.getItem(`reports_hiddenColumns_${selectedTab}`);
+    if (savedHidden) {
+      try {
+        setHiddenColumns(new Set(JSON.parse(savedHidden)));
+      } catch (e) {
+        setHiddenColumns(new Set());
+      }
+    } else {
+      setHiddenColumns(new Set());
+    }
+
+    const savedOrder = localStorage.getItem(`reports_columnOrder_${selectedTab}`);
+    if (savedOrder) {
+      try {
+        setColumnOrder(JSON.parse(savedOrder));
+      } catch (e) {
+        setColumnOrder([]);
+      }
+    } else {
+      setColumnOrder([]);
+    }
+  }, [selectedTab]);
+
+  useEffect(() => {
+    if (headers.length === 0) return;
     setColumnOrder(prevOrder => {
       const newOrder = [...prevOrder];
       headers.forEach(h => {
         if (!newOrder.includes(h)) newOrder.push(h);
       });
-      return newOrder.filter(h => headers.includes(h));
+      const filtered = newOrder.filter(h => headers.includes(h));
+      localStorage.setItem(`reports_columnOrder_${selectedTab}`, JSON.stringify(filtered));
+      return filtered;
     });
-  }, [headers]);
+  }, [headers, selectedTab]);
 
   const handleDragStart = (e: React.DragEvent, col: string) => {
     setDraggedColumn(col);
@@ -176,6 +199,7 @@ export default function Results() {
         newOrder.splice(fromIndex, 1);
         newOrder.splice(toIndex, 0, draggedColumn);
       }
+      localStorage.setItem(`reports_columnOrder_${selectedTab}`, JSON.stringify(newOrder));
       return newOrder;
     });
     setDraggedColumn(null);
@@ -301,6 +325,7 @@ export default function Results() {
       const next = new Set(prev);
       if (next.has(header)) next.delete(header);
       else next.add(header);
+      localStorage.setItem(`reports_hiddenColumns_${selectedTab}`, JSON.stringify(Array.from(next)));
       return next;
     });
   };
@@ -436,7 +461,10 @@ export default function Results() {
                     <div className="flex items-center justify-between px-2 pb-2 mb-2 border-b border-[var(--border-subtle)]">
                       <span className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">Visible Columns</span>
                       <button 
-                        onClick={() => setHiddenColumns(new Set())}
+                        onClick={() => {
+                          setHiddenColumns(new Set());
+                          localStorage.removeItem(`reports_hiddenColumns_${selectedTab}`);
+                        }}
                         className="text-[10px] text-primary-500 hover:underline"
                       >
                         Reset
