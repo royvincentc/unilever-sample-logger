@@ -5,6 +5,7 @@ import Header from '../components/Layout/Header';
 import CustomSelect from '../components/ui/CustomSelect';
 import MultiSelect from '../components/ui/MultiSelect';
 import { fetchLiveSheetData } from '../utils/api';
+import Pagination from '../components/ui/Pagination';
 import { useTheme } from '../hooks/useTheme';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { listenToLogbookSettings, saveLogbookSettings } from '../utils/db';
@@ -102,6 +103,8 @@ export default function Logbook() {
   const [searchQuery, setSearchQuery] = useState('');
   const [sortColumn, setSortColumn] = useState<string | null>(null); // For table header clicks
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(100);
   
   // Restored filters
   const [selectedAnalysts, setSelectedAnalysts] = useState<string[]>(['All']);
@@ -387,6 +390,16 @@ export default function Logbook() {
     });
   }, [data, searchQuery, sortColumn, sortDirection, sortBy, selectedAnalysts]);
 
+  // Reset to page 1 when filters/sorting changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, sortBy, selectedAnalysts, sortColumn, sortDirection]);
+
+  const paginatedData = useMemo(() => {
+    const start = (currentPage - 1) * rowsPerPage;
+    return processedData.slice(start, start + rowsPerPage);
+  }, [processedData, currentPage, rowsPerPage]);
+
   return (
     <div className="min-h-screen bg-transparent flex flex-col">
       <Header theme={theme} onSetTheme={setTheme} title="Logbook" />
@@ -563,14 +576,14 @@ export default function Logbook() {
                   </tr>
                 </thead>
                 <tbody>
-                  {processedData.length === 0 ? (
+                  {paginatedData.length === 0 ? (
                     <tr>
                       <td colSpan={visibleHeaders.length} className="p-8 text-center text-sm text-[var(--text-muted)] bg-[var(--bg-surface)]">
                         No records found matching your criteria.
                       </td>
                     </tr>
                   ) : (
-                    processedData.map((row, rowIndex) => (
+                    paginatedData.map((row, rowIndex) => (
                       <tr key={rowIndex} className="hover:bg-[var(--bg-hover)] transition-colors group">
                         {visibleHeaders.map((h, colIndex) => (
                           <td key={colIndex} className={`px-3 py-1.5 text-xs text-[var(--text-primary)] border border-[var(--border-subtle)] whitespace-nowrap max-w-[300px] truncate ${h === '__sheetName' ? 'bg-primary-500/5 font-semibold text-primary-600' : 'bg-[var(--bg-card)]'}`}>
@@ -584,6 +597,13 @@ export default function Logbook() {
               </table>
             </div>
           )}
+          <Pagination
+            currentPage={currentPage}
+            totalRows={processedData.length}
+            rowsPerPage={rowsPerPage}
+            onPageChange={setCurrentPage}
+            onRowsPerPageChange={(val) => { setRowsPerPage(val); setCurrentPage(1); }}
+          />
         </div>
       </div>
     </div>

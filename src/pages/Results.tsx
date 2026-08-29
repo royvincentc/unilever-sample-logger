@@ -9,6 +9,7 @@ import { fetchLiveSheetData, fetchSheetSchema } from '../utils/api';
 import { updateSheetRow } from '../utils/api';
 import { getSheetTabName } from '../utils/sheetMapping';
 import { useTheme } from '../hooks/useTheme';
+import Pagination from '../components/ui/Pagination';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { useToast } from '../components/ui/Toast';
 import type { SampleType } from '../types';
@@ -104,7 +105,8 @@ export default function Results() {
   const [error, setError] = useState<string | null>(null);
   const [sortColumn, setSortColumn] = useState<string | null>(null); // null means default to Control #
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
-  
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(100);  
   const [hiddenColumns, setHiddenColumns] = useState<Set<string>>(new Set());
   const [showColumnDropdown, setShowColumnDropdown] = useState(false);
   const colDropdownRef = useRef<HTMLDivElement>(null);
@@ -382,6 +384,16 @@ export default function Results() {
     });
   }, [data, searchQuery, sortColumn, sortDirection, headers]);
 
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, selectedTab, sortColumn, sortDirection]);
+
+  const paginatedData = useMemo(() => {
+    const start = (currentPage - 1) * rowsPerPage;
+    return processedData.slice(start, start + rowsPerPage);
+  }, [processedData, currentPage, rowsPerPage]);
+
   return (
     <div className="min-h-screen bg-transparent flex flex-col">
       <Header theme={theme} onSetTheme={setTheme} title="Live Results Dashboard" />
@@ -570,7 +582,7 @@ export default function Results() {
                   </tr>
                 </thead>
                 <tbody>
-                  {processedData.map((row, rowIndex) => (
+                  {paginatedData.map((row, rowIndex) => (
                     <tr key={rowIndex} className="hover:bg-[var(--bg-hover)] transition-colors group">
                       <td className="px-3 py-1.5 border border-[var(--border-subtle)] bg-[var(--bg-surface)]">
                         <div className="flex items-center gap-2">
@@ -603,6 +615,13 @@ export default function Results() {
               </table>
             </div>
           )}
+          <Pagination
+            currentPage={currentPage}
+            totalRows={processedData.length}
+            rowsPerPage={rowsPerPage}
+            onPageChange={setCurrentPage}
+            onRowsPerPageChange={(val) => { setRowsPerPage(val); setCurrentPage(1); }}
+          />
         </div>
 
       </div>

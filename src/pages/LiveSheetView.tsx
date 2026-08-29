@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { FileSpreadsheet, RefreshCw, AlertCircle, Search, Calendar, User, Clock as ClockIcon, CheckCircle2 } from 'lucide-react';
 import Header from '../components/Layout/Header';
@@ -6,6 +6,7 @@ import { fetchLiveSheetData } from '../utils/api';
 import { getSheetTabName } from '../utils/sheetMapping';
 import { useTheme } from '../hooks/useTheme';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
+import Pagination from '../components/ui/Pagination';
 import SampleTypeSelector from '../components/forms/SampleTypeSelector';
 import type { SampleType } from '../types';
 
@@ -16,6 +17,8 @@ export default function LiveSheetView() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(100);
   const isOnline = useOnlineStatus();
 
   const loadData = useCallback(async (type: SampleType, forceRefresh = false) => {
@@ -83,13 +86,25 @@ export default function LiveSheetView() {
     return 'text-[var(--text-muted)] bg-[var(--bg-input)] border-[var(--border-subtle)]';
   };
 
-  const filteredData = data.map(normalizeRow).filter(row => {
-    const query = searchQuery.toLowerCase();
-    const ctrl = String(row.control || row.controlnumber || row['CONTROL #'] || '').toLowerCase();
-    const name = String(row.samplename || row.name || row.sampledetails || row.sample || row['SAMPLE NAME'] || '').toLowerCase();
-    const collector = String(row.whocollected || row.collectedby || row.swabbedby || row['WHO COLLECTED'] || '').toLowerCase();
-    return ctrl.includes(query) || name.includes(query) || collector.includes(query);
-  });
+  const filteredData = useMemo(() => {
+    return data.map(normalizeRow).filter(row => {
+      const query = searchQuery.toLowerCase();
+      const ctrl = String(row.control || row.controlnumber || row['CONTROL #'] || '').toLowerCase();
+      const name = String(row.samplename || row.name || row.sampledetails || row.sample || row['SAMPLE NAME'] || '').toLowerCase();
+      const collector = String(row.whocollected || row.collectedby || row.swabbedby || row['WHO COLLECTED'] || '').toLowerCase();
+      return ctrl.includes(query) || name.includes(query) || collector.includes(query);
+    });
+  }, [data, searchQuery]);
+
+  // Reset to page 1 when search/type changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, selectedType]);
+
+  const paginatedData = useMemo(() => {
+    const start = (currentPage - 1) * rowsPerPage;
+    return filteredData.slice(start, start + rowsPerPage);
+  }, [filteredData, currentPage, rowsPerPage]);
 
   return (
     <div className="min-h-screen bg-transparent">
@@ -174,12 +189,12 @@ export default function LiveSheetView() {
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {filteredData.map((row, index) => (
+                {paginatedData.map((row, index) => (
                   <motion.div
                     key={index}
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.05 }}
+                    transition={{ delay: Math.min(index * 0.02, 0.5) }}
                     className="glass rounded-2xl p-5 border border-[var(--border-subtle)] hover:border-primary-500/30 transition-all group relative overflow-hidden"
                   >
                     <div className="flex justify-between items-start mb-4 relative z-10">
@@ -246,6 +261,17 @@ export default function LiveSheetView() {
                   </motion.div>
                 ))}
               </div>
+            )}
+
+            {/* Pagination Footer */}
+            {data.length > 0 && (
+              <Pagination
+                currentPage={currentPage}
+                totalRows={filteredData.length}
+                rowsPerPage={rowsPerPage}
+                onPageChange={setCurrentPage}
+                onRowsPerPageChange={(val) => { setRowsPerPage(val); setCurrentPage(1); }}
+              />
             )}
           </motion.div>
         )}
