@@ -5,6 +5,8 @@ import Header from '../components/Layout/Header';
 import Pagination from '../components/ui/Pagination';
 import { useTheme } from '../hooks/useTheme';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
+import { getSettings } from '../utils/auth';
+import { updateSheetRow } from '../utils/api';
 
 // 5 minutes in milliseconds
 const PASSWORD_VALIDITY_MS = 5 * 60 * 1000;
@@ -29,7 +31,6 @@ export default function LiveSheetView() {
   const [rowsPerPage, setRowsPerPage] = useState(100);
   
   const [passwordPromptVisible, setPasswordPromptVisible] = useState(false);
-  // ... (rest of the state remains)
   const [passwordInput, setPasswordInput] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [lastAuthTime, setLastAuthTime] = useState<number>(() => {
@@ -37,7 +38,7 @@ export default function LiveSheetView() {
     return saved ? parseInt(saved, 10) : 0;
   });
   
-  const [editingCell, setEditingCell] = useState<{ id: string, field: string, isSheetData: boolean } | null>(null);
+  const [editingCell, setEditingCell] = useState<{ id: string, field: string } | null>(null);
   const [editValue, setEditValue] = useState<string>('');
   const [savingId, setSavingId] = useState<string | null>(null);
   
@@ -52,13 +53,17 @@ export default function LiveSheetView() {
     setLoading(true);
     setError(null);
     try {
-      // Changed limit to 1000 so we can actually paginate through more records
-      const response = await fetch(`/api/supabase-samples?sheet_tab=${encodeURIComponent(tabId)}&limit=1000`);
+      const settings = getSettings();
+      if (!settings.spreadsheetId) {
+        throw new Error('Google Spreadsheet ID is not configured in Settings.');
+      }
+      
+      const response = await fetch(`/api/sheet-data?sheetId=${settings.spreadsheetId}&tab=${encodeURIComponent(tabId)}`);
       if (!response.ok) throw new Error(await response.text());
       const rows = await response.json();
       setData(rows || []);
     } catch (err: any) {
-      setError(err.message || 'Failed to fetch data from Supabase.');
+      setError(err.message || 'Failed to fetch data from Google Sheets.');
     } finally {
       setLoading(false);
     }
@@ -84,10 +89,10 @@ export default function LiveSheetView() {
     return () => clearInterval(interval);
   }, [lastAuthTime]);
 
-  const handleCellDoubleClick = (id: string, field: string, isSheetData: boolean, currentValue: any) => {
+  const handleCellDoubleClick = (id: string, field: string, currentValue: any) => {
     if (Date.now() - lastAuthTime < PASSWORD_VALIDITY_MS) {
       setEditValue(String(currentValue || ''));
-      setEditingCell({ id, field, isSheetData });
+      setEditingCell({ id, field });
     } else {
       setPasswordPromptVisible(true);
       setPasswordError('');
@@ -116,37 +121,30 @@ export default function LiveSheetView() {
       return;
     }
 
-    const { id, field, isSheetData } = editingCell;
+    const { id, field } = editingCell;
     setSavingId(id);
     
     try {
-      const rowToEdit = data.find(r => r.id === id);
+      const rowToEdit = data.find(r => String(r._rowIndex) === String(id));
       if (!rowToEdit) throw new Error('Row not found');
 
-      let updatePayload: any = { id };
-      
-      if (isSheetData) {
-        // Update the nested sheet_data object
-        const currentSheetData = rowToEdit.sheet_data || {};
-        updatePayload.sheet_data = {
-          ...currentSheetData,
-          [field]: editValue
-        };
-      } else {
-        updatePayload[field] = editValue;
-      }
+      // Find the control number column dynamically
+      const controlCol = Object.keys(rowToEdit).find(k => k.toUpperCase().includes('CONTROL'));
+      const controlNumber = controlCol ? rowToEdit[controlCol] : '';
 
-      const response = await fetch('/api/supabase-samples', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updatePayload),
-      });
+      const updatePayload = {
+        _rowIndex: id, // api/submit uses _rowIndex to precisely target the Google Sheet row
+        [field]: editValue
+      };
+
+      const result = await updateSheetRow(activeTab, controlNumber, updatePayload);
       
-      if (!response.ok) throw new Error(await response.text());
-      const updatedRow = await response.json();
+      if (!result.success) {
+        throw new Error(result.error);
+      }
       
       // Update local state
-      setData(prev => prev.map(row => row.id === id ? { ...row, ...updatedRow } : row));
+      setData(prev => prev.map(row => String(row._rowIndex) === String(id) ? { ...row, [field]: editValue } : row));
       setEditingCell(null);
     } catch (err: any) {
       alert(`Error saving: ${err.message}`);
@@ -158,13 +156,12 @@ export default function LiveSheetView() {
   const filteredData = useMemo(() => {
     return data.filter(row => {
       const query = searchQuery.toLowerCase();
-      const ctrl = String(row.control_number || '').toLowerCase();
-      const name = String(row.sample_name || '').toLowerCase();
-      
-      // Also search within sheet_data values
-      const sheetDataValues = Object.values(row.sheet_data || {}).join(' ').toLowerCase();
-      
-      return ctrl.includes(query) || name.includes(query) || sheetDataValues.includes(query);
+      // search across all values in the row
+      const rowValues = Object.values(row)
+        .filter(v => typeof v === 'string' || typeof v === 'number')
+        .join(' ')
+        .toLowerCase();
+      return rowValues.includes(query);
     });
   }, [data, searchQuery]);
 
@@ -173,19 +170,18 @@ export default function LiveSheetView() {
     return filteredData.slice(start, start + rowsPerPage);
   }, [filteredData, currentPage, rowsPerPage]);
 
-  // Extract dynamic columns from sheet_data across all filtered rows
+  // Extract columns directly from Google Sheet data
   const dynamicColumns = useMemo(() => {
     const keys = new Set<string>();
-    filteredData.forEach(row => {
-      if (row.sheet_data) {
-        Object.keys(row.sheet_data).forEach(key => {
-          // ignore internal keys if any, though usually none in sheet_data directly
-          if (key !== '_rowIndex') keys.add(key);
-        });
-      }
+    data.forEach(row => {
+      Object.keys(row).forEach(key => {
+        if (key !== '_rowIndex' && key !== '__rawRow') {
+          keys.add(key);
+        }
+      });
     });
     return Array.from(keys);
-  }, [filteredData]);
+  }, [data]);
 
   return (
     <div className="min-h-screen bg-transparent flex flex-col">
@@ -251,97 +247,52 @@ export default function LiveSheetView() {
             <table className="w-full text-left border-collapse text-xs whitespace-nowrap">
               <thead className="sticky top-0 z-10 bg-[var(--bg-card)] shadow-sm after:content-[''] after:absolute after:bottom-0 after:left-0 after:right-0 after:border-b after:border-[var(--border-subtle)]">
                 <tr>
-                  <th className="px-4 py-3 font-bold text-[var(--text-secondary)] uppercase tracking-wider bg-[var(--bg-card)] border-r border-[var(--border-subtle)] min-w-[120px]">
-                    Control #
-                  </th>
-                  <th className="px-4 py-3 font-bold text-[var(--text-secondary)] uppercase tracking-wider bg-[var(--bg-card)] border-r border-[var(--border-subtle)] min-w-[150px]">
-                    Sample Name
-                  </th>
-                  <th className="px-4 py-3 font-bold text-[var(--text-secondary)] uppercase tracking-wider bg-[var(--bg-card)] border-r border-[var(--border-subtle)]">
-                    Type
+                  <th className="px-3 py-2 font-bold text-[var(--text-muted)] uppercase tracking-wider bg-[var(--bg-card)] border-r border-[var(--border-subtle)]">
+                    Row
                   </th>
                   {dynamicColumns.map(col => (
                     <th key={col} className="px-4 py-3 font-bold text-[var(--text-secondary)] uppercase tracking-wider bg-[var(--bg-card)] border-r border-[var(--border-subtle)] max-w-[200px] truncate" title={col}>
                       {col}
                     </th>
                   ))}
-                  <th className="px-4 py-3 font-bold text-[var(--text-muted)] uppercase tracking-wider bg-[var(--bg-card)]">
-                    System ID
-                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--border-subtle)] text-[var(--text-primary)] bg-[var(--bg-app)]">
                 {loading && data.length === 0 ? (
                   <tr>
-                    <td colSpan={dynamicColumns.length + 4} className="px-4 py-12 text-center text-[var(--text-muted)]">
+                    <td colSpan={dynamicColumns.length + 1} className="px-4 py-12 text-center text-[var(--text-muted)]">
                       <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-3 text-primary-500" />
-                      <p className="font-medium">Loading records...</p>
+                      <p className="font-medium">Loading Google Sheets data...</p>
                     </td>
                   </tr>
                 ) : paginatedData.length === 0 ? (
                   <tr>
-                    <td colSpan={dynamicColumns.length + 4} className="px-4 py-12 text-center">
-                      <p className="font-medium text-[var(--text-secondary)]">No records found for this tab.</p>
+                    <td colSpan={dynamicColumns.length + 1} className="px-4 py-12 text-center">
+                      <p className="font-medium text-[var(--text-secondary)]">No records found.</p>
                     </td>
                   </tr>
                 ) : (
                   paginatedData.map((row) => (
-                    <tr key={row.id} className="hover:bg-[var(--bg-hover)] transition-colors group">
+                    <tr key={row._rowIndex} className="hover:bg-[var(--bg-hover)] transition-colors group">
                       
-                      {/* Base Columns */}
-                      <td 
-                        className={`px-4 py-2 border-r border-[var(--border-subtle)] font-mono font-medium cursor-cell relative ${editingCell?.id === row.id && editingCell?.field === 'control_number' ? 'p-0' : ''}`}
-                        onDoubleClick={() => handleCellDoubleClick(row.id, 'control_number', false, row.control_number)}
-                      >
-                        {editingCell?.id === row.id && editingCell?.field === 'control_number' ? (
-                          <input 
-                            autoFocus
-                            className="w-full h-full min-h-[36px] bg-[var(--bg-input)] text-[var(--text-primary)] px-4 py-2 outline-none border-2 border-primary-500 font-mono text-xs"
-                            value={editValue}
-                            onChange={e => setEditValue(e.target.value)}
-                            onBlur={saveCellEdit}
-                            onKeyDown={e => { if (e.key === 'Enter') saveCellEdit(); else if (e.key === 'Escape') setEditingCell(null); }}
-                          />
-                        ) : row.control_number}
-                        {savingId === row.id && editingCell?.field === 'control_number' && <RefreshCw className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 animate-spin text-primary-500" />}
-                      </td>
-                      
-                      <td 
-                        className={`px-4 py-2 border-r border-[var(--border-subtle)] cursor-cell relative ${editingCell?.id === row.id && editingCell?.field === 'sample_name' ? 'p-0' : ''}`}
-                        onDoubleClick={() => handleCellDoubleClick(row.id, 'sample_name', false, row.sample_name)}
-                      >
-                        {editingCell?.id === row.id && editingCell?.field === 'sample_name' ? (
-                          <input 
-                            autoFocus
-                            className="w-full h-full min-h-[36px] bg-[var(--bg-input)] text-[var(--text-primary)] px-4 py-2 outline-none border-2 border-primary-500 text-xs"
-                            value={editValue}
-                            onChange={e => setEditValue(e.target.value)}
-                            onBlur={saveCellEdit}
-                            onKeyDown={e => { if (e.key === 'Enter') saveCellEdit(); else if (e.key === 'Escape') setEditingCell(null); }}
-                          />
-                        ) : (
-                          <span className="truncate block max-w-[200px]" title={row.sample_name}>{row.sample_name}</span>
-                        )}
+                      <td className="px-3 py-2 border-r border-[var(--border-subtle)] text-[var(--text-muted)] font-mono text-[10px] bg-[var(--bg-card)]/50">
+                        {row._rowIndex}
                       </td>
 
-                      <td className="px-4 py-2 border-r border-[var(--border-subtle)] text-[var(--text-secondary)]">
-                        {row.sample_type}
-                      </td>
-
-                      {/* Dynamic Columns from sheet_data */}
+                      {/* Dynamic Columns */}
                       {dynamicColumns.map(col => {
-                        const cellValue = row.sheet_data?.[col] || '';
-                        const isEditingThis = editingCell?.id === row.id && editingCell?.field === col && editingCell?.isSheetData;
+                        const cellValue = row[col] || '';
+                        const isEditingThis = editingCell?.id === String(row._rowIndex) && editingCell?.field === col;
                         return (
                           <td 
                             key={col}
-                            className={`px-4 py-2 border-r border-[var(--border-subtle)] cursor-cell relative max-w-[200px] ${isEditingThis ? 'p-0' : ''}`}
-                            onDoubleClick={() => handleCellDoubleClick(row.id, col, true, cellValue)}
+                            className={`px-4 py-2 border-r border-[var(--border-subtle)] cursor-cell relative max-w-[250px] ${isEditingThis ? 'p-0' : ''}`}
+                            onDoubleClick={() => handleCellDoubleClick(String(row._rowIndex), col, cellValue)}
                           >
                             {isEditingThis ? (
                               <input 
                                 autoFocus
-                                className="w-full h-full min-h-[36px] bg-[var(--bg-input)] text-[var(--text-primary)] px-4 py-2 outline-none border-2 border-primary-500 text-xs"
+                                className="w-full h-full min-h-[36px] bg-[var(--bg-input)] text-[var(--text-primary)] px-4 py-2 outline-none border-2 border-primary-500 text-xs font-mono"
                                 value={editValue}
                                 onChange={e => setEditValue(e.target.value)}
                                 onBlur={saveCellEdit}
@@ -350,14 +301,10 @@ export default function LiveSheetView() {
                             ) : (
                               <span className="truncate block" title={String(cellValue)}>{String(cellValue)}</span>
                             )}
+                            {savingId === String(row._rowIndex) && editingCell?.field === col && <RefreshCw className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 animate-spin text-primary-500" />}
                           </td>
                         );
                       })}
-
-                      {/* ID Column */}
-                      <td className="px-4 py-2 text-[var(--text-muted)] font-mono text-[10px]">
-                        {row.id?.substring(0, 8)}...
-                      </td>
                     </tr>
                   ))
                 )}
