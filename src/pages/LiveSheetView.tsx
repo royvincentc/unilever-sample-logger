@@ -1,16 +1,24 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Database, Search, RefreshCw, Key, Shield, AlertCircle, X, ChevronRight, Check, CheckCircle2, ChevronDown } from 'lucide-react';
+import { RefreshCw, Key, Shield, AlertCircle, X, Check, Save, Search } from 'lucide-react';
 import Header from '../components/Layout/Header';
 import { useTheme } from '../hooks/useTheme';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 
 // 5 minutes in milliseconds
 const PASSWORD_VALIDITY_MS = 5 * 60 * 1000;
-const EDITOR_PASSWORD = 'admin'; // Simple default password for demonstration
+const EDITOR_PASSWORD = 'admin'; // Default password
+
+const TABS = [
+  { id: 'SWAB 2026', label: 'ENVI 2026' },
+  { id: 'WATER 2026', label: 'WATER 2026' },
+  { id: 'RM,FG,SFG 2026', label: 'RM,SFG,FG 2026' },
+  { id: 'AIR 2026', label: 'AIR 2026' }
+];
 
 export default function LiveSheetView() {
   const { theme, setTheme } = useTheme();
+  const [activeTab, setActiveTab] = useState(TABS[0].id);
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -24,13 +32,14 @@ export default function LiveSheetView() {
     return saved ? parseInt(saved, 10) : 0;
   });
   
-  const [editingCell, setEditingCell] = useState<{ id: string, field: string } | null>(null);
+  // cell editing state: id of row, field can be root key ('control_number') or sheet_data key ('QTY')
+  const [editingCell, setEditingCell] = useState<{ id: string, field: string, isSheetData: boolean } | null>(null);
   const [editValue, setEditValue] = useState<string>('');
   const [savingId, setSavingId] = useState<string | null>(null);
   
   const isOnline = useOnlineStatus();
 
-  const loadData = useCallback(async () => {
+  const loadData = useCallback(async (tabId: string) => {
     if (!isOnline) {
       setError('You are currently offline.');
       return;
@@ -39,7 +48,7 @@ export default function LiveSheetView() {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(`/api/supabase-samples?limit=200`);
+      const response = await fetch(`/api/supabase-samples?sheet_tab=${encodeURIComponent(tabId)}&limit=200`);
       if (!response.ok) throw new Error(await response.text());
       const rows = await response.json();
       setData(rows || []);
@@ -51,33 +60,25 @@ export default function LiveSheetView() {
   }, [isOnline]);
 
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    loadData(activeTab);
+  }, [activeTab, loadData]);
 
-  // Cleanup auth on unmount or interval
+  // Cleanup auth on interval
   useEffect(() => {
     const interval = setInterval(() => {
       if (lastAuthTime > 0 && Date.now() - lastAuthTime > PASSWORD_VALIDITY_MS) {
-        setLastAuthTime(0); // Expire
+        setLastAuthTime(0);
         localStorage.removeItem('supabaseEditorAuthTime');
       }
     }, 10000);
     return () => clearInterval(interval);
   }, [lastAuthTime]);
 
-  const handleCellDoubleClick = (id: string, field: string, currentValue: any) => {
+  const handleCellDoubleClick = (id: string, field: string, isSheetData: boolean, currentValue: any) => {
     if (Date.now() - lastAuthTime < PASSWORD_VALIDITY_MS) {
-      // Authorized
-      let valToEdit = currentValue;
-      if (typeof currentValue === 'object') {
-        valToEdit = JSON.stringify(currentValue, null, 2);
-      } else {
-        valToEdit = String(currentValue || '');
-      }
-      setEditValue(valToEdit);
-      setEditingCell({ id, field });
+      setEditValue(String(currentValue || ''));
+      setEditingCell({ id, field, isSheetData });
     } else {
-      // Prompt password
       setPasswordPromptVisible(true);
       setPasswordError('');
       setPasswordInput('');
@@ -98,32 +99,37 @@ export default function LiveSheetView() {
   const saveCellEdit = async () => {
     if (!editingCell) return;
     
-    // Check auth again just in case
+    // Check auth again
     if (Date.now() - lastAuthTime > PASSWORD_VALIDITY_MS) {
       setEditingCell(null);
       setPasswordPromptVisible(true);
       return;
     }
 
-    const { id, field } = editingCell;
+    const { id, field, isSheetData } = editingCell;
     setSavingId(id);
     
-    let parsedValue = editValue;
-    if (field === 'sheet_data') {
-      try {
-        parsedValue = JSON.parse(editValue);
-      } catch (e) {
-        alert('Invalid JSON format for sheet_data');
-        setSavingId(null);
-        return;
-      }
-    }
-
     try {
+      const rowToEdit = data.find(r => r.id === id);
+      if (!rowToEdit) throw new Error('Row not found');
+
+      let updatePayload: any = { id };
+      
+      if (isSheetData) {
+        // Update the nested sheet_data object
+        const currentSheetData = rowToEdit.sheet_data || {};
+        updatePayload.sheet_data = {
+          ...currentSheetData,
+          [field]: editValue
+        };
+      } else {
+        updatePayload[field] = editValue;
+      }
+
       const response = await fetch('/api/supabase-samples', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, [field]: parsedValue }),
+        body: JSON.stringify(updatePayload),
       });
       
       if (!response.ok) throw new Error(await response.text());
@@ -144,224 +150,198 @@ export default function LiveSheetView() {
       const query = searchQuery.toLowerCase();
       const ctrl = String(row.control_number || '').toLowerCase();
       const name = String(row.sample_name || '').toLowerCase();
-      const type = String(row.sample_type || '').toLowerCase();
-      return ctrl.includes(query) || name.includes(query) || type.includes(query);
+      
+      // Also search within sheet_data values
+      const sheetDataValues = Object.values(row.sheet_data || {}).join(' ').toLowerCase();
+      
+      return ctrl.includes(query) || name.includes(query) || sheetDataValues.includes(query);
     });
   }, [data, searchQuery]);
 
+  // Extract dynamic columns from sheet_data across all filtered rows
+  const dynamicColumns = useMemo(() => {
+    const keys = new Set<string>();
+    filteredData.forEach(row => {
+      if (row.sheet_data) {
+        Object.keys(row.sheet_data).forEach(key => {
+          // ignore internal keys if any, though usually none in sheet_data directly
+          if (key !== '_rowIndex') keys.add(key);
+        });
+      }
+    });
+    return Array.from(keys);
+  }, [filteredData]);
+
   return (
-    <div className="h-screen flex flex-col bg-[#1c1c1c] text-[#ededed] font-sans overflow-hidden">
-      <Header theme="dark" onSetTheme={() => {}} title="Supabase Table Editor" />
+    <div className="min-h-screen bg-transparent flex flex-col">
+      <Header theme={theme} onSetTheme={setTheme} title="Live Data Editor" />
       
-      <div className="flex flex-1 overflow-hidden">
-        {/* Sidebar */}
-        <div className="w-64 border-r border-[#3e3e3e] bg-[#1a1a1a] flex flex-col">
-          <div className="p-4 border-b border-[#3e3e3e]">
-            <div className="flex items-center gap-2 px-2 py-1.5 bg-[#2a2a2a] rounded text-sm text-[#ededed] cursor-pointer hover:bg-[#333]">
-              <Database className="w-4 h-4 text-emerald-500" />
-              <span>Project Editor</span>
-            </div>
+      <div className="px-4 lg:px-8 max-w-full mx-auto flex-1 flex flex-col pb-8 pt-4 space-y-4 overflow-hidden">
+        
+        {/* Tabs & Controls Bar */}
+        <div className="glass p-3 rounded-2xl border border-[var(--border-subtle)] flex flex-col lg:flex-row lg:items-center justify-between gap-4 shrink-0">
+          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1 lg:pb-0">
+            {TABS.map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
+                  activeTab === tab.id 
+                    ? 'bg-primary-500 text-white shadow-lg shadow-primary-500/20' 
+                    : 'bg-[var(--bg-input)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
           </div>
-          <div className="flex-1 overflow-y-auto p-2 space-y-1">
-            <div className="text-xs font-bold text-[#888] px-2 py-2 uppercase tracking-wider">Tables</div>
-            <div className="flex items-center gap-2 px-2 py-1.5 bg-[#2a2a2a] border border-[#3e3e3e] rounded text-sm cursor-pointer text-emerald-400 font-medium">
-              <ChevronRight className="w-4 h-4" />
-              public.samples
+
+          <div className="flex items-center gap-3">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)]" />
+              <input
+                type="text"
+                placeholder="Search any field..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full lg:w-64 bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded-xl py-2 pl-9 pr-4 text-xs text-[var(--text-primary)] focus:outline-none focus:border-primary-500 transition-colors"
+              />
             </div>
+            <button 
+              onClick={() => loadData(activeTab)}
+              className="flex items-center gap-2 px-3 py-2 bg-[var(--bg-input)] border border-[var(--border-subtle)] hover:bg-[var(--bg-hover)] text-[var(--text-primary)] rounded-xl text-xs font-bold transition-all"
+              title="Refresh Data"
+            >
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            </button>
+            
+            {Date.now() - lastAuthTime < PASSWORD_VALIDITY_MS && (
+              <div className="flex items-center gap-1.5 px-3 py-2 bg-primary-500/10 text-primary-500 rounded-xl text-xs font-bold border border-primary-500/20 whitespace-nowrap">
+                <Key className="w-3.5 h-3.5" /> Editor Active
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Main Content */}
-        <div className="flex-1 flex flex-col bg-[#1e1e1e]">
-          {/* Top Bar */}
-          <div className="h-14 border-b border-[#3e3e3e] flex items-center justify-between px-4 bg-[#1e1e1e] shrink-0">
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2 text-sm">
-                <Database className="w-4 h-4 text-[#888]" />
-                <span className="text-[#888]">public</span>
-                <span className="text-[#888]">/</span>
-                <span className="font-medium">samples</span>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="relative">
-                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#888]" />
-                <input
-                  type="text"
-                  placeholder="Filter by id, control_number..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="bg-[#2a2a2a] border border-[#3e3e3e] rounded py-1.5 pl-8 pr-3 text-xs focus:outline-none focus:border-[#666] w-64 placeholder-[#666] text-[#ededed]"
-                />
-              </div>
-              <button 
-                onClick={loadData}
-                className="flex items-center gap-2 px-3 py-1.5 bg-[#2a2a2a] border border-[#3e3e3e] rounded text-xs hover:bg-[#333] transition-colors"
-              >
-                <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-              </button>
-              <div className="h-4 w-px bg-[#3e3e3e]"></div>
-              <button className="flex items-center gap-2 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-xs font-medium transition-colors">
-                Insert
-              </button>
-              {Date.now() - lastAuthTime < PASSWORD_VALIDITY_MS && (
-                <div className="flex items-center gap-1.5 px-2 py-1 bg-emerald-500/20 text-emerald-400 rounded text-xs border border-emerald-500/30" title="Edit Session Active">
-                  <Key className="w-3 h-3" /> Active
-                </div>
-              )}
-            </div>
+        {error && (
+          <div className="p-4 bg-danger-500/10 border border-danger-500/20 rounded-2xl flex items-start gap-3 text-danger-500 shrink-0">
+            <AlertCircle className="w-5 h-5 shrink-0" />
+            <p className="text-sm font-medium">{error}</p>
           </div>
+        )}
 
-          {/* Table Area */}
-          <div className="flex-1 overflow-auto bg-[#1a1a1a] relative">
-            {error && (
-              <div className="absolute inset-0 z-10 bg-black/50 flex items-center justify-center">
-                <div className="bg-[#2a2a2a] border border-red-500/30 p-4 rounded-lg flex items-center gap-3 text-red-400 max-w-md">
-                  <AlertCircle className="w-5 h-5 shrink-0" />
-                  <p className="text-sm">{error}</p>
-                  <button onClick={() => setError(null)} className="ml-auto"><X className="w-4 h-4" /></button>
-                </div>
-              </div>
-            )}
-            
-            <table className="w-full text-left text-xs border-collapse">
-              <thead className="sticky top-0 bg-[#222] z-10 border-b border-[#3e3e3e] shadow-sm">
+        {/* Spreadsheet Data Grid */}
+        <div className="flex-1 glass rounded-2xl border border-[var(--border-subtle)] overflow-hidden flex flex-col relative">
+          <div className="overflow-auto flex-1 relative custom-scrollbar">
+            <table className="w-full text-left border-collapse text-xs whitespace-nowrap">
+              <thead className="sticky top-0 z-10 bg-[var(--bg-card)] shadow-sm after:content-[''] after:absolute after:bottom-0 after:left-0 after:right-0 after:border-b after:border-[var(--border-subtle)]">
                 <tr>
-                  <th className="px-3 py-2 border-r border-[#3e3e3e] w-10 text-center font-normal text-[#888]">
-                    <input type="checkbox" className="accent-emerald-500 rounded-sm bg-[#1a1a1a] border-[#3e3e3e]" />
+                  <th className="px-4 py-3 font-bold text-[var(--text-secondary)] uppercase tracking-wider bg-[var(--bg-card)] border-r border-[var(--border-subtle)] min-w-[120px]">
+                    Control #
                   </th>
-                  <th className="px-4 py-2 border-r border-[#3e3e3e] font-medium text-[#ededed] whitespace-nowrap group">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[#888] font-mono text-[10px]">text</span>
-                      control_number
-                    </div>
+                  <th className="px-4 py-3 font-bold text-[var(--text-secondary)] uppercase tracking-wider bg-[var(--bg-card)] border-r border-[var(--border-subtle)] min-w-[150px]">
+                    Sample Name
                   </th>
-                  <th className="px-4 py-2 border-r border-[#3e3e3e] font-medium text-[#ededed] whitespace-nowrap group">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[#888] font-mono text-[10px]">text</span>
-                      sample_name
-                    </div>
+                  <th className="px-4 py-3 font-bold text-[var(--text-secondary)] uppercase tracking-wider bg-[var(--bg-card)] border-r border-[var(--border-subtle)]">
+                    Type
                   </th>
-                  <th className="px-4 py-2 border-r border-[#3e3e3e] font-medium text-[#ededed] whitespace-nowrap group">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[#888] font-mono text-[10px]">text</span>
-                      sample_type
-                    </div>
-                  </th>
-                  <th className="px-4 py-2 border-r border-[#3e3e3e] font-medium text-[#ededed] whitespace-nowrap group">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[#888] font-mono text-[10px]">jsonb</span>
-                      sheet_data
-                    </div>
-                  </th>
-                  <th className="px-4 py-2 font-medium text-[#ededed] whitespace-nowrap group">
-                    <div className="flex items-center gap-2">
-                      <Key className="w-3 h-3 text-amber-500" />
-                      <span className="text-[#888] font-mono text-[10px]">uuid</span>
-                      id
-                    </div>
+                  {dynamicColumns.map(col => (
+                    <th key={col} className="px-4 py-3 font-bold text-[var(--text-secondary)] uppercase tracking-wider bg-[var(--bg-card)] border-r border-[var(--border-subtle)] max-w-[200px] truncate" title={col}>
+                      {col}
+                    </th>
+                  ))}
+                  <th className="px-4 py-3 font-bold text-[var(--text-muted)] uppercase tracking-wider bg-[var(--bg-card)]">
+                    System ID
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#3e3e3e] font-mono text-[#ccc]">
+              <tbody className="divide-y divide-[var(--border-subtle)] text-[var(--text-primary)] bg-[var(--bg-app)]">
                 {loading && data.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-4 py-8 text-center text-[#888]">
-                      <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2" />
-                      Loading samples...
+                    <td colSpan={dynamicColumns.length + 4} className="px-4 py-12 text-center text-[var(--text-muted)]">
+                      <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-3 text-primary-500" />
+                      <p className="font-medium">Loading records...</p>
                     </td>
                   </tr>
                 ) : filteredData.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-4 py-8 text-center text-[#888]">
-                      No records found
+                    <td colSpan={dynamicColumns.length + 4} className="px-4 py-12 text-center">
+                      <p className="font-medium text-[var(--text-secondary)]">No records found for this tab.</p>
                     </td>
                   </tr>
                 ) : (
                   filteredData.map((row) => (
-                    <tr key={row.id} className="hover:bg-[#2a2a2a] group transition-colors">
-                      <td className="px-3 py-1.5 border-r border-[#3e3e3e] text-center border-l-2 border-l-transparent group-hover:border-l-emerald-500">
-                        <input type="checkbox" className="accent-emerald-500 rounded-sm bg-[#1a1a1a] border-[#3e3e3e]" />
-                      </td>
+                    <tr key={row.id} className="hover:bg-[var(--bg-hover)] transition-colors group">
                       
-                      {/* control_number */}
+                      {/* Base Columns */}
                       <td 
-                        className={`px-4 py-1.5 border-r border-[#3e3e3e] truncate max-w-[150px] cursor-cell ${editingCell?.id === row.id && editingCell?.field === 'control_number' ? 'p-0' : ''}`}
-                        onDoubleClick={() => handleCellDoubleClick(row.id, 'control_number', row.control_number)}
+                        className={`px-4 py-2 border-r border-[var(--border-subtle)] font-mono font-medium cursor-cell relative ${editingCell?.id === row.id && editingCell?.field === 'control_number' ? 'p-0' : ''}`}
+                        onDoubleClick={() => handleCellDoubleClick(row.id, 'control_number', false, row.control_number)}
                       >
                         {editingCell?.id === row.id && editingCell?.field === 'control_number' ? (
                           <input 
                             autoFocus
-                            className="w-full h-full bg-[#1a1a1a] text-white px-4 py-1.5 outline-none border-2 border-emerald-500"
+                            className="w-full h-full min-h-[36px] bg-[var(--bg-input)] text-[var(--text-primary)] px-4 py-2 outline-none border-2 border-primary-500 font-mono text-xs"
                             value={editValue}
                             onChange={e => setEditValue(e.target.value)}
                             onBlur={saveCellEdit}
                             onKeyDown={e => { if (e.key === 'Enter') saveCellEdit(); else if (e.key === 'Escape') setEditingCell(null); }}
                           />
                         ) : row.control_number}
+                        {savingId === row.id && editingCell?.field === 'control_number' && <RefreshCw className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 animate-spin text-primary-500" />}
                       </td>
-
-                      {/* sample_name */}
+                      
                       <td 
-                        className={`px-4 py-1.5 border-r border-[#3e3e3e] truncate max-w-[200px] cursor-cell ${editingCell?.id === row.id && editingCell?.field === 'sample_name' ? 'p-0' : ''}`}
-                        onDoubleClick={() => handleCellDoubleClick(row.id, 'sample_name', row.sample_name)}
+                        className={`px-4 py-2 border-r border-[var(--border-subtle)] cursor-cell relative ${editingCell?.id === row.id && editingCell?.field === 'sample_name' ? 'p-0' : ''}`}
+                        onDoubleClick={() => handleCellDoubleClick(row.id, 'sample_name', false, row.sample_name)}
                       >
                         {editingCell?.id === row.id && editingCell?.field === 'sample_name' ? (
                           <input 
                             autoFocus
-                            className="w-full h-full bg-[#1a1a1a] text-white px-4 py-1.5 outline-none border-2 border-emerald-500"
+                            className="w-full h-full min-h-[36px] bg-[var(--bg-input)] text-[var(--text-primary)] px-4 py-2 outline-none border-2 border-primary-500 text-xs"
                             value={editValue}
                             onChange={e => setEditValue(e.target.value)}
                             onBlur={saveCellEdit}
                             onKeyDown={e => { if (e.key === 'Enter') saveCellEdit(); else if (e.key === 'Escape') setEditingCell(null); }}
                           />
-                        ) : row.sample_name}
-                      </td>
-
-                      {/* sample_type */}
-                      <td 
-                        className={`px-4 py-1.5 border-r border-[#3e3e3e] truncate max-w-[100px] cursor-cell ${editingCell?.id === row.id && editingCell?.field === 'sample_type' ? 'p-0' : ''}`}
-                        onDoubleClick={() => handleCellDoubleClick(row.id, 'sample_type', row.sample_type)}
-                      >
-                        {editingCell?.id === row.id && editingCell?.field === 'sample_type' ? (
-                          <input 
-                            autoFocus
-                            className="w-full h-full bg-[#1a1a1a] text-white px-4 py-1.5 outline-none border-2 border-emerald-500"
-                            value={editValue}
-                            onChange={e => setEditValue(e.target.value)}
-                            onBlur={saveCellEdit}
-                            onKeyDown={e => { if (e.key === 'Enter') saveCellEdit(); else if (e.key === 'Escape') setEditingCell(null); }}
-                          />
-                        ) : row.sample_type}
-                      </td>
-
-                      {/* sheet_data */}
-                      <td 
-                        className={`px-4 py-1.5 border-r border-[#3e3e3e] truncate max-w-[300px] cursor-cell ${editingCell?.id === row.id && editingCell?.field === 'sheet_data' ? 'p-0' : ''}`}
-                        onDoubleClick={() => handleCellDoubleClick(row.id, 'sheet_data', row.sheet_data)}
-                      >
-                        {editingCell?.id === row.id && editingCell?.field === 'sheet_data' ? (
-                          <div className="relative">
-                            <textarea 
-                              autoFocus
-                              className="w-full h-24 bg-[#1a1a1a] text-[#emerald-300] px-2 py-1 outline-none border-2 border-emerald-500 font-mono text-[10px] resize-y"
-                              value={editValue}
-                              onChange={e => setEditValue(e.target.value)}
-                              onBlur={saveCellEdit}
-                              onKeyDown={e => { if (e.key === 'Escape') setEditingCell(null); }}
-                            />
-                            <div className="absolute top-1 right-1 text-[9px] bg-emerald-500/20 text-emerald-400 px-1 rounded">JSONB</div>
-                          </div>
                         ) : (
-                          <span className="text-[#a5d6ff]">
-                            {JSON.stringify(row.sheet_data)}
-                          </span>
+                          <span className="truncate block max-w-[200px]" title={row.sample_name}>{row.sample_name}</span>
                         )}
                       </td>
 
-                      {/* id */}
-                      <td className="px-4 py-1.5 truncate max-w-[200px] text-[#888]">
-                        {row.id}
+                      <td className="px-4 py-2 border-r border-[var(--border-subtle)] text-[var(--text-secondary)]">
+                        {row.sample_type}
+                      </td>
+
+                      {/* Dynamic Columns from sheet_data */}
+                      {dynamicColumns.map(col => {
+                        const cellValue = row.sheet_data?.[col] || '';
+                        const isEditingThis = editingCell?.id === row.id && editingCell?.field === col && editingCell?.isSheetData;
+                        return (
+                          <td 
+                            key={col}
+                            className={`px-4 py-2 border-r border-[var(--border-subtle)] cursor-cell relative max-w-[200px] ${isEditingThis ? 'p-0' : ''}`}
+                            onDoubleClick={() => handleCellDoubleClick(row.id, col, true, cellValue)}
+                          >
+                            {isEditingThis ? (
+                              <input 
+                                autoFocus
+                                className="w-full h-full min-h-[36px] bg-[var(--bg-input)] text-[var(--text-primary)] px-4 py-2 outline-none border-2 border-primary-500 text-xs"
+                                value={editValue}
+                                onChange={e => setEditValue(e.target.value)}
+                                onBlur={saveCellEdit}
+                                onKeyDown={e => { if (e.key === 'Enter') saveCellEdit(); else if (e.key === 'Escape') setEditingCell(null); }}
+                              />
+                            ) : (
+                              <span className="truncate block" title={String(cellValue)}>{String(cellValue)}</span>
+                            )}
+                          </td>
+                        );
+                      })}
+
+                      {/* ID Column */}
+                      <td className="px-4 py-2 text-[var(--text-muted)] font-mono text-[10px]">
+                        {row.id?.substring(0, 8)}...
                       </td>
                     </tr>
                   ))
@@ -370,15 +350,9 @@ export default function LiveSheetView() {
             </table>
           </div>
           
-          {/* Footer status bar */}
-          <div className="h-8 border-t border-[#3e3e3e] bg-[#1e1e1e] flex items-center px-4 justify-between shrink-0 text-[11px] text-[#888]">
-            <div className="flex items-center gap-4">
-              <span>{filteredData.length} records</span>
-              {savingId && <span className="flex items-center gap-1.5 text-emerald-500"><RefreshCw className="w-3 h-3 animate-spin" /> Saving...</span>}
-            </div>
-            <div className="flex items-center gap-2">
-              <span>Data fetched from Supabase</span>
-            </div>
+          <div className="h-10 border-t border-[var(--border-subtle)] bg-[var(--bg-card)] flex items-center px-4 justify-between shrink-0 text-xs text-[var(--text-secondary)] font-medium">
+            <span>{filteredData.length} records in view</span>
+            {savingId && <span className="flex items-center gap-2 text-primary-500"><RefreshCw className="w-3.5 h-3.5 animate-spin" /> Saving changes...</span>}
           </div>
         </div>
       </div>
@@ -390,53 +364,55 @@ export default function LiveSheetView() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+            className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4"
           >
             <motion.div 
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-[#1e1e1e] border border-[#3e3e3e] rounded-xl shadow-2xl max-w-sm w-full overflow-hidden"
+              initial={{ scale: 0.95, opacity: 0, y: 10 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 10 }}
+              className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-2xl shadow-xl max-w-sm w-full overflow-hidden"
             >
-              <div className="p-5 border-b border-[#3e3e3e] flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-emerald-500/10 flex items-center justify-center">
-                  <Shield className="w-5 h-5 text-emerald-500" />
+              <div className="p-5 border-b border-[var(--border-subtle)] flex items-center gap-4">
+                <div className="w-12 h-12 rounded-full bg-primary-500/10 flex items-center justify-center shrink-0">
+                  <Shield className="w-6 h-6 text-primary-500" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-white">Authentication Required</h3>
-                  <p className="text-xs text-[#888]">Enter editor password to modify data</p>
+                  <h3 className="font-bold text-[var(--text-primary)] text-lg">Authentication</h3>
+                  <p className="text-xs text-[var(--text-secondary)] mt-0.5">Enter password to edit live data</p>
                 </div>
               </div>
               <div className="p-5 space-y-4">
                 {passwordError && (
-                  <div className="p-2 bg-red-500/10 border border-red-500/20 rounded text-red-400 text-xs font-medium">
+                  <div className="p-3 bg-danger-500/10 border border-danger-500/20 rounded-xl text-danger-500 text-xs font-bold flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4" />
                     {passwordError}
                   </div>
                 )}
-                <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-[#ccc]">Password</label>
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-wider">Editor Password</label>
                   <input
                     type="password"
                     autoFocus
                     value={passwordInput}
                     onChange={(e) => setPasswordInput(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && submitPassword()}
-                    className="w-full bg-[#1a1a1a] border border-[#3e3e3e] rounded-lg px-3 py-2 text-sm text-white focus:border-emerald-500 focus:outline-none transition-colors"
+                    className="w-full bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded-xl px-4 py-3 text-sm text-[var(--text-primary)] focus:border-primary-500 focus:ring-1 focus:ring-primary-500 outline-none transition-all"
                     placeholder="Enter password..."
                   />
-                  <p className="text-[10px] text-[#888] pt-1">Session remains valid for 5 minutes.</p>
+                  <p className="text-[10px] text-[var(--text-muted)] font-medium">Session remains active for 5 minutes.</p>
                 </div>
-                <div className="flex items-center justify-end gap-2 pt-2">
+                <div className="flex items-center gap-3 pt-2">
                   <button 
                     onClick={() => setPasswordPromptVisible(false)}
-                    className="px-4 py-2 text-xs font-medium text-[#aaa] hover:text-white transition-colors"
+                    className="flex-1 px-4 py-2.5 text-xs font-bold text-[var(--text-secondary)] bg-[var(--bg-input)] hover:bg-[var(--bg-hover)] rounded-xl transition-colors"
                   >
                     Cancel
                   </button>
                   <button 
                     onClick={submitPassword}
-                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-medium transition-colors"
+                    className="flex-1 px-4 py-2.5 bg-primary-500 hover:bg-primary-600 text-white rounded-xl text-xs font-bold shadow-lg shadow-primary-500/20 transition-all flex justify-center items-center gap-2"
                   >
+                    <Check className="w-4 h-4" />
                     Authenticate
                   </button>
                 </div>

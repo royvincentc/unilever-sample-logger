@@ -28,6 +28,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (req.query.sample_type) {
         query = query.eq('sample_type', req.query.sample_type);
       }
+      if (req.query.sheet_tab) {
+        query = query.eq('sheet_tab', req.query.sheet_tab);
+      }
       if (req.query.limit) {
         query = query.limit(Number(req.query.limit));
       } else {
