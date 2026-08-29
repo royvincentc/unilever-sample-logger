@@ -18,7 +18,7 @@ export default function LiveSheetView() {
   const [searchQuery, setSearchQuery] = useState('');
   const isOnline = useOnlineStatus();
 
-  const loadData = useCallback(async (type: SampleType) => {
+  const loadData = useCallback(async (type: SampleType, forceRefresh = false) => {
     if (!isOnline) {
       setError('You are currently offline.');
       return;
@@ -28,7 +28,7 @@ export default function LiveSheetView() {
     setError(null);
     try {
       const sheetTab = getSheetTabName(type);
-      const rows = await fetchLiveSheetData(sheetTab);
+      const rows = await fetchLiveSheetData(sheetTab, forceRefresh);
       
       // We removed the 'SAMPLE TYPE' filtering because the sheetTab itself 
       // (e.g. 'MAY ENVI') already guarantees the data matches the type.
@@ -147,7 +147,7 @@ export default function LiveSheetView() {
                   />
                 </div>
                 <button 
-                  onClick={() => loadData(selectedType)}
+                  onClick={() => selectedType && loadData(selectedType, true)}
                   disabled={loading || !isOnline}
                   className="flex items-center gap-2 px-4 py-2 bg-primary-500 text-white rounded-xl text-xs font-bold hover:bg-primary-600 disabled:opacity-50 transition-all shadow-lg shadow-primary-500/20"
                 >

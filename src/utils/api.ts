@@ -319,23 +319,40 @@ export async function fetchHistoryFromSheet(): Promise<string[]> {
   }
 }
 
+const liveDataCache = new Map<string, { promise: Promise<any[]>, timestamp: number }>();
+const CACHE_TTL = 15000; // 15 seconds
+
 /**
  * Fetch live data from Google Sheets via Vercel Function.
  */
-export async function fetchLiveSheetData(sheetTab: string): Promise<any[]> {
-  const settings = getSettings();
-  try {
-    const response = await fetch(`/api/supabase-data?tab=${encodeURIComponent(sheetTab)}`);
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(errorText || `HTTP ${response.status}`);
+export async function fetchLiveSheetData(sheetTab: string, forceRefresh = false): Promise<any[]> {
+  const now = Date.now();
+  
+  if (!forceRefresh) {
+    const cached = liveDataCache.get(sheetTab);
+    if (cached && (now - cached.timestamp < CACHE_TTL)) {
+      return cached.promise;
     }
-    const rawData = await response.json();
-    return Array.isArray(rawData) ? rawData : [];
-  } catch (error) {
-    console.error('Live sheet fetch failed:', error);
-    throw error;
   }
+
+  const promise = (async () => {
+    try {
+      const response = await fetch(`/api/supabase-data?tab=${encodeURIComponent(sheetTab)}`);
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || `HTTP ${response.status}`);
+      }
+      const rawData = await response.json();
+      return Array.isArray(rawData) ? rawData : [];
+    } catch (error) {
+      console.error('Live sheet fetch failed:', error);
+      liveDataCache.delete(sheetTab);
+      throw error;
+    }
+  })();
+
+  liveDataCache.set(sheetTab, { promise, timestamp: now });
+  return promise;
 }
 
 /**

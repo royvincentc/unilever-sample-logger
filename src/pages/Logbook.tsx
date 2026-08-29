@@ -7,6 +7,8 @@ import MultiSelect from '../components/ui/MultiSelect';
 import { fetchLiveSheetData } from '../utils/api';
 import { useTheme } from '../hooks/useTheme';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
+import { listenToLogbookSettings, saveLogbookSettings } from '../utils/db';
+
 
 function getRowControl(row: any): string {
   if (!row) return '';
@@ -116,16 +118,56 @@ export default function Logbook() {
     return new Set();
   });
 
+  const [columnOrder, setColumnOrder] = useState<string[]>(() => {
+    const saved = localStorage.getItem('logbook_columnOrder');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {}
+    }
+    return [];
+  });
+
   useEffect(() => {
-    localStorage.setItem('logbook_hiddenColumns', JSON.stringify(Array.from(hiddenColumns)));
-  }, [hiddenColumns]);
+    let initialized = false;
+    const unsubscribe = listenToLogbookSettings((settings) => {
+      if (settings) {
+        if (settings.hiddenColumns) {
+          setHiddenColumns(new Set(settings.hiddenColumns));
+          localStorage.setItem('logbook_hiddenColumns', JSON.stringify(settings.hiddenColumns));
+        }
+        if (settings.columnOrder) {
+          setColumnOrder(settings.columnOrder);
+          localStorage.setItem('logbook_columnOrder', JSON.stringify(settings.columnOrder));
+        }
+      } else if (!initialized) {
+        // No global settings exist yet. Push local settings to become the global default.
+        const localHiddenStr = localStorage.getItem('logbook_hiddenColumns');
+        const localOrderStr = localStorage.getItem('logbook_columnOrder');
+        
+        let initialHidden: string[] = [];
+        let initialOrder: string[] = [];
+        try { if(localHiddenStr) initialHidden = JSON.parse(localHiddenStr); } catch(e){}
+        try { if(localOrderStr) initialOrder = JSON.parse(localOrderStr); } catch(e){}
+        
+        if (initialHidden.length > 0 || initialOrder.length > 0) {
+           saveLogbookSettings({
+             hiddenColumns: initialHidden,
+             columnOrder: initialOrder
+           }).catch(console.error);
+        }
+      }
+      initialized = true;
+    });
+    return () => unsubscribe();
+  }, []);
 
   const [showColumnDropdown, setShowColumnDropdown] = useState(false);
   const colDropdownRef = useRef<HTMLDivElement>(null);
 
   const isOnline = useOnlineStatus();
 
-  const loadData = useCallback(async () => {
+  const loadData = useCallback(async (forceRefresh = false) => {
     if (!isOnline) {
       setError('You are currently offline.');
       return;
@@ -136,7 +178,7 @@ export default function Logbook() {
     try {
       const sheets = ['SWAB 2026', 'WATER 2026', 'RM,FG,SFG 2026', 'AIR 2026'];
       const allData = await Promise.all(
-        sheets.map(tab => fetchLiveSheetData(tab).then(rows => rows.map(r => ({ ...r, __sheetName: tab }))))
+        sheets.map(tab => fetchLiveSheetData(tab, forceRefresh).then(rows => rows.map(r => ({ ...r, __sheetName: tab }))))
       );
       
       const combined = allData.flat();
@@ -178,20 +220,6 @@ export default function Logbook() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const [columnOrder, setColumnOrder] = useState<string[]>(() => {
-    const saved = localStorage.getItem('logbook_columnOrder');
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {}
-    }
-    return [];
-  });
-
-  useEffect(() => {
-    localStorage.setItem('logbook_columnOrder', JSON.stringify(columnOrder));
-  }, [columnOrder]);
-
   const [draggedColumn, setDraggedColumn] = useState<string | null>(null);
 
   useEffect(() => {
@@ -227,6 +255,12 @@ export default function Logbook() {
         newOrder.splice(fromIndex, 1);
         newOrder.splice(toIndex, 0, draggedColumn);
       }
+      
+      saveLogbookSettings({
+        hiddenColumns: Array.from(hiddenColumns),
+        columnOrder: newOrder
+      }).catch(console.error);
+
       return newOrder;
     });
     setDraggedColumn(null);
@@ -265,6 +299,12 @@ export default function Logbook() {
       const next = new Set(prev);
       if (next.has(header)) next.delete(header);
       else next.add(header);
+      
+      saveLogbookSettings({
+        hiddenColumns: Array.from(next),
+        columnOrder
+      }).catch(console.error);
+      
       return next;
     });
   };
@@ -417,10 +457,16 @@ export default function Logbook() {
                       <span className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">Visible Columns</span>
                       <button 
                         onClick={() => {
+                          const newOrder = [...allHeaders];
                           setHiddenColumns(new Set());
                           localStorage.removeItem('logbook_hiddenColumns');
-                          setColumnOrder([...allHeaders]);
+                          setColumnOrder(newOrder);
                           localStorage.removeItem('logbook_columnOrder');
+                          
+                          saveLogbookSettings({
+                            hiddenColumns: [],
+                            columnOrder: newOrder
+                          }).catch(console.error);
                         }}
                         className="text-[10px] text-primary-500 hover:underline"
                       >
@@ -454,7 +500,7 @@ export default function Logbook() {
             </div>
 
             <button 
-              onClick={loadData}
+              onClick={() => loadData(true)}
               disabled={loading}
               className="p-2 rounded-xl bg-[var(--bg-card)] border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-primary-500 hover:border-primary-500 transition-colors disabled:opacity-50"
               title="Refresh Data"
