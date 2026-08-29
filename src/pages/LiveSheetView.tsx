@@ -6,7 +6,7 @@ import Pagination from '../components/ui/Pagination';
 import { useTheme } from '../hooks/useTheme';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { getSettings } from '../utils/auth';
-import { updateSheetRow } from '../utils/api';
+import { updateSheetRow, fetchSheetSchema } from '../utils/api';
 
 // 5 minutes in milliseconds
 const PASSWORD_VALIDITY_MS = 5 * 60 * 1000;
@@ -23,6 +23,7 @@ export default function LiveSheetView() {
   const { theme, setTheme } = useTheme();
   const [activeTab, setActiveTab] = useState(TABS[0].id);
   const [data, setData] = useState<any[]>([]);
+  const [headers, setHeaders] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -58,10 +59,17 @@ export default function LiveSheetView() {
         throw new Error('Google Spreadsheet ID is not configured in Settings.');
       }
       
-      const response = await fetch(`/api/sheet-data?sheetId=${settings.spreadsheetId}&tab=${encodeURIComponent(tabId)}`);
+      // Fetch data and exact schema order in parallel
+      const [response, schemaHeaders] = await Promise.all([
+        fetch(`/api/sheet-data?sheetId=${settings.spreadsheetId}&tab=${encodeURIComponent(tabId)}`),
+        fetchSheetSchema(tabId)
+      ]);
+      
       if (!response.ok) throw new Error(await response.text());
       const rows = await response.json();
+      
       setData(rows || []);
+      setHeaders(schemaHeaders.filter(h => h && h.trim() !== ''));
     } catch (err: any) {
       setError(err.message || 'Failed to fetch data from Google Sheets.');
     } finally {
@@ -170,18 +178,8 @@ export default function LiveSheetView() {
     return filteredData.slice(start, start + rowsPerPage);
   }, [filteredData, currentPage, rowsPerPage]);
 
-  // Extract columns directly from Google Sheet data
-  const dynamicColumns = useMemo(() => {
-    const keys = new Set<string>();
-    data.forEach(row => {
-      Object.keys(row).forEach(key => {
-        if (key !== '_rowIndex' && key !== '__rawRow') {
-          keys.add(key);
-        }
-      });
-    });
-    return Array.from(keys);
-  }, [data]);
+  // Use the exact ordered headers fetched from Google Sheets schema
+  const dynamicColumns = useMemo(() => headers, [headers]);
 
   return (
     <div className="min-h-screen bg-transparent flex flex-col">
