@@ -331,3 +331,34 @@ export async function getHighestControlNumberForSubmission(
   return getHighestLocalControlNumber(sampleType, dateStr);
 }
 
+// ===== SETTINGS OPERATIONS (Global Configuration) =====
+
+export interface LogbookSettings {
+  hiddenColumns: string[];
+  columnOrder: string[];
+}
+
+export function listenToLogbookSettings(callback: (settings: LogbookSettings | null) => void) {
+  const docRef = doc(firestore, 'settings', 'logbook');
+  return onSnapshot(docRef, (docSnap) => {
+    if (docSnap.exists()) {
+      callback(docSnap.data() as LogbookSettings);
+    } else {
+      callback(null);
+    }
+  }, (error) => {
+    console.error("Firestore Listen Error (logbook settings):", error);
+  });
+}
+
+export async function saveLogbookSettings(settings: LogbookSettings): Promise<void> {
+  try {
+    const docRef = doc(firestore, 'settings', 'logbook');
+    await setDoc(docRef, settings, { merge: true });
+    console.log('Successfully saved global logbook settings to Firestore');
+  } catch (e) {
+    console.error('Firestore save settings error:', e);
+    throw e;
+  }
+}
+
