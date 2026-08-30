@@ -105,6 +105,7 @@ export default function Logbook() {
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(100);
+  const [selectedRowIndex, setSelectedRowIndex] = useState<number | null>(null);
   
   // Restored filters
   const [selectedAnalysts, setSelectedAnalysts] = useState<string[]>(['All']);
@@ -539,7 +540,7 @@ export default function Logbook() {
           ) : (
             <div className="flex-1 overflow-auto custom-scrollbar">
               <table className="w-full text-left border-collapse text-sm min-w-max">
-                <thead className="sticky top-0 z-10 shadow-sm">
+                <thead className="sticky top-0 z-20 shadow-sm">
                   <tr>
                     {visibleHeaders.map((h, i) => {
                       const isControl = isControlHeader(h);
@@ -553,7 +554,8 @@ export default function Logbook() {
                           onDragOver={handleDragOver}
                           onDrop={(e) => handleDrop(e, h)}
                           onClick={() => handleHeaderClick(h)}
-                          className="px-3 py-2 font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-subtle)] bg-[var(--bg-sidebar)] hover:bg-[var(--bg-hover)] uppercase tracking-wider text-[10px] whitespace-nowrap cursor-pointer select-none transition-colors group"
+                          className={`px-3 py-2 font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-subtle)] bg-[var(--bg-sidebar)] hover:bg-[var(--bg-hover)] uppercase tracking-wider text-[10px] whitespace-nowrap cursor-pointer select-none transition-colors group ${isControl ? 'sticky left-0 z-30 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]' : ''}`}
+                          style={isControl ? { left: 0 } : {}}
                           title={`Sort by ${headerTitle} (Drag to reorder)`}
                         >
                           <div className="flex items-center justify-between gap-1.5">
@@ -583,15 +585,32 @@ export default function Logbook() {
                       </td>
                     </tr>
                   ) : (
-                    paginatedData.map((row, rowIndex) => (
-                      <tr key={rowIndex} className="hover:bg-[var(--bg-hover)] transition-colors group">
-                        {visibleHeaders.map((h, colIndex) => (
-                          <td key={colIndex} className={`px-3 py-1.5 text-xs text-[var(--text-primary)] border border-[var(--border-subtle)] whitespace-nowrap max-w-[300px] truncate ${h === '__sheetName' ? 'bg-primary-500/5 font-semibold text-primary-600' : 'bg-[var(--bg-card)]'}`}>
-                            {row[h] !== undefined && row[h] !== null && String(row[h]).trim() !== '' ? String(row[h]) : '-'}
-                          </td>
-                        ))}
-                      </tr>
-                    ))
+                    paginatedData.map((row, rowIndex) => {
+                      const isSelected = selectedRowIndex === rowIndex;
+                      return (
+                        <tr 
+                          key={rowIndex} 
+                          onClick={() => setSelectedRowIndex(isSelected ? null : rowIndex)}
+                          className={`transition-colors group cursor-pointer ${isSelected ? 'bg-primary-500/10 outline outline-2 outline-primary-500 relative z-10' : 'hover:bg-[var(--bg-hover)]'}`}
+                        >
+                          {visibleHeaders.map((h, colIndex) => {
+                            const isControl = isControlHeader(h);
+                            const baseBg = h === '__sheetName' ? 'bg-primary-500/5' : 'bg-[var(--bg-card)]';
+                            const cellBg = isSelected ? 'bg-primary-500/10' : baseBg;
+                            
+                            return (
+                              <td 
+                                key={colIndex} 
+                                className={`px-3 py-1.5 text-xs text-[var(--text-primary)] border border-[var(--border-subtle)] whitespace-nowrap max-w-[300px] truncate ${h === '__sheetName' ? 'font-semibold text-primary-600' : ''} ${isControl ? `sticky left-0 z-20 ${cellBg} shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]` : cellBg}`}
+                                style={isControl ? { left: 0 } : {}}
+                              >
+                                {row[h] !== undefined && row[h] !== null && String(row[h]).trim() !== '' ? String(row[h]) : '-'}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      );
+                    })
                   )}
                 </tbody>
               </table>

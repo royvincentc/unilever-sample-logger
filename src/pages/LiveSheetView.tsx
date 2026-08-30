@@ -577,29 +577,42 @@ export default function LiveSheetView() {
                     </td>
                   </tr>
                 ) : (
-                  paginatedData.map((row) => (
-                    <tr key={row._rowIndex} className="hover:bg-[var(--bg-hover)] transition-colors group">
-                      
-                      <td 
-                        className="px-3 py-2 border-r border-[var(--border-subtle)] text-[var(--text-muted)] font-mono text-[10px] bg-[var(--bg-card)]/95 backdrop-blur-sm"
-                        style={{ position: 'sticky', left: frozenLeftOffsets['__row'], zIndex: 10 }}
+                  paginatedData.map((row) => {
+                    const isSelected = expandedCardId === String(row._rowIndex);
+                    return (
+                      <tr 
+                        key={row._rowIndex} 
+                        onClick={() => setExpandedCardId(isSelected ? null : String(row._rowIndex))}
+                        className={`transition-colors group cursor-pointer ${isSelected ? 'bg-primary-500/10 outline outline-2 outline-primary-500 relative z-10' : 'hover:bg-[var(--bg-hover)]'}`}
                       >
-                        {row._rowIndex}
-                      </td>
-
-                      {/* Dynamic Columns */}
-                      {dynamicColumns.map((col) => {
-                        const cellValue = row[col] || '';
-                        const isEditingThis = editingCell?.id === String(row._rowIndex) && editingCell?.field === col;
-                        const frozen = frozenColumns.has(col);
                         
-                        return (
-                          <td 
-                            key={col}
-                            className={`px-4 py-2 border-r border-[var(--border-subtle)] cursor-cell relative max-w-[250px] ${isEditingThis ? 'p-0' : ''} ${frozen ? 'bg-[var(--bg-card)]/95 backdrop-blur-sm' : ''}`}
-                            style={frozen ? { position: 'sticky', left: frozenLeftOffsets[col], zIndex: 10 } : {}}
-                            onDoubleClick={() => handleCellDoubleClick(String(row._rowIndex), col, cellValue)}
-                          >
+                        <td 
+                          className={`px-3 py-2 border-r border-[var(--border-subtle)] text-[var(--text-muted)] font-mono text-[10px] backdrop-blur-sm ${isSelected ? 'bg-primary-500/10' : 'bg-[var(--bg-card)]/95'}`}
+                          style={{ position: 'sticky', left: frozenLeftOffsets['__row'], zIndex: 10 }}
+                        >
+                          {row._rowIndex}
+                        </td>
+
+                        {/* Dynamic Columns */}
+                        {dynamicColumns.map((col) => {
+                          const cellValue = row[col] || '';
+                          const isEditingThis = editingCell?.id === String(row._rowIndex) && editingCell?.field === col;
+                          const frozen = frozenColumns.has(col);
+                          
+                          let cellBg = '';
+                          if (frozen) {
+                            cellBg = isSelected ? 'bg-primary-500/10 backdrop-blur-sm' : 'bg-[var(--bg-card)]/95 backdrop-blur-sm';
+                          } else {
+                            cellBg = isSelected ? 'bg-primary-500/10' : '';
+                          }
+                          
+                          return (
+                            <td 
+                              key={col}
+                              className={`px-4 py-2 border-r border-[var(--border-subtle)] cursor-cell relative max-w-[250px] ${isEditingThis ? 'p-0' : ''} ${cellBg}`}
+                              style={frozen ? { position: 'sticky', left: frozenLeftOffsets[col], zIndex: 10 } : {}}
+                              onDoubleClick={(e) => { e.stopPropagation(); handleCellDoubleClick(String(row._rowIndex), col, cellValue); }}
+                            >
                             {isEditingThis ? (
                               <input 
                                 autoFocus
@@ -617,7 +630,8 @@ export default function LiveSheetView() {
                         );
                       })}
                     </tr>
-                  ))
+                    );
+                  })
                 )}
               </tbody>
             </table>

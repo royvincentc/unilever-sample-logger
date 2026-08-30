@@ -137,6 +137,7 @@ export default function Results() {
 
   const [columnOrder, setColumnOrder] = useState<string[]>([]);
   const [draggedColumn, setDraggedColumn] = useState<string | null>(null);
+  const [selectedRowIndex, setSelectedRowIndex] = useState<number | null>(null);
 
   // Reset sorting state and load persisted columns when switching tabs
   useEffect(() => {
@@ -582,12 +583,18 @@ export default function Results() {
                   </tr>
                 </thead>
                 <tbody>
-                  {paginatedData.map((row, rowIndex) => (
-                    <tr key={rowIndex} className="hover:bg-[var(--bg-hover)] transition-colors group">
-                      <td className="px-3 py-1.5 border border-[var(--border-subtle)] bg-[var(--bg-surface)]">
+                  {paginatedData.map((row, rowIndex) => {
+                    const isSelected = selectedRowIndex === rowIndex;
+                    return (
+                    <tr 
+                      key={rowIndex} 
+                      onClick={() => setSelectedRowIndex(isSelected ? null : rowIndex)}
+                      className={`transition-colors group cursor-pointer ${isSelected ? 'bg-primary-500/10 outline outline-2 outline-primary-500 relative z-10' : 'hover:bg-[var(--bg-hover)]'}`}
+                    >
+                      <td className={`px-3 py-1.5 border border-[var(--border-subtle)] ${isSelected ? 'bg-primary-500/10' : 'bg-[var(--bg-surface)]'}`}>
                         <div className="flex items-center gap-2">
                           <button
-                            onClick={() => handleEditClick(row)}
+                            onClick={(e) => { e.stopPropagation(); handleEditClick(row); }}
                             className="flex items-center gap-1.5 px-2 py-1 rounded bg-[var(--bg-card)] border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-primary-500 hover:border-primary-500 transition-colors shadow-sm cursor-pointer"
                             title="Edit Row"
                           >
@@ -595,22 +602,23 @@ export default function Results() {
                             <span className="text-[10px] font-bold uppercase tracking-wider">Edit</span>
                           </button>
                           <button
-                            onClick={() => handleGenerateReport(row)}
+                            onClick={(e) => { e.stopPropagation(); handleGenerateReport(row); }}
                             className="flex items-center gap-1.5 px-2 py-1 rounded bg-[var(--bg-card)] border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-success-500 hover:border-success-500 transition-colors shadow-sm cursor-pointer"
                             title="Generate Report"
                           >
                             <FileText className="w-3.5 h-3.5" />
-                            <span className="text-[10px] font-bold uppercase tracking-wider">Print</span>
+                            <span className="text-[10px] font-bold uppercase tracking-wider hidden sm:inline">Rep</span>
                           </button>
                         </div>
                       </td>
                       {visibleHeaders.map((h, colIndex) => (
-                        <td key={colIndex} className="px-3 py-1.5 text-xs text-[var(--text-primary)] border border-[var(--border-subtle)] whitespace-nowrap max-w-sm truncate bg-[var(--bg-card)]">
+                        <td key={colIndex} className={`px-3 py-1.5 text-xs text-[var(--text-primary)] border border-[var(--border-subtle)] whitespace-nowrap max-w-[300px] truncate ${isSelected ? 'bg-primary-500/10' : 'bg-[var(--bg-card)]'}`}>
                           {row[h] !== undefined && row[h] !== null && String(row[h]).trim() !== '' ? String(row[h]) : '-'}
                         </td>
                       ))}
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
