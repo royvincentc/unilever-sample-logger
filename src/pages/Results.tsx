@@ -1,5 +1,4 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   FileSpreadsheet, RefreshCw, AlertCircle, Search, Edit2, X, Save, FileText,
@@ -12,7 +11,6 @@ import { getSheetTabName } from '../utils/sheetMapping';
 import { useTheme } from '../hooks/useTheme';
 import Pagination from '../components/ui/Pagination';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
-import { useStickyHeader } from '../hooks/useStickyHeader';
 import { useToast } from '../components/ui/Toast';
 import type { SampleType } from '../types';
 import Button from '../components/ui/Button';
@@ -112,14 +110,6 @@ export default function Results() {
   
   const theadRef = useRef<HTMLTableSectionElement>(null);
   const tableContainerRef = useRef<HTMLDivElement>(null);
-
-  const {
-    clonedContainerRef,
-    clonedTheadRef,
-    showCloned,
-    containerStyle,
-    handleTableScroll
-  } = useStickyHeader(tableContainerRef, theadRef);
   const [hiddenColumns, setHiddenColumns] = useState<Set<string>>(new Set());
   const [showColumnDropdown, setShowColumnDropdown] = useState(false);
   const colDropdownRef = useRef<HTMLDivElement>(null);
@@ -545,47 +535,6 @@ export default function Results() {
 
         {/* Data Grid */}
         <div className="glass rounded-2xl border border-[var(--border-subtle)] flex flex-col mb-6 relative">
-          
-          {/* CLONED HEADER FOR WINDOW SCROLL */}
-          {showCloned && createPortal(
-            <div 
-              ref={clonedContainerRef}
-              className="fixed top-[70px] z-40 overflow-hidden bg-[var(--bg-card)] shadow-md hidden lg:block rounded-t-2xl border-b border-[var(--border-subtle)]"
-              style={{ left: containerStyle.left, width: containerStyle.width }}
-            >
-              <div className="w-full min-w-max relative">
-                <table className="w-full text-left border-collapse text-sm whitespace-nowrap">
-                  <thead ref={clonedTheadRef} className="shadow-sm">
-                    <tr>
-                      <th className="px-3 py-2 font-bold text-[var(--text-secondary)] border border-[var(--border-subtle)] bg-[var(--bg-sidebar)] uppercase tracking-wider text-[10px]">Actions</th>
-                      {visibleHeaders.map((h, i) => {
-                        const isControl = isControlHeader(h);
-                        const isSorted = (sortColumn === h) || (!sortColumn && isControl);
-                        return (
-                          <th 
-                            key={h} 
-                            onClick={() => handleHeaderClick(h)}
-                            className="px-3 py-2 font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-subtle)] bg-[var(--bg-sidebar)] hover:bg-[var(--bg-hover)] uppercase tracking-wider text-[10px] whitespace-nowrap cursor-pointer select-none transition-colors group"
-                          >
-                            <div className="flex items-center justify-between gap-1.5">
-                              <span>{h}</span>
-                              <span className="shrink-0">
-                                {isSorted ? (
-                                  sortDirection === 'asc' ? <ArrowUp className="w-3 h-3 text-primary-500" /> : <ArrowDown className="w-3 h-3 text-primary-500" />
-                                ) : (
-                                  <ArrowUpDown className="w-3 h-3 opacity-30 group-hover:opacity-100 transition-opacity" />
-                                )}
-                              </span>
-                            </div>
-                          </th>
-                        );
-                      })}
-                    </tr>
-                  </thead>
-                </table>
-              </div>
-            </div>
-          , document.body)}
 
           {loading ? (
             <div className="flex-1 flex flex-col items-center justify-center p-12 text-[var(--text-muted)]">
@@ -600,14 +549,17 @@ export default function Results() {
             </div>
           ) : (
             <div 
-              ref={tableContainerRef}
-              onScroll={handleTableScroll}
-              className="w-full overflow-x-auto custom-scrollbar rounded-2xl"
+                            className="w-full rounded-2xl"
             >
               <table className="w-full text-left border-collapse text-sm min-w-max">
                 <thead ref={theadRef} className="sticky top-0 z-10 shadow-sm">
                   <tr>
-                    <th className="px-3 py-2 font-bold text-[var(--text-secondary)] border border-[var(--border-subtle)] bg-[var(--bg-sidebar)] uppercase tracking-wider text-[10px]">Actions</th>
+                    <th 
+                      className="px-3 py-2 font-bold text-[var(--text-secondary)] border border-[var(--border-subtle)] bg-[var(--bg-sidebar)] uppercase tracking-wider text-[10px] sticky z-30 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]"
+                      style={{ left: 'var(--sidebar-offset)' }}
+                    >
+                      Actions
+                    </th>
                     {visibleHeaders.map((h, i) => {
                       const isControl = isControlHeader(h);
                       const isSorted = (sortColumn === h) || (!sortColumn && isControl);
@@ -650,7 +602,10 @@ export default function Results() {
                       onClick={() => setSelectedRowIndex(isSelected ? null : rowIndex)}
                       className={`transition-colors group cursor-pointer ${isSelected ? 'bg-[var(--bg-selected)] outline outline-2 outline-primary-500 relative z-10' : 'hover:bg-[var(--bg-hover)]'}`}
                     >
-                      <td className={`px-3 py-1.5 border border-[var(--border-subtle)] ${isSelected ? 'bg-[var(--bg-selected)]' : 'bg-[var(--bg-surface)]'}`}>
+                      <td 
+                        className={`px-3 py-1.5 border border-[var(--border-subtle)] sticky z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] ${isSelected ? 'bg-[var(--bg-selected)]' : 'bg-[var(--bg-surface)]'}`}
+                        style={{ left: 'var(--sidebar-offset)' }}
+                      >
                         <div className="flex items-center gap-2">
                           <button
                             onClick={(e) => { e.stopPropagation(); handleEditClick(row); }}
@@ -852,4 +807,5 @@ export default function Results() {
     </div>
   );
 }
+
 

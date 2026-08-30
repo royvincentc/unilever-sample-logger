@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import Sidebar from './Sidebar';
 import BottomNav from './BottomNav';
@@ -17,6 +17,14 @@ export default function Layout({ children, onLogout, queueCount }: LayoutProps) 
   const isOnline = useOnlineStatus();
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  useEffect(() => {
+    if (isSidebarCollapsed) {
+      document.body.classList.add('sidebar-collapsed');
+    } else {
+      document.body.classList.remove('sidebar-collapsed');
+    }
+  }, [isSidebarCollapsed]);
 
   return (
     <div className="min-h-screen gradient-mesh">
