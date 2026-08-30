@@ -1,12 +1,13 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { RefreshCw, Key, Shield, AlertCircle, X, Check, Save, Search, ArrowDown, ArrowUp, Columns } from 'lucide-react';
+import { RefreshCw, Key, Shield, AlertCircle, X, Check, Save, Search, ArrowDown, ArrowUp, Columns, Pin, Eye, EyeOff } from 'lucide-react';
 import Header from '../components/Layout/Header';
 import Pagination from '../components/ui/Pagination';
 import { useTheme } from '../hooks/useTheme';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { getSettings } from '../utils/auth';
 import { updateSheetRow, fetchSheetSchema } from '../utils/api';
+import { listenToLiveSheetSettings, saveLiveSheetSettings } from '../utils/db';
 
 // 5 minutes in milliseconds
 const PASSWORD_VALIDITY_MS = 5 * 60 * 1000;
@@ -46,9 +47,54 @@ export default function LiveSheetView() {
   const [editValue, setEditValue] = useState<string>('');
   const [savingId, setSavingId] = useState<string | null>(null);
   
-  // Hidden Columns
+  // Column Settings
   const [hiddenColumns, setHiddenColumns] = useState<Set<string>>(new Set());
+  const [frozenColumns, setFrozenColumns] = useState<Set<string>>(new Set());
   const [showColumnHider, setShowColumnHider] = useState(false);
+
+  // Sync settings with Firebase
+  useEffect(() => {
+    const unsubscribe = listenToLiveSheetSettings(activeTab, (settings) => {
+      if (settings) {
+        setHiddenColumns(new Set(settings.hiddenColumns || []));
+        setFrozenColumns(new Set(settings.frozenColumns || []));
+      } else {
+        setHiddenColumns(new Set());
+        // Default freeze logic if no settings found
+        const defaults = new Set<string>();
+        if (activeTab === 'SWAB 2026') { defaults.add('CONTROL #'); defaults.add('SAMPLE'); }
+        else if (activeTab === 'WATER 2026') { defaults.add('CONTROL #'); defaults.add('WATER SOURCE'); }
+        else if (activeTab === 'RM,FG,SFG 2026') { defaults.add('CONTROL #'); defaults.add('BATCH #'); }
+        else { defaults.add('CONTROL #'); }
+        setFrozenColumns(defaults);
+      }
+    });
+    return () => unsubscribe();
+  }, [activeTab]);
+
+  const toggleColumnSetting = async (col: string, type: 'hidden' | 'frozen') => {
+    let newHidden = new Set(hiddenColumns);
+    let newFrozen = new Set(frozenColumns);
+
+    if (type === 'hidden') {
+      if (newHidden.has(col)) newHidden.delete(col);
+      else newHidden.add(col);
+      setHiddenColumns(newHidden); // Optimistic UI
+    } else {
+      if (newFrozen.has(col)) newFrozen.delete(col);
+      else newFrozen.add(col);
+      setFrozenColumns(newFrozen); // Optimistic UI
+    }
+
+    try {
+      await saveLiveSheetSettings(activeTab, {
+        hiddenColumns: Array.from(newHidden),
+        frozenColumns: Array.from(newFrozen)
+      });
+    } catch (e) {
+      console.error("Failed to save settings", e);
+    }
+  };
 
   // Frozen columns configuration
   const theadRef = useRef<HTMLTableSectionElement>(null);
@@ -89,8 +135,6 @@ export default function LiveSheetView() {
 
   useEffect(() => {
     loadData(activeTab);
-    // Reset hidden columns when changing tabs
-    setHiddenColumns(new Set());
   }, [activeTab, loadData]);
 
   // Measure column widths for sticky positioning
@@ -246,14 +290,6 @@ export default function LiveSheetView() {
 
   const dynamicColumns = useMemo(() => headers.filter(h => !hiddenColumns.has(h)), [headers, hiddenColumns]);
 
-  const getIsFrozen = useCallback((colName: string) => {
-    const upper = colName.toUpperCase();
-    if (activeTab === 'SWAB 2026') return upper.includes('CONTROL') || upper.includes('SAMPLE');
-    if (activeTab === 'WATER 2026') return upper.includes('CONTROL') || upper.includes('WATER SOURCE');
-    if (activeTab === 'RM,FG,SFG 2026') return upper.includes('CONTROL') || upper.includes('BATCH') || upper.includes('SAMPLE');
-    return upper.includes('CONTROL');
-  }, [activeTab]);
-
   const frozenLeftOffsets = useMemo(() => {
     const offsets: Record<string, number> = {};
     let currentLeft = 0;
@@ -262,13 +298,13 @@ export default function LiveSheetView() {
     currentLeft += colWidths['__row'] || 0; 
 
     dynamicColumns.forEach((col) => {
-      if (getIsFrozen(col)) {
+      if (frozenColumns.has(col)) {
         offsets[col] = currentLeft;
         currentLeft += colWidths[col] || 0;
       }
     });
     return offsets;
-  }, [dynamicColumns, colWidths, getIsFrozen]);
+  }, [dynamicColumns, colWidths, frozenColumns]);
 
   return (
     <div className="min-h-screen bg-transparent flex flex-col">
@@ -318,24 +354,37 @@ export default function LiveSheetView() {
                       className="absolute right-0 top-full mt-2 w-56 bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-xl shadow-xl z-50 overflow-hidden flex flex-col"
                     >
                       <div className="p-3 border-b border-[var(--border-subtle)]">
-                        <h4 className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-wider">Show/Hide Columns</h4>
+                        <h4 className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-wider">Column Settings</h4>
                       </div>
                       <div className="max-h-64 overflow-y-auto p-2 custom-scrollbar">
                         {headers.map(col => (
-                          <label key={col} className="flex items-center gap-3 px-2 py-1.5 hover:bg-[var(--bg-hover)] rounded-lg cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={!hiddenColumns.has(col)}
-                              onChange={(e) => {
-                                const newSet = new Set(hiddenColumns);
-                                if (e.target.checked) newSet.delete(col);
-                                else newSet.add(col);
-                                setHiddenColumns(newSet);
-                              }}
-                              className="w-3.5 h-3.5 accent-primary-500 rounded"
-                            />
-                            <span className="text-xs font-medium text-[var(--text-secondary)] truncate">{col}</span>
-                          </label>
+                          <div key={col} className="flex items-center justify-between px-2 py-1.5 hover:bg-[var(--bg-hover)] rounded-lg">
+                            <span className="text-xs font-medium text-[var(--text-secondary)] truncate mr-2" title={col}>{col}</span>
+                            <div className="flex items-center gap-3 shrink-0">
+                              <label className="flex items-center gap-1 cursor-pointer" title="Freeze Column">
+                                <Pin className={`w-3.5 h-3.5 ${frozenColumns.has(col) ? 'text-primary-500' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'}`} />
+                                <input
+                                  type="checkbox"
+                                  checked={frozenColumns.has(col)}
+                                  onChange={() => toggleColumnSetting(col, 'frozen')}
+                                  className="sr-only"
+                                />
+                              </label>
+                              <label className="flex items-center gap-1 cursor-pointer" title="Visible Column">
+                                {hiddenColumns.has(col) ? (
+                                  <EyeOff className="w-3.5 h-3.5 text-[var(--text-muted)] hover:text-[var(--text-primary)]" />
+                                ) : (
+                                  <Eye className="w-3.5 h-3.5 text-primary-500" />
+                                )}
+                                <input
+                                  type="checkbox"
+                                  checked={!hiddenColumns.has(col)}
+                                  onChange={() => toggleColumnSetting(col, 'hidden')}
+                                  className="sr-only"
+                                />
+                              </label>
+                            </div>
+                          </div>
                         ))}
                       </div>
                     </motion.div>
@@ -396,7 +445,7 @@ export default function LiveSheetView() {
                     </div>
                   </th>
                   {dynamicColumns.map((col) => {
-                    const frozen = getIsFrozen(col);
+                    const frozen = frozenColumns.has(col);
                     return (
                       <th 
                         key={col} 
@@ -445,7 +494,7 @@ export default function LiveSheetView() {
                       {dynamicColumns.map((col) => {
                         const cellValue = row[col] || '';
                         const isEditingThis = editingCell?.id === String(row._rowIndex) && editingCell?.field === col;
-                        const frozen = getIsFrozen(col);
+                        const frozen = frozenColumns.has(col);
                         
                         return (
                           <td 

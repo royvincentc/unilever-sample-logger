@@ -362,3 +362,32 @@ export async function saveLogbookSettings(settings: LogbookSettings): Promise<vo
   }
 }
 
+export interface LiveSheetSettings {
+  hiddenColumns: string[];
+  frozenColumns: string[];
+}
+
+export function listenToLiveSheetSettings(tabId: string, callback: (settings: LiveSheetSettings | null) => void) {
+  const docRef = doc(firestore, 'live_sheet_settings', tabId);
+  return onSnapshot(docRef, (docSnap) => {
+    if (docSnap.exists()) {
+      callback(docSnap.data() as LiveSheetSettings);
+    } else {
+      callback(null);
+    }
+  }, (error) => {
+    console.error("Firestore Listen Error (live sheet settings):", error);
+  });
+}
+
+export async function saveLiveSheetSettings(tabId: string, settings: LiveSheetSettings): Promise<void> {
+  try {
+    const docRef = doc(firestore, 'live_sheet_settings', tabId);
+    await setDoc(docRef, settings, { merge: true });
+    console.log(`Successfully saved global live sheet settings for ${tabId} to Firestore`);
+  } catch (e) {
+    console.error('Firestore save settings error:', e);
+    throw e;
+  }
+}
+
