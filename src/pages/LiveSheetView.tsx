@@ -308,10 +308,10 @@ export default function LiveSheetView() {
   }, [dynamicColumns, colWidths, frozenColumns]);
 
   return (
-    <div className="h-[calc(100dvh-7rem)] lg:h-[calc(100dvh-2rem)] bg-transparent flex flex-col">
+    <div className="min-h-screen bg-transparent flex flex-col">
       <Header theme={theme} onSetTheme={setTheme} title="Live Data Editor" />
       
-      <div className="px-4 lg:px-8 max-w-full mx-auto flex-1 flex flex-col pb-8 pt-4 space-y-4 overflow-hidden">
+      <div className="px-4 lg:px-8 max-w-full mx-auto flex-1 flex flex-col pb-8 pt-4 space-y-4">
         
         {/* Tabs & Controls Bar */}
         <div className="glass p-3 rounded-2xl border border-[var(--border-subtle)] flex flex-col lg:flex-row lg:items-center justify-between gap-4 shrink-0">
@@ -323,7 +323,7 @@ export default function LiveSheetView() {
                 className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
                   activeTab === tab.id 
                     ? 'bg-primary-500 text-white shadow-lg shadow-primary-500/20' 
-                    : 'bg-[var(--bg-input)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]'
+                    : 'bg-[var(--bg-card)] hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-subtle)]'
                 }`}
               >
                 {tab.label}
@@ -352,6 +352,7 @@ export default function LiveSheetView() {
                       initial={{ opacity: 0, y: 10, scale: 0.95 }}
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                      transition={{ duration: 0.15 }}
                       className="absolute right-0 top-full mt-2 w-56 bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-xl shadow-xl z-50 overflow-hidden flex flex-col"
                     >
                       <div className="p-3 border-b border-[var(--border-subtle)]">
@@ -428,10 +429,10 @@ export default function LiveSheetView() {
         )}
 
         {/* Spreadsheet Data Grid */}
-        <div className="flex-1 glass rounded-2xl border border-[var(--border-subtle)] overflow-hidden flex flex-col relative min-h-0">
+        <div className="glass rounded-2xl border border-[var(--border-subtle)] flex flex-col relative w-full overflow-x-auto overflow-y-clip custom-scrollbar mb-6">
           
           {/* MOBILE CARD VIEW (< lg) */}
-          <div className="flex-1 overflow-y-auto p-4 lg:hidden space-y-4">
+          <div className="p-4 lg:hidden space-y-4">
             {loading && data.length === 0 ? (
                <div className="py-12 text-center text-[var(--text-muted)]">
                  <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-3 text-primary-500" />
@@ -525,7 +526,7 @@ export default function LiveSheetView() {
           </div>
 
           {/* DESKTOP TABLE VIEW (>= lg) */}
-          <div className="hidden lg:block flex-1 overflow-auto relative custom-scrollbar">
+          <div className="hidden lg:block w-full min-w-max relative">
             <table className="w-full text-left border-collapse text-xs whitespace-nowrap">
               <thead ref={theadRef} className="sticky top-0 z-30 shadow-sm after:content-[''] after:absolute after:bottom-0 after:left-0 after:right-0 after:border-b after:border-[var(--border-subtle)]">
                 <tr>

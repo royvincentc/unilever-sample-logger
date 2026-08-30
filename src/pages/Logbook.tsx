@@ -402,7 +402,7 @@ export default function Logbook() {
   }, [processedData, currentPage, rowsPerPage]);
 
   return (
-    <div className="h-[calc(100dvh-7rem)] lg:h-[calc(100dvh-2rem)] bg-transparent flex flex-col">
+    <div className="min-h-screen bg-transparent flex flex-col">
       <Header theme={theme} onSetTheme={setTheme} title="Logbook" />
       
       <div className="flex-1 px-4 lg:px-8 py-6 max-w-[1600px] mx-auto w-full flex flex-col">
@@ -531,14 +531,14 @@ export default function Logbook() {
           </div>
         )}
 
-        <div className="flex-1 glass rounded-2xl border border-[var(--border-subtle)] overflow-hidden flex flex-col relative min-h-0">
+        <div className="glass rounded-2xl border border-[var(--border-subtle)] flex flex-col relative w-full mb-6">
           {loading ? (
-            <div className="absolute inset-0 flex flex-col items-center justify-center bg-[var(--bg-card)]/50 backdrop-blur-sm z-20">
+            <div className="flex flex-col items-center justify-center p-12 bg-[var(--bg-card)]/50 backdrop-blur-sm z-20 rounded-2xl">
               <RefreshCw className="w-8 h-8 text-primary-500 animate-spin mb-4" />
               <p className="text-[var(--text-secondary)] font-medium">Loading combined logbook...</p>
             </div>
           ) : (
-            <div className="flex-1 overflow-auto custom-scrollbar">
+            <div className="w-full overflow-x-auto overflow-y-clip custom-scrollbar rounded-2xl">
               <table className="w-full text-left border-collapse text-sm min-w-max">
                 <thead className="sticky top-0 z-20 shadow-sm">
                   <tr>
@@ -616,14 +616,14 @@ export default function Logbook() {
               </table>
             </div>
           )}
-          <Pagination
-            currentPage={currentPage}
-            totalRows={processedData.length}
-            rowsPerPage={rowsPerPage}
-            onPageChange={setCurrentPage}
-            onRowsPerPageChange={(val) => { setRowsPerPage(val); setCurrentPage(1); }}
-          />
         </div>
+        <Pagination
+          currentPage={currentPage}
+          totalRows={processedData.length}
+          rowsPerPage={rowsPerPage}
+          onPageChange={setCurrentPage}
+          onRowsPerPageChange={(val) => { setRowsPerPage(val); setCurrentPage(1); }}
+        />
       </div>
     </div>
   );

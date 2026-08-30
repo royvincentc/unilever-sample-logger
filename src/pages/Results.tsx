@@ -396,7 +396,7 @@ export default function Results() {
   }, [processedData, currentPage, rowsPerPage]);
 
   return (
-    <div className="h-[calc(100dvh-7rem)] lg:h-[calc(100dvh-2rem)] bg-transparent flex flex-col">
+    <div className="min-h-screen bg-transparent flex flex-col">
       <Header theme={theme} onSetTheme={setTheme} title="Live Results Dashboard" />
       
       <div className="flex-1 px-4 lg:px-8 py-6 max-w-[1600px] mx-auto w-full flex flex-col">
@@ -531,7 +531,7 @@ export default function Results() {
         )}
 
         {/* Data Grid */}
-        <div className="flex-1 glass rounded-2xl border border-[var(--border-subtle)] overflow-hidden flex flex-col min-h-[400px]">
+        <div className="glass rounded-2xl border border-[var(--border-subtle)] flex flex-col mb-6">
           {loading ? (
             <div className="flex-1 flex flex-col items-center justify-center p-12 text-[var(--text-muted)]">
               <RefreshCw className="w-8 h-8 animate-spin mb-4 text-primary-500" />
@@ -544,7 +544,7 @@ export default function Results() {
               <p>Try adjusting your search or sync the sheet.</p>
             </div>
           ) : (
-            <div className="flex-1 overflow-auto custom-scrollbar">
+            <div className="w-full overflow-x-auto overflow-y-clip custom-scrollbar rounded-2xl">
               <table className="w-full text-left border-collapse text-sm min-w-max">
                 <thead className="sticky top-0 z-10 shadow-sm">
                   <tr>
