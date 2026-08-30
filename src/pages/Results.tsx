@@ -11,6 +11,7 @@ import { getSheetTabName } from '../utils/sheetMapping';
 import { useTheme } from '../hooks/useTheme';
 import Pagination from '../components/ui/Pagination';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
+import { useStickyHeader } from '../hooks/useStickyHeader';
 import { useToast } from '../components/ui/Toast';
 import type { SampleType } from '../types';
 import Button from '../components/ui/Button';
@@ -107,6 +108,17 @@ export default function Results() {
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(100);  
+  
+  const theadRef = useRef<HTMLTableSectionElement>(null);
+  const tableContainerRef = useRef<HTMLDivElement>(null);
+
+  const {
+    clonedContainerRef,
+    clonedTheadRef,
+    showCloned,
+    containerStyle,
+    handleTableScroll
+  } = useStickyHeader(tableContainerRef, theadRef);
   const [hiddenColumns, setHiddenColumns] = useState<Set<string>>(new Set());
   const [showColumnDropdown, setShowColumnDropdown] = useState(false);
   const colDropdownRef = useRef<HTMLDivElement>(null);
@@ -531,7 +543,49 @@ export default function Results() {
         )}
 
         {/* Data Grid */}
-        <div className="glass rounded-2xl border border-[var(--border-subtle)] flex flex-col mb-6">
+        <div className="glass rounded-2xl border border-[var(--border-subtle)] flex flex-col mb-6 relative">
+          
+          {/* CLONED HEADER FOR WINDOW SCROLL */}
+          {showCloned && (
+            <div 
+              ref={clonedContainerRef}
+              className="fixed top-[70px] z-40 overflow-hidden bg-[var(--bg-card)] shadow-md hidden lg:block rounded-t-2xl border-b border-[var(--border-subtle)]"
+              style={{ left: containerStyle.left, width: containerStyle.width }}
+            >
+              <div className="w-full min-w-max relative">
+                <table className="w-full text-left border-collapse text-sm whitespace-nowrap">
+                  <thead ref={clonedTheadRef} className="shadow-sm">
+                    <tr>
+                      <th className="px-3 py-2 font-bold text-[var(--text-secondary)] border border-[var(--border-subtle)] bg-[var(--bg-sidebar)] uppercase tracking-wider text-[10px]">Actions</th>
+                      {visibleHeaders.map((h, i) => {
+                        const isControl = isControlHeader(h);
+                        const isSorted = (sortColumn === h) || (!sortColumn && isControl);
+                        return (
+                          <th 
+                            key={h} 
+                            onClick={() => handleHeaderClick(h)}
+                            className="px-3 py-2 font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-subtle)] bg-[var(--bg-sidebar)] hover:bg-[var(--bg-hover)] uppercase tracking-wider text-[10px] whitespace-nowrap cursor-pointer select-none transition-colors group"
+                          >
+                            <div className="flex items-center justify-between gap-1.5">
+                              <span>{h}</span>
+                              <span className="shrink-0">
+                                {isSorted ? (
+                                  sortDirection === 'asc' ? <ArrowUp className="w-3 h-3 text-primary-500" /> : <ArrowDown className="w-3 h-3 text-primary-500" />
+                                ) : (
+                                  <ArrowUpDown className="w-3 h-3 opacity-30 group-hover:opacity-100 transition-opacity" />
+                                )}
+                              </span>
+                            </div>
+                          </th>
+                        );
+                      })}
+                    </tr>
+                  </thead>
+                </table>
+              </div>
+            </div>
+          )}
+
           {loading ? (
             <div className="flex-1 flex flex-col items-center justify-center p-12 text-[var(--text-muted)]">
               <RefreshCw className="w-8 h-8 animate-spin mb-4 text-primary-500" />
@@ -544,9 +598,13 @@ export default function Results() {
               <p>Try adjusting your search or sync the sheet.</p>
             </div>
           ) : (
-            <div className="w-full overflow-x-auto overflow-y-clip custom-scrollbar rounded-2xl">
+            <div 
+              ref={tableContainerRef}
+              onScroll={handleTableScroll}
+              className="w-full overflow-x-auto custom-scrollbar rounded-2xl"
+            >
               <table className="w-full text-left border-collapse text-sm min-w-max">
-                <thead className="sticky top-0 z-10 shadow-sm">
+                <thead ref={theadRef} className="sticky top-0 z-10 shadow-sm">
                   <tr>
                     <th className="px-3 py-2 font-bold text-[var(--text-secondary)] border border-[var(--border-subtle)] bg-[var(--bg-sidebar)] uppercase tracking-wider text-[10px]">Actions</th>
                     {visibleHeaders.map((h, i) => {

@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { RefreshCw, Key, Shield, AlertCircle, X, Check, Save, Search, ArrowDown, ArrowUp, Columns, Pin, Eye, EyeOff } from 'lucide-react';
+import { RefreshCw, Key, Shield, AlertCircle, X, Check, Save, Search, ArrowDown, ArrowUp, Columns, Pin, Eye, EyeOff, Lock, LogOut } from 'lucide-react';
 import Header from '../components/Layout/Header';
 import Pagination from '../components/ui/Pagination';
 import { useTheme } from '../hooks/useTheme';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
+import { useStickyHeader } from '../hooks/useStickyHeader';
 import { getSettings } from '../utils/auth';
 import { updateSheetRow, fetchSheetSchema } from '../utils/api';
 import { listenToLiveSheetSettings, saveLiveSheetSettings } from '../utils/db';
@@ -53,6 +54,20 @@ export default function LiveSheetView() {
   const [frozenColumns, setFrozenColumns] = useState<Set<string>>(new Set());
   const [showColumnHider, setShowColumnHider] = useState(false);
 
+  // Frozen columns configuration
+  const [colWidths, setColWidths] = useState<Record<string, number>>({});
+
+  const theadRef = useRef<HTMLTableSectionElement>(null);
+  const tableContainerRef = useRef<HTMLDivElement>(null);
+
+  const {
+    clonedContainerRef,
+    clonedTheadRef,
+    showCloned,
+    containerStyle,
+    handleTableScroll
+  } = useStickyHeader(tableContainerRef, theadRef);
+
   // Sync settings with Firebase
   useEffect(() => {
     const unsubscribe = listenToLiveSheetSettings(activeTab, (settings) => {
@@ -96,10 +111,6 @@ export default function LiveSheetView() {
       console.error("Failed to save settings", e);
     }
   };
-
-  // Frozen columns configuration
-  const theadRef = useRef<HTMLTableSectionElement>(null);
-  const [colWidths, setColWidths] = useState<Record<string, number>>({});
 
   const isOnline = useOnlineStatus();
 
@@ -428,8 +439,61 @@ export default function LiveSheetView() {
           </div>
         )}
 
+        {/* CLONED HEADER FOR WINDOW SCROLL */}
+        {showCloned && (
+          <div 
+            ref={clonedContainerRef}
+            className="fixed top-[70px] z-40 overflow-hidden bg-[var(--bg-card)] shadow-md hidden lg:block rounded-t-2xl border-b border-[var(--border-subtle)]"
+            style={{ left: containerStyle.left, width: containerStyle.width }}
+          >
+            <div className="w-full min-w-max relative">
+              <table className="w-full text-left border-collapse text-xs whitespace-nowrap">
+                <thead ref={clonedTheadRef} className="shadow-sm">
+                  <tr>
+                    <th 
+                      className="px-3 py-2 font-bold text-[var(--text-muted)] uppercase tracking-wider bg-[var(--bg-card)] border-r border-[var(--border-subtle)] cursor-pointer hover:bg-[var(--bg-hover)] transition-colors select-none"
+                      style={{ position: 'sticky', left: frozenLeftOffsets['__row'], zIndex: 30 }}
+                      onClick={() => handleSort('_rowIndex')}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span>Row</span>
+                        {sortConfig.key === '_rowIndex' && (
+                          sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
+                        )}
+                      </div>
+                    </th>
+                    {dynamicColumns.map((col) => {
+                      const frozen = frozenColumns.has(col);
+                      return (
+                        <th 
+                          key={col} 
+                          className="px-4 py-3 font-bold text-[var(--text-secondary)] uppercase tracking-wider bg-[var(--bg-card)] border-r border-[var(--border-subtle)] max-w-[200px] cursor-pointer hover:bg-[var(--bg-hover)] transition-colors select-none" 
+                          title={col}
+                          style={frozen ? { position: 'sticky', left: frozenLeftOffsets[col], zIndex: 30 } : {}}
+                          onClick={() => handleSort(col)}
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="truncate">{col}</span>
+                            {sortConfig.key === col && (
+                              sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3 shrink-0" /> : <ArrowDown className="w-3 h-3 shrink-0" />
+                            )}
+                          </div>
+                        </th>
+                      );
+                    })}
+                  </tr>
+                </thead>
+              </table>
+            </div>
+          </div>
+        )}
+
         {/* Spreadsheet Data Grid */}
-        <div className="glass rounded-2xl border border-[var(--border-subtle)] flex flex-col relative w-full overflow-x-auto overflow-y-clip custom-scrollbar mb-6">
+        <div 
+          ref={tableContainerRef}
+          onScroll={handleTableScroll}
+          className="glass rounded-2xl border border-[var(--border-subtle)] flex flex-col relative w-full overflow-x-auto custom-scrollbar mb-6"
+        >
           
           {/* MOBILE CARD VIEW (< lg) */}
           <div className="p-4 lg:hidden space-y-4">
