@@ -58,6 +58,7 @@
   --bg-sidebar: #ffffff;
   --bg-input: #ffffff;
   --bg-hover: var(--color-surface-100);
+  --bg-selected: #ebf0ff;
   --text-primary: var(--color-surface-900);
   --text-secondary: var(--color-surface-600);
   --text-muted: var(--color-surface-400);
@@ -78,6 +79,7 @@
   --bg-sidebar: var(--color-surface-950);
   --bg-input: var(--color-surface-900);
   --bg-hover: var(--color-surface-800);
+  --bg-selected: #141b3d;
   --text-primary: var(--color-surface-50);
   --text-secondary: var(--color-surface-300);
   --text-muted: var(--color-surface-500);

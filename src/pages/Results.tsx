@@ -589,9 +589,9 @@ export default function Results() {
                     <tr 
                       key={rowIndex} 
                       onClick={() => setSelectedRowIndex(isSelected ? null : rowIndex)}
-                      className={`transition-colors group cursor-pointer ${isSelected ? 'bg-primary-500/10 outline outline-2 outline-primary-500 relative z-10' : 'hover:bg-[var(--bg-hover)]'}`}
+                      className={`transition-colors group cursor-pointer ${isSelected ? 'bg-[var(--bg-selected)] outline outline-2 outline-primary-500 relative z-10' : 'hover:bg-[var(--bg-hover)]'}`}
                     >
-                      <td className={`px-3 py-1.5 border border-[var(--border-subtle)] ${isSelected ? 'bg-primary-500/10' : 'bg-[var(--bg-surface)]'}`}>
+                      <td className={`px-3 py-1.5 border border-[var(--border-subtle)] ${isSelected ? 'bg-[var(--bg-selected)]' : 'bg-[var(--bg-surface)]'}`}>
                         <div className="flex items-center gap-2">
                           <button
                             onClick={(e) => { e.stopPropagation(); handleEditClick(row); }}
@@ -612,7 +612,7 @@ export default function Results() {
                         </div>
                       </td>
                       {visibleHeaders.map((h, colIndex) => (
-                        <td key={colIndex} className={`px-3 py-1.5 text-xs text-[var(--text-primary)] border border-[var(--border-subtle)] whitespace-nowrap max-w-[300px] truncate ${isSelected ? 'bg-primary-500/10' : 'bg-[var(--bg-card)]'}`}>
+                        <td key={colIndex} className={`px-3 py-1.5 text-xs text-[var(--text-primary)] border border-[var(--border-subtle)] whitespace-nowrap max-w-[300px] truncate ${isSelected ? 'bg-[var(--bg-selected)]' : 'bg-[var(--bg-card)]'}`}>
                           {row[h] !== undefined && row[h] !== null && String(row[h]).trim() !== '' ? String(row[h]) : '-'}
                         </td>
                       ))}

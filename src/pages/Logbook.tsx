@@ -591,12 +591,12 @@ export default function Logbook() {
                         <tr 
                           key={rowIndex} 
                           onClick={() => setSelectedRowIndex(isSelected ? null : rowIndex)}
-                          className={`transition-colors group cursor-pointer ${isSelected ? 'bg-primary-500/10 outline outline-2 outline-primary-500 relative z-10' : 'hover:bg-[var(--bg-hover)]'}`}
+                          className={`transition-colors group cursor-pointer ${isSelected ? 'bg-[var(--bg-selected)] outline outline-2 outline-primary-500 relative z-10' : 'hover:bg-[var(--bg-hover)]'}`}
                         >
                           {visibleHeaders.map((h, colIndex) => {
                             const isControl = isControlHeader(h);
-                            const baseBg = h === '__sheetName' ? 'bg-primary-500/5' : 'bg-[var(--bg-card)]';
-                            const cellBg = isSelected ? 'bg-primary-500/10' : baseBg;
+                            const baseBg = h === '__sheetName' ? 'bg-[color-mix(in_srgb,var(--bg-card)_95%,var(--color-primary-500))]' : 'bg-[var(--bg-card)]';
+                            const cellBg = isSelected ? 'bg-[var(--bg-selected)]' : baseBg;
                             
                             return (
                               <td 

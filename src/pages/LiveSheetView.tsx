@@ -583,11 +583,11 @@ export default function LiveSheetView() {
                       <tr 
                         key={row._rowIndex} 
                         onClick={() => setExpandedCardId(isSelected ? null : String(row._rowIndex))}
-                        className={`transition-colors group cursor-pointer ${isSelected ? 'bg-primary-500/10 outline outline-2 outline-primary-500 relative z-10' : 'hover:bg-[var(--bg-hover)]'}`}
+                        className={`transition-colors group cursor-pointer ${isSelected ? 'bg-[var(--bg-selected)] outline outline-2 outline-primary-500 relative z-10' : 'hover:bg-[var(--bg-hover)]'}`}
                       >
                         
                         <td 
-                          className={`px-3 py-2 border-r border-[var(--border-subtle)] text-[var(--text-muted)] font-mono text-[10px] backdrop-blur-sm ${isSelected ? 'bg-primary-500/10' : 'bg-[var(--bg-card)]/95'}`}
+                          className={`px-3 py-2 border-r border-[var(--border-subtle)] text-[var(--text-muted)] font-mono text-[10px] backdrop-blur-sm ${isSelected ? 'bg-[var(--bg-selected)]' : 'bg-[var(--bg-card)]/95'}`}
                           style={{ position: 'sticky', left: frozenLeftOffsets['__row'], zIndex: 10 }}
                         >
                           {row._rowIndex}
@@ -601,9 +601,9 @@ export default function LiveSheetView() {
                           
                           let cellBg = '';
                           if (frozen) {
-                            cellBg = isSelected ? 'bg-primary-500/10 backdrop-blur-sm' : 'bg-[var(--bg-card)]/95 backdrop-blur-sm';
+                            cellBg = isSelected ? 'bg-[var(--bg-selected)]' : 'bg-[var(--bg-card)]/95 backdrop-blur-sm';
                           } else {
-                            cellBg = isSelected ? 'bg-primary-500/10' : '';
+                            cellBg = isSelected ? 'bg-[var(--bg-selected)]' : '';
                           }
                           
                           return (
