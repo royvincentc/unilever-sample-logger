@@ -402,7 +402,7 @@ export default function Logbook() {
   }, [processedData, currentPage, rowsPerPage]);
 
   return (
-    <div className="min-h-screen bg-transparent flex flex-col">
+    <div className="h-[calc(100dvh-7rem)] lg:h-[calc(100dvh-2rem)] bg-transparent flex flex-col">
       <Header theme={theme} onSetTheme={setTheme} title="Logbook" />
       
       <div className="flex-1 px-4 lg:px-8 py-6 max-w-[1600px] mx-auto w-full flex flex-col">

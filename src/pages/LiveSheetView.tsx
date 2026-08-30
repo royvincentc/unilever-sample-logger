@@ -308,7 +308,7 @@ export default function LiveSheetView() {
   }, [dynamicColumns, colWidths, frozenColumns]);
 
   return (
-    <div className="min-h-screen bg-transparent flex flex-col">
+    <div className="h-[calc(100dvh-7rem)] lg:h-[calc(100dvh-2rem)] bg-transparent flex flex-col">
       <Header theme={theme} onSetTheme={setTheme} title="Live Data Editor" />
       
       <div className="px-4 lg:px-8 max-w-full mx-auto flex-1 flex flex-col pb-8 pt-4 space-y-4 overflow-hidden">
