@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { RefreshCw, Key, Shield, AlertCircle, X, Check, Save, Search, ArrowDown, ArrowUp, ArrowRightToLine } from 'lucide-react';
+import { RefreshCw, Key, Shield, AlertCircle, X, Check, Save, Search, ArrowDown, ArrowUp, Columns } from 'lucide-react';
 import Header from '../components/Layout/Header';
 import Pagination from '../components/ui/Pagination';
 import { useTheme } from '../hooks/useTheme';
@@ -46,10 +46,13 @@ export default function LiveSheetView() {
   const [editValue, setEditValue] = useState<string>('');
   const [savingId, setSavingId] = useState<string | null>(null);
   
+  // Hidden Columns
+  const [hiddenColumns, setHiddenColumns] = useState<Set<string>>(new Set());
+  const [showColumnHider, setShowColumnHider] = useState(false);
+
   // Frozen columns configuration
   const theadRef = useRef<HTMLTableSectionElement>(null);
   const [colWidths, setColWidths] = useState<Record<string, number>>({});
-  const [manualFreezeIndex, setManualFreezeIndex] = useState<number | null>(null); // null means use default behavior
 
   const isOnline = useOnlineStatus();
 
@@ -86,12 +89,13 @@ export default function LiveSheetView() {
 
   useEffect(() => {
     loadData(activeTab);
+    // Reset hidden columns when changing tabs
+    setHiddenColumns(new Set());
   }, [activeTab, loadData]);
 
   // Measure column widths for sticky positioning
   useEffect(() => {
     if (theadRef.current && headers.length > 0 && data.length > 0) {
-      // Need a tiny timeout to allow the browser to paint and calculate widths
       const timer = setTimeout(() => {
         if (!theadRef.current) return;
         const ths = Array.from(theadRef.current.querySelectorAll('th'));
@@ -99,16 +103,22 @@ export default function LiveSheetView() {
         
         if (ths.length > 0) {
           newWidths['__row'] = (ths[0] as HTMLElement).offsetWidth;
-          headers.forEach((col, i) => {
-            const th = ths[i + 1]; // +1 because index 0 is Row
-            if (th) newWidths[col] = (th as HTMLElement).offsetWidth;
+          // Note: visibleColumns should be mapped carefully. Since we only render visible columns, 
+          // ths[1] corresponds to visibleColumns[0].
+          let thIndex = 1;
+          headers.forEach((col) => {
+            if (!hiddenColumns.has(col)) {
+              const th = ths[thIndex];
+              if (th) newWidths[col] = (th as HTMLElement).offsetWidth;
+              thIndex++;
+            }
           });
           setColWidths(newWidths);
         }
       }, 50);
       return () => clearTimeout(timer);
     }
-  }, [headers, data, currentPage, sortConfig]);
+  }, [headers, data, currentPage, sortConfig, hiddenColumns]);
 
   // Reset page when tab or search changes
   useEffect(() => {
@@ -189,7 +199,6 @@ export default function LiveSheetView() {
     if (sortConfig.key === key && sortConfig.direction === 'asc') {
       direction = 'desc';
     } else if (sortConfig.key === key && sortConfig.direction === 'desc') {
-      // Third click: remove sorting, revert to default _rowIndex desc
       setSortConfig({ key: '_rowIndex', direction: 'desc' });
       return;
     }
@@ -235,31 +244,31 @@ export default function LiveSheetView() {
     return sortedData.slice(start, start + rowsPerPage);
   }, [sortedData, currentPage, rowsPerPage]);
 
-  const dynamicColumns = useMemo(() => headers, [headers]);
+  const dynamicColumns = useMemo(() => headers.filter(h => !hiddenColumns.has(h)), [headers, hiddenColumns]);
 
-  // Determine if a column should be frozen based on default criteria or manual override
-  const getIsFrozen = useCallback((colName: string, index: number) => {
-    if (manualFreezeIndex !== null) return index <= manualFreezeIndex;
+  const getIsFrozen = useCallback((colName: string) => {
     const upper = colName.toUpperCase();
-    return upper.includes('CONTROL') || upper.includes('BATCH') || upper.includes('SAMPLE');
-  }, [manualFreezeIndex]);
+    if (activeTab === 'SWAB 2026') return upper.includes('CONTROL') || upper.includes('SAMPLE');
+    if (activeTab === 'WATER 2026') return upper.includes('CONTROL') || upper.includes('WATER SOURCE');
+    if (activeTab === 'RM,FG,SFG 2026') return upper.includes('CONTROL') || upper.includes('BATCH') || upper.includes('SAMPLE');
+    return upper.includes('CONTROL');
+  }, [activeTab]);
 
-  // Calculate the left offsets for sticky positioning
   const frozenLeftOffsets = useMemo(() => {
     const offsets: Record<string, number> = {};
     let currentLeft = 0;
     
     offsets['__row'] = currentLeft;
-    currentLeft += colWidths['__row'] || 0; // if 0, it means not measured yet
+    currentLeft += colWidths['__row'] || 0; 
 
-    headers.forEach((col, index) => {
-      if (getIsFrozen(col, index)) {
+    dynamicColumns.forEach((col) => {
+      if (getIsFrozen(col)) {
         offsets[col] = currentLeft;
         currentLeft += colWidths[col] || 0;
       }
     });
     return offsets;
-  }, [headers, colWidths, getIsFrozen]);
+  }, [dynamicColumns, colWidths, getIsFrozen]);
 
   return (
     <div className="min-h-screen bg-transparent flex flex-col">
@@ -287,24 +296,52 @@ export default function LiveSheetView() {
 
           <div className="flex items-center gap-3">
             
-            {/* Freeze columns slider/adjuster */}
-            <div className="hidden lg:flex items-center gap-2 px-3 py-2 bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded-xl text-[var(--text-primary)]" title="Adjust frozen columns">
-              <ArrowRightToLine className="w-4 h-4 text-[var(--text-muted)]" />
-              <input
-                type="range"
-                min="0"
-                max={dynamicColumns.length}
-                value={manualFreezeIndex !== null ? manualFreezeIndex + 1 : -1}
-                onChange={e => {
-                  const val = parseInt(e.target.value, 10);
-                  if (val === -1) setManualFreezeIndex(null); // Return to default
-                  else setManualFreezeIndex(val - 1);
-                }}
-                className="w-24 accent-primary-500"
-              />
-              <span className="text-[10px] font-bold text-[var(--text-muted)] whitespace-nowrap w-4 text-center">
-                {manualFreezeIndex !== null ? manualFreezeIndex + 1 : 'Auto'}
-              </span>
+            {/* Columns Hide/Unhide */}
+            <div className="relative hidden lg:block">
+              <button
+                onClick={() => setShowColumnHider(!showColumnHider)}
+                className="flex items-center gap-2 px-3 py-2 bg-[var(--bg-input)] border border-[var(--border-subtle)] hover:bg-[var(--bg-hover)] rounded-xl text-xs font-bold text-[var(--text-primary)] transition-colors"
+                title="Hide or unhide columns"
+              >
+                <Columns className="w-4 h-4 text-[var(--text-muted)]" />
+                Columns
+              </button>
+              
+              <AnimatePresence>
+                {showColumnHider && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setShowColumnHider(false)} />
+                    <motion.div
+                      initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                      className="absolute right-0 top-full mt-2 w-56 bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-xl shadow-xl z-50 overflow-hidden flex flex-col"
+                    >
+                      <div className="p-3 border-b border-[var(--border-subtle)]">
+                        <h4 className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-wider">Show/Hide Columns</h4>
+                      </div>
+                      <div className="max-h-64 overflow-y-auto p-2 custom-scrollbar">
+                        {headers.map(col => (
+                          <label key={col} className="flex items-center gap-3 px-2 py-1.5 hover:bg-[var(--bg-hover)] rounded-lg cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={!hiddenColumns.has(col)}
+                              onChange={(e) => {
+                                const newSet = new Set(hiddenColumns);
+                                if (e.target.checked) newSet.delete(col);
+                                else newSet.add(col);
+                                setHiddenColumns(newSet);
+                              }}
+                              className="w-3.5 h-3.5 accent-primary-500 rounded"
+                            />
+                            <span className="text-xs font-medium text-[var(--text-secondary)] truncate">{col}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </motion.div>
+                  </>
+                )}
+              </AnimatePresence>
             </div>
 
             <div className="relative">
@@ -358,8 +395,8 @@ export default function LiveSheetView() {
                       )}
                     </div>
                   </th>
-                  {dynamicColumns.map((col, index) => {
-                    const frozen = getIsFrozen(col, index);
+                  {dynamicColumns.map((col) => {
+                    const frozen = getIsFrozen(col);
                     return (
                       <th 
                         key={col} 
@@ -405,10 +442,10 @@ export default function LiveSheetView() {
                       </td>
 
                       {/* Dynamic Columns */}
-                      {dynamicColumns.map((col, index) => {
+                      {dynamicColumns.map((col) => {
                         const cellValue = row[col] || '';
                         const isEditingThis = editingCell?.id === String(row._rowIndex) && editingCell?.field === col;
-                        const frozen = getIsFrozen(col, index);
+                        const frozen = getIsFrozen(col);
                         
                         return (
                           <td 
