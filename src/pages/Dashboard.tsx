@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -249,49 +250,52 @@ export default function Dashboard({ theme, onSetTheme }: DashboardProps) {
       </div>
 
       {/* Fluid Floating Action Button (FAB) */}
-      <div className="fixed bottom-24 lg:bottom-8 right-4 lg:right-8 z-50">
-        <AnimatePresence>
-          {isFabOpen && (
-            <motion.div 
-              initial={{ opacity: 0, y: 20, scale: 0.8 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 20, scale: 0.8 }}
-              className="absolute bottom-20 right-0 flex flex-col gap-3 items-end"
-            >
-              {fabActions.map((action, i) => (
-                <motion.button
-                  key={action.id}
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0, transition: { delay: i * 0.05 } }}
-                  exit={{ opacity: 0, x: 20 }}
-                  onClick={() => navigate(action.route)}
-                  className="flex items-center gap-3 group"
-                >
-                  <span className="glass px-3 py-1.5 rounded-lg text-sm font-bold text-[var(--text-primary)] opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
-                    {action.label}
-                  </span>
-                  <div className={`w-12 h-12 rounded-full ${action.color} text-white flex items-center justify-center shadow-lg hover:scale-110 transition-transform`}>
-                    <action.icon className="w-5 h-5" />
-                  </div>
-                </motion.button>
-              ))}
-            </motion.div>
-          )}
-        </AnimatePresence>
+      {createPortal(
+        <div className="fixed bottom-24 lg:bottom-8 right-4 lg:right-8 z-50">
+          <AnimatePresence>
+            {isFabOpen && (
+              <motion.div 
+                initial={{ opacity: 0, y: 20, scale: 0.8 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 20, scale: 0.8 }}
+                className="absolute bottom-20 right-0 flex flex-col gap-3 items-end"
+              >
+                {fabActions.map((action, i) => (
+                  <motion.button
+                    key={action.id}
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0, transition: { delay: i * 0.05 } }}
+                    exit={{ opacity: 0, x: 20 }}
+                    onClick={() => navigate(action.route)}
+                    className="flex items-center gap-3 group"
+                  >
+                    <span className="glass px-3 py-1.5 rounded-lg text-sm font-bold text-[var(--text-primary)] opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
+                      {action.label}
+                    </span>
+                    <div className={`w-12 h-12 rounded-full ${action.color} text-white flex items-center justify-center shadow-lg hover:scale-110 transition-transform`}>
+                      <action.icon className="w-5 h-5" />
+                    </div>
+                  </motion.button>
+                ))}
+              </motion.div>
+            )}
+          </AnimatePresence>
 
-        <motion.button
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          onClick={() => setIsFabOpen(!isFabOpen)}
-          className="w-14 h-14 lg:w-16 lg:h-16 rounded-full bg-primary-500 text-white flex items-center justify-center shadow-2xl shadow-primary-500/30 relative overflow-hidden"
-        >
-          <motion.div animate={{ rotate: isFabOpen ? 45 : 0 }} transition={liquidTransition}>
-            <Plus className="w-7 h-7 lg:w-8 lg:h-8" />
-          </motion.div>
-          {/* Liquid Ripple Effect background */}
-          <div className="absolute inset-0 bg-white/20 rounded-full scale-0 group-hover:scale-150 transition-transform duration-500 origin-center" />
-        </motion.button>
-      </div>
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => setIsFabOpen(!isFabOpen)}
+            className="w-14 h-14 lg:w-16 lg:h-16 rounded-full bg-primary-500 text-white flex items-center justify-center shadow-2xl shadow-primary-500/30 relative overflow-hidden"
+          >
+            <motion.div animate={{ rotate: isFabOpen ? 45 : 0 }} transition={liquidTransition}>
+              <Plus className="w-7 h-7 lg:w-8 lg:h-8" />
+            </motion.div>
+            {/* Liquid Ripple Effect background */}
+            <div className="absolute inset-0 bg-white/20 rounded-full scale-0 group-hover:scale-150 transition-transform duration-500 origin-center" />
+          </motion.button>
+        </div>,
+        document.body
+      )}
     </div>
   );
 }

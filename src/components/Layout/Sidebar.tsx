@@ -45,7 +45,7 @@ export default function Sidebar({ onLogout, queueCount, isCollapsed, onToggleCol
     bg-[var(--bg-sidebar)] lg:bg-transparent border-r border-[var(--border-subtle)] z-50
     transition-all duration-300
     ${isCollapsed ? 'lg:w-20' : 'lg:w-[280px]'}
-    ${isMobileOpen ? 'w-[280px] translate-x-0' : '-translate-x-full lg:translate-x-0 w-0 lg:w-auto'}
+    ${isMobileOpen ? 'w-[280px] translate-x-0 shadow-2xl' : '-translate-x-full lg:translate-x-0 w-[280px] lg:w-auto'}
   `;
 
   return (
