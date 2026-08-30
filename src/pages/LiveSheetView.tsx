@@ -46,6 +46,7 @@ export default function LiveSheetView() {
   const [editingCell, setEditingCell] = useState<{ id: string, field: string } | null>(null);
   const [editValue, setEditValue] = useState<string>('');
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [expandedCardId, setExpandedCardId] = useState<string | null>(null);
   
   // Column Settings
   const [hiddenColumns, setHiddenColumns] = useState<Set<string>>(new Set());
@@ -428,7 +429,103 @@ export default function LiveSheetView() {
 
         {/* Spreadsheet Data Grid */}
         <div className="flex-1 glass rounded-2xl border border-[var(--border-subtle)] overflow-hidden flex flex-col relative min-h-0">
-          <div className="flex-1 overflow-auto relative custom-scrollbar">
+          
+          {/* MOBILE CARD VIEW (< lg) */}
+          <div className="flex-1 overflow-y-auto p-4 lg:hidden space-y-4">
+            {loading && data.length === 0 ? (
+               <div className="py-12 text-center text-[var(--text-muted)]">
+                 <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-3 text-primary-500" />
+                 <p className="font-medium">Loading Google Sheets data...</p>
+               </div>
+            ) : paginatedData.length === 0 ? (
+               <div className="py-12 text-center">
+                 <p className="font-medium text-[var(--text-secondary)]">No records found.</p>
+               </div>
+            ) : (
+              paginatedData.map((row) => {
+                const isExpanded = expandedCardId === String(row._rowIndex);
+                const controlCol = Object.keys(row).find(k => k.toUpperCase().includes('CONTROL'));
+                const controlNumber = controlCol ? row[controlCol] : `Row ${row._rowIndex}`;
+                
+                // Fields to show when expanded (non-empty)
+                const visibleFields = dynamicColumns.filter(col => row[col] && String(row[col]).trim() !== '');
+
+                return (
+                  <div 
+                    key={row._rowIndex} 
+                    className={`bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-xl overflow-hidden transition-all duration-200 ${isExpanded ? 'ring-2 ring-primary-500 shadow-lg' : 'shadow-sm'}`}
+                  >
+                    <div 
+                      className="p-4 cursor-pointer flex items-center justify-between bg-[var(--bg-card)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)]"
+                      onClick={() => setExpandedCardId(isExpanded ? null : String(row._rowIndex))}
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className="text-xs font-mono font-bold text-primary-500 bg-primary-500/10 px-2 py-1 rounded">
+                          #{row._rowIndex}
+                        </span>
+                        <span className="font-bold text-sm text-[var(--text-primary)]">
+                          {controlNumber}
+                        </span>
+                      </div>
+                      <div>
+                        {isExpanded ? <ArrowUp className="w-4 h-4 text-[var(--text-muted)]" /> : <ArrowDown className="w-4 h-4 text-[var(--text-muted)]" />}
+                      </div>
+                    </div>
+
+                    <AnimatePresence>
+                      {isExpanded && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: 'auto', opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          className="border-t border-[var(--border-subtle)] bg-[var(--bg-app)]/50 overflow-hidden"
+                        >
+                          <div className="p-4 grid grid-cols-1 gap-y-3">
+                            {visibleFields.map(col => {
+                              const cellValue = row[col];
+                              const isEditingThis = editingCell?.id === String(row._rowIndex) && editingCell?.field === col;
+                              
+                              return (
+                                <div key={col} className="flex flex-col">
+                                  <span className="text-[10px] uppercase font-bold text-[var(--text-muted)] mb-1">{col}</span>
+                                  {isEditingThis ? (
+                                    <div className="relative">
+                                      <input 
+                                        autoFocus
+                                        className="w-full bg-[var(--bg-input)] text-[var(--text-primary)] px-3 py-2 rounded-lg outline-none border-2 border-primary-500 text-sm font-medium"
+                                        value={editValue}
+                                        onChange={e => setEditValue(e.target.value)}
+                                        onBlur={saveCellEdit}
+                                        onKeyDown={e => { if (e.key === 'Enter') saveCellEdit(); else if (e.key === 'Escape') setEditingCell(null); }}
+                                      />
+                                      {savingId === String(row._rowIndex) && <RefreshCw className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-primary-500" />}
+                                    </div>
+                                  ) : (
+                                    <div 
+                                      className="text-sm font-medium text-[var(--text-primary)] break-words cursor-pointer p-1.5 -ml-1.5 rounded-lg hover:bg-[var(--bg-hover)] transition-colors active:bg-[var(--bg-hover)]"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleCellDoubleClick(String(row._rowIndex), col, cellValue);
+                                      }}
+                                    >
+                                      {String(cellValue)}
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          {/* DESKTOP TABLE VIEW (>= lg) */}
+          <div className="hidden lg:block flex-1 overflow-auto relative custom-scrollbar">
             <table className="w-full text-left border-collapse text-xs whitespace-nowrap">
               <thead ref={theadRef} className="sticky top-0 z-30 shadow-sm after:content-[''] after:absolute after:bottom-0 after:left-0 after:right-0 after:border-b after:border-[var(--border-subtle)]">
                 <tr>
