@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   FileSpreadsheet, RefreshCw, AlertCircle, Search, Edit2, X, Save, FileText,
@@ -546,7 +547,7 @@ export default function Results() {
         <div className="glass rounded-2xl border border-[var(--border-subtle)] flex flex-col mb-6 relative">
           
           {/* CLONED HEADER FOR WINDOW SCROLL */}
-          {showCloned && (
+          {showCloned && createPortal(
             <div 
               ref={clonedContainerRef}
               className="fixed top-[70px] z-40 overflow-hidden bg-[var(--bg-card)] shadow-md hidden lg:block rounded-t-2xl border-b border-[var(--border-subtle)]"
@@ -584,7 +585,7 @@ export default function Results() {
                 </table>
               </div>
             </div>
-          )}
+          , document.body)}
 
           {loading ? (
             <div className="flex-1 flex flex-col items-center justify-center p-12 text-[var(--text-muted)]">

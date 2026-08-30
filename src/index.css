@@ -110,7 +110,6 @@ body {
   color: var(--text-primary);
   transition: background-color 0.3s ease, color 0.3s ease;
   min-height: 100dvh;
-  overflow-x: hidden;
 }
 
 [data-theme="dark"] body {

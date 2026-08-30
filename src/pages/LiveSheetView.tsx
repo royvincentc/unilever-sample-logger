@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { RefreshCw, Key, Shield, AlertCircle, X, Check, Save, Search, ArrowDown, ArrowUp, Columns, Pin, Eye, EyeOff, Lock, LogOut } from 'lucide-react';
 import Header from '../components/Layout/Header';
@@ -440,7 +441,7 @@ export default function LiveSheetView() {
         )}
 
         {/* CLONED HEADER FOR WINDOW SCROLL */}
-        {showCloned && (
+        {showCloned && createPortal(
           <div 
             ref={clonedContainerRef}
             className="fixed top-[70px] z-40 overflow-hidden bg-[var(--bg-card)] shadow-md hidden lg:block rounded-t-2xl border-b border-[var(--border-subtle)]"
@@ -486,7 +487,7 @@ export default function LiveSheetView() {
               </table>
             </div>
           </div>
-        )}
+        , document.body)}
 
         {/* Spreadsheet Data Grid */}
         <div 

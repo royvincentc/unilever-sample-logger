@@ -52,11 +52,23 @@ export function useStickyHeader(
     window.addEventListener('scroll', handleScroll, { passive: true });
     window.addEventListener('resize', handleScroll);
     
+    let observer: ResizeObserver | null = null;
+    if (theadRef.current) {
+      observer = new ResizeObserver(() => {
+        handleScroll();
+      });
+    if (theadRef.current) observer.observe(theadRef.current);
+    if (tableContainerRef.current) observer.observe(tableContainerRef.current);
+    }
+    
     handleScroll();
     
     return () => {
       window.removeEventListener('scroll', handleScroll);
       window.removeEventListener('resize', handleScroll);
+      if (observer) {
+        observer.disconnect();
+      }
     };
   }, [tableContainerRef, theadRef]);
 

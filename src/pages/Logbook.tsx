@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BookOpen, RefreshCw, AlertCircle, Search, ArrowUp, ArrowDown, ArrowUpDown, Eye, EyeOff, GripVertical } from 'lucide-react';
 import Header from '../components/Layout/Header';
@@ -545,7 +546,7 @@ export default function Logbook() {
 
         <div className="glass rounded-2xl border border-[var(--border-subtle)] flex flex-col relative w-full mb-6">
           {/* CLONED HEADER FOR WINDOW SCROLL */}
-          {showCloned && (
+          {showCloned && createPortal(
             <div 
               ref={clonedContainerRef}
               className="fixed top-[70px] z-40 overflow-hidden bg-[var(--bg-card)] shadow-md hidden lg:block rounded-t-2xl border-b border-[var(--border-subtle)]"
@@ -584,7 +585,7 @@ export default function Logbook() {
                 </table>
               </div>
             </div>
-          )}
+          , document.body)}
 
           {loading ? (
             <div className="flex flex-col items-center justify-center p-12 bg-[var(--bg-card)]/50 backdrop-blur-sm z-20 rounded-2xl">
