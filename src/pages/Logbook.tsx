@@ -10,6 +10,7 @@ import Pagination from '../components/ui/Pagination';
 import { useTheme } from '../hooks/useTheme';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { useStickyHeader } from '../hooks/useStickyHeader';
+import { getUserName } from '../utils/auth';
 import { listenToLogbookSettings, saveLogbookSettings } from '../utils/db';
 
 
@@ -98,6 +99,7 @@ function compareControlNumbers(aStr: string, bStr: string): number {
 
 export default function Logbook() {
   const { theme, setTheme } = useTheme();
+  const isRoy = getUserName().toLowerCase() === 'roy';
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -159,20 +161,23 @@ export default function Logbook() {
           localStorage.setItem('logbook_columnOrder', JSON.stringify(settings.columnOrder));
         }
       } else if (!initialized) {
-        // No global settings exist yet. Push local settings to become the global default.
-        const localHiddenStr = localStorage.getItem('logbook_hiddenColumns');
-        const localOrderStr = localStorage.getItem('logbook_columnOrder');
-        
-        let initialHidden: string[] = [];
-        let initialOrder: string[] = [];
-        try { if(localHiddenStr) initialHidden = JSON.parse(localHiddenStr); } catch(e){}
-        try { if(localOrderStr) initialOrder = JSON.parse(localOrderStr); } catch(e){}
-        
-        if (initialHidden.length > 0 || initialOrder.length > 0) {
-           saveLogbookSettings({
-             hiddenColumns: initialHidden,
-             columnOrder: initialOrder
-           }).catch(console.error);
+        // No global settings exist yet.
+        if (isRoy) {
+          // Push local settings to become the global default.
+          const localHiddenStr = localStorage.getItem('logbook_hiddenColumns');
+          const localOrderStr = localStorage.getItem('logbook_columnOrder');
+          
+          let initialHidden: string[] = [];
+          let initialOrder: string[] = [];
+          try { if(localHiddenStr) initialHidden = JSON.parse(localHiddenStr); } catch(e){}
+          try { if(localOrderStr) initialOrder = JSON.parse(localOrderStr); } catch(e){}
+          
+          if (initialHidden.length > 0 || initialOrder.length > 0) {
+             saveLogbookSettings({
+               hiddenColumns: initialHidden,
+               columnOrder: initialOrder
+             }).catch(console.error);
+          }
         }
       }
       initialized = true;
@@ -252,6 +257,7 @@ export default function Logbook() {
   }, [allHeaders]);
 
   const handleDragStart = (e: React.DragEvent, col: string) => {
+    if (!isRoy) return;
     setDraggedColumn(col);
     e.dataTransfer.effectAllowed = 'move';
   };
@@ -263,7 +269,7 @@ export default function Logbook() {
 
   const handleDrop = (e: React.DragEvent, targetCol: string) => {
     e.preventDefault();
-    if (!draggedColumn || draggedColumn === targetCol) return;
+    if (!isRoy || !draggedColumn || draggedColumn === targetCol) return;
 
     setColumnOrder(prev => {
       const newOrder = [...prev];
@@ -463,6 +469,7 @@ export default function Logbook() {
               />
             </div>
 
+            {isRoy && (
             <div className="relative" ref={colDropdownRef}>
               <button 
                 onClick={() => setShowColumnDropdown(!showColumnDropdown)}
@@ -526,6 +533,7 @@ export default function Logbook() {
                 )}
               </AnimatePresence>
             </div>
+            )}
 
             <button 
               onClick={() => loadData(true)}
@@ -688,6 +696,9 @@ export default function Logbook() {
     </div>
   );
 }
+
+
+
 
 
 
