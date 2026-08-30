@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BookOpen, RefreshCw, AlertCircle, Search, ArrowUp, ArrowDown, ArrowUpDown, Eye, EyeOff, GripVertical } from 'lucide-react';
 import Header from '../components/Layout/Header';
@@ -8,6 +9,7 @@ import { fetchLiveSheetData } from '../utils/api';
 import Pagination from '../components/ui/Pagination';
 import { useTheme } from '../hooks/useTheme';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
+import { useStickyHeader } from '../hooks/useStickyHeader';
 import { listenToLogbookSettings, saveLogbookSettings } from '../utils/db';
 
 
@@ -134,6 +136,14 @@ export default function Logbook() {
 
   const theadRef = useRef<HTMLTableSectionElement>(null);
   const tableContainerRef = useRef<HTMLDivElement>(null);
+
+  const {
+    clonedContainerRef,
+    clonedTheadRef,
+    showCloned,
+    containerStyle,
+    handleTableScroll
+  } = useStickyHeader(tableContainerRef, theadRef);
 
   useEffect(() => {
     let initialized = false;
@@ -535,6 +545,47 @@ export default function Logbook() {
         )}
 
         <div className="glass rounded-2xl border border-[var(--border-subtle)] flex flex-col relative w-full mb-6">
+          {/* CLONED HEADER FOR WINDOW SCROLL */}
+          {showCloned && createPortal(
+            <div 
+              ref={clonedContainerRef}
+              className="fixed top-[70px] z-40 overflow-hidden bg-[var(--bg-card)] shadow-md hidden lg:block rounded-t-2xl border-b border-[var(--border-subtle)]"
+              style={{ left: containerStyle.left, width: containerStyle.width }}
+            >
+              <div className="w-full min-w-max relative">
+                <table className="text-left border-collapse text-sm whitespace-nowrap" style={{ width: containerStyle.tableWidth, tableLayout: 'fixed' }}>
+                  <thead ref={clonedTheadRef} className="shadow-sm">
+                    <tr>
+                      {visibleHeaders.map((h, i) => {
+                        const isControl = isControlHeader(h);
+                        const isSorted = (sortColumn === h) || (!sortColumn && isControl);
+                        const headerTitle = h === '__sheetName' ? 'SOURCE SHEET' : h;
+                        return (
+                          <th 
+                            key={h} 
+                            onClick={() => handleHeaderClick(h)}
+                            className={`px-3 py-2 font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-subtle)] bg-[var(--bg-sidebar)] hover:bg-[var(--bg-hover)] uppercase tracking-wider text-[10px] whitespace-nowrap cursor-pointer select-none transition-colors group ${isControl ? 'sticky left-0 z-30 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]' : ''}`}
+                            style={isControl ? { left: 0 } : {}}
+                          >
+                            <div className="flex items-center justify-between gap-1.5">
+                              <span>{headerTitle}</span>
+                              <span className="shrink-0">
+                                {isSorted ? (
+                                  sortDirection === 'asc' ? <ArrowUp className="w-3 h-3 text-primary-500" /> : <ArrowDown className="w-3 h-3 text-primary-500" />
+                                ) : (
+                                  <ArrowUpDown className="w-3 h-3 opacity-30 group-hover:opacity-100 transition-opacity" />
+                                )}
+                              </span>
+                            </div>
+                          </th>
+                        );
+                      })}
+                    </tr>
+                  </thead>
+                </table>
+              </div>
+            </div>
+          , document.body)}
 
           {loading ? (
             <div className="flex flex-col items-center justify-center p-12 bg-[var(--bg-card)]/50 backdrop-blur-sm z-20 rounded-2xl">
@@ -543,7 +594,9 @@ export default function Logbook() {
             </div>
           ) : (
             <div 
-                            className="w-full rounded-2xl"
+              ref={tableContainerRef}
+              onScroll={handleTableScroll}
+              className="w-full overflow-x-auto custom-scrollbar rounded-2xl"
             >
               <table className="w-full text-left border-collapse text-sm min-w-max">
                 <thead ref={theadRef} className="sticky top-0 z-20 shadow-sm">
@@ -561,7 +614,7 @@ export default function Logbook() {
                           onDrop={(e) => handleDrop(e, h)}
                           onClick={() => handleHeaderClick(h)}
                           className={`px-3 py-2 font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-subtle)] bg-[var(--bg-sidebar)] hover:bg-[var(--bg-hover)] uppercase tracking-wider text-[10px] whitespace-nowrap cursor-pointer select-none transition-colors group ${isControl ? 'sticky left-0 z-30 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]' : ''}`}
-                          style={isControl ? { left: 'var(--sidebar-offset)' } : {}}
+                          style={isControl ? { left: 0 } : {}}
                           title={`Sort by ${headerTitle} (Drag to reorder)`}
                         >
                           <div className="flex items-center justify-between gap-1.5">
@@ -608,7 +661,7 @@ export default function Logbook() {
                               <td 
                                 key={colIndex} 
                                 className={`px-3 py-1.5 text-xs text-[var(--text-primary)] border border-[var(--border-subtle)] whitespace-nowrap max-w-[300px] truncate ${h === '__sheetName' ? 'font-semibold text-primary-600' : ''} ${isControl ? `sticky left-0 z-20 ${cellBg} shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]` : cellBg}`}
-                                style={isControl ? { left: 'var(--sidebar-offset)' } : {}}
+                                style={isControl ? { left: 0 } : {}}
                               >
                                 {row[h] !== undefined && row[h] !== null && String(row[h]).trim() !== '' ? String(row[h]) : '-'}
                               </td>
@@ -634,5 +687,7 @@ export default function Logbook() {
     </div>
   );
 }
+
+
 
 

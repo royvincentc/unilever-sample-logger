@@ -9,21 +9,25 @@ export function useStickyHeader(
   const clonedTheadRef = useRef<HTMLTableSectionElement>(null);
   
   const [showCloned, setShowCloned] = useState(false);
-  const [containerStyle, setContainerStyle] = useState({ left: 0, width: 0 });
+  const [containerStyle, setContainerStyle] = useState({ left: 0, width: 0, tableWidth: 0 });
 
   useEffect(() => {
     const handleScroll = () => {
       if (!tableContainerRef.current || !theadRef.current) return;
       
       const rect = tableContainerRef.current.getBoundingClientRect();
-      const headerOffset = 70;
+      const headerOffset = 70; // Height of the top nav
       
       if (rect.top < headerOffset && rect.bottom > headerOffset + 100) {
         setShowCloned(true);
         
+        const tableEl = tableContainerRef.current.querySelector('table');
+        const tableWidth = tableEl ? tableEl.getBoundingClientRect().width : rect.width;
+
         setContainerStyle({
           left: rect.left,
-          width: rect.width
+          width: rect.width,
+          tableWidth
         });
         
         if (clonedTheadRef.current) {
@@ -36,6 +40,8 @@ export function useStickyHeader(
               clonedThs[i].style.minWidth = `${width}px`;
               clonedThs[i].style.maxWidth = `${width}px`;
               clonedThs[i].style.width = `${width}px`;
+              // Force box-sizing to border-box so padding/borders are included in width
+              clonedThs[i].style.boxSizing = 'border-box';
             }
           });
         }
@@ -53,12 +59,12 @@ export function useStickyHeader(
     window.addEventListener('resize', handleScroll);
     
     let observer: ResizeObserver | null = null;
-    if (theadRef.current) {
+    if (theadRef.current && tableContainerRef.current) {
       observer = new ResizeObserver(() => {
         handleScroll();
       });
-    if (theadRef.current) observer.observe(theadRef.current);
-    if (tableContainerRef.current) observer.observe(tableContainerRef.current);
+      observer.observe(theadRef.current);
+      observer.observe(tableContainerRef.current);
     }
     
     handleScroll();
