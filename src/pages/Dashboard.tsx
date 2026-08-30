@@ -3,7 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import {
   FlaskConical, Droplets, Package, Clock, AlertCircle, CalendarDays,
-  UploadCloud, CheckCircle2, Search, RefreshCw, Plus, FileText, Settings, History
+  UploadCloud, CheckCircle2, Search, RefreshCw, Plus, FileText, Settings, History,
+  FileSpreadsheet, BookOpen
 } from 'lucide-react';
 import Header from '../components/Layout/Header';
 import NotificationPopup from '../components/ui/NotificationPopup';
@@ -129,15 +130,21 @@ export default function Dashboard({ theme, onSetTheme }: DashboardProps) {
             <p className="text-[var(--text-secondary)] mt-1.5 text-sm sm:text-base font-medium">Ready to log some samples today?</p>
           </div>
 
-          <div className="flex flex-wrap gap-2 sm:gap-3 w-full md:w-auto">
-            <button onClick={handleSync} disabled={syncing} className="glass px-3 sm:px-4 py-2 rounded-xl flex items-center gap-2 hover:bg-[var(--bg-hover)] active:scale-95 transition-all text-xs sm:text-sm font-bold text-[var(--text-primary)] flex-1 min-w-fit justify-center md:flex-none">
+          <div className="flex overflow-x-auto pb-2 -mx-4 px-4 lg:mx-0 lg:px-0 lg:pb-0 gap-2 sm:gap-3 w-[calc(100%+2rem)] lg:w-auto custom-scrollbar lg:overflow-visible">
+            <button onClick={handleSync} disabled={syncing} className="glass px-4 py-2 rounded-xl flex items-center gap-2 hover:bg-[var(--bg-hover)] active:scale-95 transition-all text-sm font-bold text-[var(--text-primary)] shrink-0">
               <RefreshCw className={`w-4 h-4 shrink-0 ${syncing ? 'animate-spin' : ''}`} />
-              {syncing ? 'Syncing...' : 'Sync'}
+              {syncing ? 'Syncing' : 'Sync'}
             </button>
-            <button onClick={() => navigate('/results')} className="glass px-3 sm:px-4 py-2 rounded-xl flex items-center gap-2 hover:bg-[var(--bg-hover)] active:scale-95 transition-all text-xs sm:text-sm font-bold text-[var(--text-primary)] flex-1 min-w-fit justify-center md:flex-none">
-              <FileText className="w-4 h-4 shrink-0" /> Results
+            <button onClick={() => navigate('/live')} className="glass px-4 py-2 rounded-xl flex items-center gap-2 hover:bg-[var(--bg-hover)] active:scale-95 transition-all text-sm font-bold text-[var(--text-primary)] shrink-0">
+              <FileSpreadsheet className="w-4 h-4 shrink-0" /> Live Sheet
             </button>
-            <button onClick={() => navigate('/calendar')} className="glass px-3 sm:px-4 py-2 rounded-xl flex items-center gap-2 hover:bg-[var(--bg-hover)] active:scale-95 transition-all text-xs sm:text-sm font-bold text-[var(--text-primary)] flex-1 min-w-fit justify-center md:flex-none">
+            <button onClick={() => navigate('/logbook')} className="glass px-4 py-2 rounded-xl flex items-center gap-2 hover:bg-[var(--bg-hover)] active:scale-95 transition-all text-sm font-bold text-[var(--text-primary)] shrink-0">
+              <BookOpen className="w-4 h-4 shrink-0" /> Logbook
+            </button>
+            <button onClick={() => navigate('/results')} className="glass px-4 py-2 rounded-xl flex items-center gap-2 hover:bg-[var(--bg-hover)] active:scale-95 transition-all text-sm font-bold text-[var(--text-primary)] shrink-0">
+              <FileText className="w-4 h-4 shrink-0" /> Reports
+            </button>
+            <button onClick={() => navigate('/calendar')} className="glass px-4 py-2 rounded-xl flex items-center gap-2 hover:bg-[var(--bg-hover)] active:scale-95 transition-all text-sm font-bold text-[var(--text-primary)] shrink-0">
               <CalendarDays className="w-4 h-4 shrink-0" /> Calendar
             </button>
           </div>
@@ -242,7 +249,7 @@ export default function Dashboard({ theme, onSetTheme }: DashboardProps) {
       </div>
 
       {/* Fluid Floating Action Button (FAB) */}
-      <div className="hidden lg:block fixed bottom-8 right-8 z-50">
+      <div className="fixed bottom-24 lg:bottom-8 right-4 lg:right-8 z-50">
         <AnimatePresence>
           {isFabOpen && (
             <motion.div 
@@ -260,7 +267,7 @@ export default function Dashboard({ theme, onSetTheme }: DashboardProps) {
                   onClick={() => navigate(action.route)}
                   className="flex items-center gap-3 group"
                 >
-                  <span className="glass px-3 py-1.5 rounded-lg text-sm font-bold text-[var(--text-primary)] opacity-0 group-hover:opacity-100 transition-opacity">
+                  <span className="glass px-3 py-1.5 rounded-lg text-sm font-bold text-[var(--text-primary)] opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
                     {action.label}
                   </span>
                   <div className={`w-12 h-12 rounded-full ${action.color} text-white flex items-center justify-center shadow-lg hover:scale-110 transition-transform`}>
@@ -276,10 +283,10 @@ export default function Dashboard({ theme, onSetTheme }: DashboardProps) {
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
           onClick={() => setIsFabOpen(!isFabOpen)}
-          className="w-16 h-16 rounded-full bg-primary-500 text-white flex items-center justify-center shadow-2xl shadow-primary-500/30 relative overflow-hidden"
+          className="w-14 h-14 lg:w-16 lg:h-16 rounded-full bg-primary-500 text-white flex items-center justify-center shadow-2xl shadow-primary-500/30 relative overflow-hidden"
         >
           <motion.div animate={{ rotate: isFabOpen ? 45 : 0 }} transition={liquidTransition}>
-            <Plus className="w-8 h-8" />
+            <Plus className="w-7 h-7 lg:w-8 lg:h-8" />
           </motion.div>
           {/* Liquid Ripple Effect background */}
           <div className="absolute inset-0 bg-white/20 rounded-full scale-0 group-hover:scale-150 transition-transform duration-500 origin-center" />

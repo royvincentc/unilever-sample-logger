@@ -4,7 +4,7 @@ import {
   PlusCircle,
   ListTodo,
   Clock,
-  Settings
+  Menu
 } from 'lucide-react';
 
 const navItems = [
@@ -12,14 +12,14 @@ const navItems = [
   { to: '/history', icon: Clock, label: 'History' },
   { to: '/new', icon: PlusCircle, label: 'New', primary: true },
   { to: '/queue', icon: ListTodo, label: 'Queue' },
-  { to: '/settings', icon: Settings, label: 'Settings' },
 ];
 
 interface BottomNavProps {
   queueCount: number;
+  onMenuClick: () => void;
 }
 
-export default function BottomNav({ queueCount }: BottomNavProps) {
+export default function BottomNav({ queueCount, onMenuClick }: BottomNavProps) {
   return (
     <nav
       className="lg:hidden fixed bottom-0 left-0 right-0 z-40
@@ -71,6 +71,19 @@ export default function BottomNav({ queueCount }: BottomNavProps) {
             )}
           </NavLink>
         ))}
+        
+        {/* Menu Button */}
+        <button
+          onClick={onMenuClick}
+          className="flex flex-col items-center gap-1 px-2 py-1.5 rounded-xl
+                     transition-all duration-200 relative min-w-[52px]
+                     text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+        >
+          <div className="relative">
+            <Menu className="w-5 h-5" />
+          </div>
+          <span className="text-[10px] font-medium">Menu</span>
+        </button>
       </div>
     </nav>
   );

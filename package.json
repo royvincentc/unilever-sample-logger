@@ -33,7 +33,7 @@
     "googleapis": "^174.0.1",
     "html-docx-js": "^0.3.1",
     "idb": "^8.0.3",
-    "lucide-react": "^1.14.0",
+    "lucide-react": "^1.37.0",
     "pizzip": "^3.2.0",
     "react": "^19.2.6",
     "react-big-calendar": "^1.20.0",
