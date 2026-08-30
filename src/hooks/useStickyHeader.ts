@@ -33,9 +33,9 @@ export function useStickyHeader(
           originalThs.forEach((th, i) => {
             if (clonedThs[i]) {
               const width = th.getBoundingClientRect().width;
-              clonedThs[i].style.minWidth = "${width}px";
-              clonedThs[i].style.maxWidth = "${width}px";
-              clonedThs[i].style.width = "${width}px";
+              clonedThs[i].style.minWidth = `${width}px`;
+              clonedThs[i].style.maxWidth = `${width}px`;
+              clonedThs[i].style.width = `${width}px`;
             }
           });
         }
