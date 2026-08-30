@@ -118,6 +118,7 @@ export default function Results() {
     clonedTheadRef,
     showCloned,
     containerStyle,
+    colWidths: phantomColWidths,
     handleTableScroll
   } = useStickyHeader(tableContainerRef, theadRef);
   const [hiddenColumns, setHiddenColumns] = useState<Set<string>>(new Set());
@@ -557,7 +558,7 @@ export default function Results() {
                 <table className="text-left border-collapse text-sm whitespace-nowrap" style={{ width: containerStyle.tableWidth, tableLayout: 'fixed' }}>
                   <thead ref={clonedTheadRef} className="shadow-sm">
                     <tr>
-                      <th className="px-3 py-2 font-bold text-[var(--text-secondary)] border border-[var(--border-subtle)] bg-[var(--bg-sidebar)] uppercase tracking-wider text-[10px]">Actions</th>
+                      <th style={{ ...(phantomColWidths[0] ? { width: phantomColWidths[0], minWidth: phantomColWidths[0], maxWidth: phantomColWidths[0], boxSizing: 'border-box' } : {}) }} className="px-3 py-2 font-bold text-[var(--text-secondary)] border border-[var(--border-subtle)] bg-[var(--bg-sidebar)] uppercase tracking-wider text-[10px]">Actions</th>
                       {visibleHeaders.map((h, i) => {
                         const isControl = isControlHeader(h);
                         const isSorted = (sortColumn === h) || (!sortColumn && isControl);
@@ -566,6 +567,7 @@ export default function Results() {
                             key={h} 
                             onClick={() => handleHeaderClick(h)}
                             className="px-3 py-2 font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-subtle)] bg-[var(--bg-sidebar)] hover:bg-[var(--bg-hover)] uppercase tracking-wider text-[10px] whitespace-nowrap cursor-pointer select-none transition-colors group"
+                            style={{ ...(phantomColWidths[i + 1] ? { width: phantomColWidths[i + 1], minWidth: phantomColWidths[i + 1], maxWidth: phantomColWidths[i + 1], boxSizing: 'border-box' } : {}) }}
                           >
                             <div className="flex items-center justify-between gap-1.5">
                               <span>{h}</span>
@@ -852,6 +854,9 @@ export default function Results() {
     </div>
   );
 }
+
+
+
 
 
 

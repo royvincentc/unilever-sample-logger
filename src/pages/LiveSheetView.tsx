@@ -66,6 +66,7 @@ export default function LiveSheetView() {
     clonedTheadRef,
     showCloned,
     containerStyle,
+    colWidths: phantomColWidths,
     handleTableScroll
   } = useStickyHeader(tableContainerRef, theadRef);
 
@@ -453,7 +454,7 @@ export default function LiveSheetView() {
                   <tr>
                     <th 
                       className="px-3 py-2 font-bold text-[var(--text-muted)] uppercase tracking-wider bg-[var(--bg-card)] border-r border-[var(--border-subtle)] cursor-pointer hover:bg-[var(--bg-hover)] transition-colors select-none"
-                      style={{ position: 'sticky', left: frozenLeftOffsets['__row'], zIndex: 30 }}
+                      style={{ position: 'sticky', left: frozenLeftOffsets['__row'], zIndex: 30, ...(phantomColWidths[0] ? { width: phantomColWidths[0], minWidth: phantomColWidths[0], maxWidth: phantomColWidths[0], boxSizing: 'border-box' } : {}) }}
                       onClick={() => handleSort('_rowIndex')}
                     >
                       <div className="flex items-center justify-between">
@@ -463,14 +464,14 @@ export default function LiveSheetView() {
                         )}
                       </div>
                     </th>
-                    {dynamicColumns.map((col) => {
+                    {dynamicColumns.map((col, index) => {
                       const frozen = frozenColumns.has(col);
                       return (
                         <th 
                           key={col} 
                           className="px-4 py-3 font-bold text-[var(--text-secondary)] uppercase tracking-wider bg-[var(--bg-card)] border-r border-[var(--border-subtle)] max-w-[200px] cursor-pointer hover:bg-[var(--bg-hover)] transition-colors select-none" 
                           title={col}
-                          style={frozen ? { position: 'sticky', left: frozenLeftOffsets[col], zIndex: 30 } : {}}
+                          style={{ ...(frozen ? { position: 'sticky', left: frozenLeftOffsets[col], zIndex: 30 } : {}), ...(phantomColWidths[index + 1] ? { width: phantomColWidths[index + 1], minWidth: phantomColWidths[index + 1], maxWidth: phantomColWidths[index + 1], boxSizing: 'border-box' } : {}) }}
                           onClick={() => handleSort(col)}
                         >
                           <div className="flex items-center justify-between gap-2">
@@ -607,7 +608,7 @@ export default function LiveSheetView() {
                       )}
                     </div>
                   </th>
-                  {dynamicColumns.map((col) => {
+                  {dynamicColumns.map((col, index) => {
                     const frozen = frozenColumns.has(col);
                     return (
                       <th 
@@ -660,7 +661,7 @@ export default function LiveSheetView() {
                         </td>
 
                         {/* Dynamic Columns */}
-                        {dynamicColumns.map((col) => {
+                        {dynamicColumns.map((col, index) => {
                           const cellValue = row[col] || '';
                           const isEditingThis = editingCell?.id === String(row._rowIndex) && editingCell?.field === col;
                           const frozen = frozenColumns.has(col);

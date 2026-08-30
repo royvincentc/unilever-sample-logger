@@ -10,6 +10,7 @@ export function useStickyHeader(
   
   const [showCloned, setShowCloned] = useState(false);
   const [containerStyle, setContainerStyle] = useState({ left: 0, width: 0, tableWidth: 0 });
+  const [colWidths, setColWidths] = useState<number[]>([]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -30,21 +31,15 @@ export function useStickyHeader(
           tableWidth
         });
         
-        if (clonedTheadRef.current) {
-          const originalThs = Array.from(theadRef.current.querySelectorAll('th'));
-          const clonedThs = Array.from(clonedTheadRef.current.querySelectorAll('th'));
-          
-          originalThs.forEach((th, i) => {
-            if (clonedThs[i]) {
-              const width = th.getBoundingClientRect().width;
-              clonedThs[i].style.minWidth = `${width}px`;
-              clonedThs[i].style.maxWidth = `${width}px`;
-              clonedThs[i].style.width = `${width}px`;
-              // Force box-sizing to border-box so padding/borders are included in width
-              clonedThs[i].style.boxSizing = 'border-box';
-            }
-          });
-        }
+        const originalThs = Array.from(theadRef.current.querySelectorAll('th'));
+        const newWidths = originalThs.map(th => th.getBoundingClientRect().width);
+        
+        setColWidths(prev => {
+          if (prev.length !== newWidths.length || prev.some((w, i) => Math.abs(w - newWidths[i]) > 0.5)) {
+            return newWidths;
+          }
+          return prev;
+        });
         
         if (clonedContainerRef.current) {
           clonedContainerRef.current.scrollLeft = tableContainerRef.current.scrollLeft;
@@ -89,6 +84,7 @@ export function useStickyHeader(
     clonedTheadRef,
     showCloned,
     containerStyle,
+    colWidths,
     handleTableScroll
   };
 }

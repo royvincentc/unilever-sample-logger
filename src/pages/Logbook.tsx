@@ -142,6 +142,7 @@ export default function Logbook() {
     clonedTheadRef,
     showCloned,
     containerStyle,
+    colWidths: phantomColWidths,
     handleTableScroll
   } = useStickyHeader(tableContainerRef, theadRef);
 
@@ -565,7 +566,7 @@ export default function Logbook() {
                             key={h} 
                             onClick={() => handleHeaderClick(h)}
                             className={`px-3 py-2 font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-subtle)] bg-[var(--bg-sidebar)] hover:bg-[var(--bg-hover)] uppercase tracking-wider text-[10px] whitespace-nowrap cursor-pointer select-none transition-colors group ${isControl ? 'sticky left-0 z-30 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]' : ''}`}
-                            style={isControl ? { left: 0 } : {}}
+                            style={{ ...(isControl ? { left: 0 } : {}), ...(phantomColWidths[i] ? { width: phantomColWidths[i], minWidth: phantomColWidths[i], maxWidth: phantomColWidths[i], boxSizing: 'border-box' } : {}) }}
                           >
                             <div className="flex items-center justify-between gap-1.5">
                               <span>{headerTitle}</span>
