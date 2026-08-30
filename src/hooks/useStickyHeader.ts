@@ -17,7 +17,7 @@ export function useStickyHeader(
       if (!tableContainerRef.current || !theadRef.current) return;
       
       const rect = tableContainerRef.current.getBoundingClientRect();
-      const headerOffset = 70; // Height of the top nav
+      const headerOffset = 0; // No fixed top nav
       
       if (rect.top < headerOffset && rect.bottom > headerOffset + 100) {
         setShowCloned(true);
@@ -88,3 +88,4 @@ export function useStickyHeader(
     handleTableScroll
   };
 }
+

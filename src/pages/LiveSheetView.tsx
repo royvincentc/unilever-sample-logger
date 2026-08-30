@@ -445,11 +445,11 @@ export default function LiveSheetView() {
         {showCloned && createPortal(
           <div 
             ref={clonedContainerRef}
-            className="fixed top-[70px] z-40 overflow-hidden bg-[var(--bg-card)] shadow-md hidden lg:block rounded-t-2xl border-b border-[var(--border-subtle)]"
+            className="fixed top-0 z-40 overflow-hidden bg-[var(--bg-card)] shadow-md hidden lg:block rounded-t-2xl border-b border-[var(--border-subtle)]"
             style={{ left: containerStyle.left, width: containerStyle.width }}
           >
             <div className="w-full min-w-max relative">
-              <table className="text-left border-collapse text-xs whitespace-nowrap" style={{ width: containerStyle.tableWidth, tableLayout: 'fixed' }}>
+              <table className="w-full text-left border-collapse text-xs whitespace-nowrap min-w-max">
                 <thead ref={clonedTheadRef} className="shadow-sm">
                   <tr>
                     <th 
@@ -593,7 +593,7 @@ export default function LiveSheetView() {
 
           {/* DESKTOP TABLE VIEW (>= lg) */}
           <div className="hidden lg:block w-full min-w-max relative">
-            <table className="text-left border-collapse text-xs whitespace-nowrap" style={{ width: containerStyle.tableWidth, tableLayout: 'fixed' }}>
+            <table className="w-full text-left border-collapse text-xs whitespace-nowrap">
               <thead ref={theadRef} className="sticky top-0 z-30 shadow-sm after:content-[''] after:absolute after:bottom-0 after:left-0 after:right-0 after:border-b after:border-[var(--border-subtle)]">
                 <tr>
                   <th 
@@ -781,4 +781,7 @@ export default function LiveSheetView() {
     </div>
   );
 }
+
+
+
 

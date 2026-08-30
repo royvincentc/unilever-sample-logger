@@ -550,11 +550,11 @@ export default function Logbook() {
           {showCloned && createPortal(
             <div 
               ref={clonedContainerRef}
-              className="fixed top-[70px] z-40 overflow-hidden bg-[var(--bg-card)] shadow-md hidden lg:block rounded-t-2xl border-b border-[var(--border-subtle)]"
+              className="fixed top-0 z-40 overflow-hidden bg-[var(--bg-card)] shadow-md hidden lg:block rounded-t-2xl border-b border-[var(--border-subtle)]"
               style={{ left: containerStyle.left, width: containerStyle.width }}
             >
               <div className="w-full min-w-max relative">
-                <table className="text-left border-collapse text-sm whitespace-nowrap" style={{ width: containerStyle.tableWidth, tableLayout: 'fixed' }}>
+                <table className="w-full text-left border-collapse text-sm whitespace-nowrap min-w-max">
                   <thead ref={clonedTheadRef} className="shadow-sm">
                     <tr>
                       {visibleHeaders.map((h, i) => {
@@ -688,6 +688,9 @@ export default function Logbook() {
     </div>
   );
 }
+
+
+
 
 
 
