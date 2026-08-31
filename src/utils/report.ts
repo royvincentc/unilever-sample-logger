@@ -2,6 +2,41 @@ import PizZip from 'pizzip';
 import Docxtemplater from 'docxtemplater';
 import { saveAs } from 'file-saver';
 
+// Analyst surname-to-full-name mapping
+const ANALYST_NAME_MAP: Record<string, string> = {
+  'CODINERA': 'Roy Vincent Codiñera',
+  'CODIÑERA': 'Roy Vincent Codiñera',
+  'GOLORAN': 'James Bryle A. Goloran',
+  'BARANGAN': 'Jasmin C. Barangan',
+  'CANOY': 'Ahrianne B. Canoy',
+  'VILLAVER': 'Annaleen C. Villaver',
+  'NUEVA': 'Daryl Chris D. Nueva',
+  'JUEN': 'Karen M. Juen',
+};
+
+/**
+ * Resolves analyst surname(s) to full name(s).
+ * - Single analyst: "JUEN" -> "Karen M. Juen"
+ * - Dual analyst: "CODINERA/NUEVA" -> "Roy Vincent Codiñera\nDaryl Chris D. Nueva"
+ *   (left = first line, right = second line)
+ * Falls back to the original value if the surname is not recognized.
+ */
+function resolveAnalystName(rawValue: string): string {
+  const trimmed = (rawValue || '').trim();
+  if (!trimmed) return '';
+
+  // Check for dual analyst format (separated by /)
+  if (trimmed.includes('/')) {
+    const parts = trimmed.split('/').map(s => s.trim().toUpperCase());
+    const resolved = parts.map(surname => ANALYST_NAME_MAP[surname] || surname);
+    return resolved.join('\n');
+  }
+
+  // Single analyst
+  const upper = trimmed.toUpperCase();
+  return ANALYST_NAME_MAP[upper] || trimmed;
+}
+
 export async function generateDocxReport(data: any, analyzedBy: string, tab: string) {
   try {
     // Fetch the template from the public folder
@@ -120,7 +155,7 @@ export async function generateDocxReport(data: any, analyzedBy: string, tab: str
         GN_Remarks: gnRemarks,
         
         OverallRemarks: overallRemarks,
-        AnalyzedBy: data['ANALYZED BY'] || raw[13] || raw[12] || analyzedBy || 'Jasmin C. Barangan',
+        AnalyzedBy: resolveAnalystName(data['ANALYZED BY'] || raw[13] || raw[12] || analyzedBy || 'Jasmin C. Barangan'),
         DateAnalyzed: data['DATE ANALYZED'] || raw[12] || new Date().toLocaleDateString(),
         DateReleasedOnly: data['DATE RELEASED'] || raw[15] || raw[14] || ''
       };
@@ -152,7 +187,7 @@ export async function generateDocxReport(data: any, analyzedBy: string, tab: str
         GN_Remarks: '',
         
         OverallRemarks: '',
-        AnalyzedBy: analyzedBy || 'Jasmin C. Barangan',
+        AnalyzedBy: resolveAnalystName(analyzedBy || 'Jasmin C. Barangan'),
         DateAnalyzed: new Date().toLocaleDateString(),
       };
     }
