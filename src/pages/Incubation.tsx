@@ -202,12 +202,8 @@ export default function Incubation() {
     if (task.category === 'Final') { badgeColor = 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'; badgeText = 'Final'; }
 
     return (
-      <motion.div 
-        layout
-        initial={{ opacity: 0, y: 10, scale: 0.95 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
-        className={`p-3.5 rounded-xl border flex items-center justify-between group transition-all duration-200 shadow-sm
+      <div 
+        className={`p-3.5 rounded-xl border flex items-center justify-between group shadow-sm animate-fade-in
         ${isOverdue ? 'bg-danger-500/5 border-danger-500/20 hover:border-danger-500/40' : 'bg-[var(--bg-card)] border-[var(--border-subtle)] hover:border-[var(--text-muted)] hover:bg-[var(--bg-hover)]'}`}>
         <div className="flex items-center gap-3.5 min-w-0">
           <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 bg-[var(--bg-app)] border border-[var(--border-subtle)]`}>
@@ -255,7 +251,7 @@ export default function Incubation() {
             </button>
           </div>
         </div>
-      </motion.div>
+      </div>
     );
   };
 
@@ -415,9 +411,7 @@ export default function Incubation() {
             </div>
             <div className="text-3xl font-bold text-cyan-500 mb-4">{priority1.length}</div>
             <div className="space-y-2 flex-1 overflow-y-auto pr-1 custom-scrollbar">
-              <AnimatePresence mode="popLayout">
-                {priority1.map(t => <TaskCard key={t.id} task={t} />)}
-              </AnimatePresence>
+              {priority1.map(t => <TaskCard key={t.id} task={t} />)}
             </div>
           </div>
           
@@ -447,9 +441,7 @@ export default function Incubation() {
             </div>
             <div className="text-3xl font-bold text-orange-500 mb-4">{priority2.length}</div>
             <div className="space-y-2 flex-1 overflow-y-auto pr-1 custom-scrollbar">
-              <AnimatePresence mode="popLayout">
-                {priority2.map(t => <TaskCard key={t.id} task={t} />)}
-              </AnimatePresence>
+              {priority2.map(t => <TaskCard key={t.id} task={t} />)}
             </div>
           </div>
         </div>
@@ -464,9 +456,7 @@ export default function Incubation() {
             </div>
             <div className="text-3xl font-bold text-emerald-500 mb-4">{finals.length}</div>
             <div className="space-y-2 flex-1 overflow-y-auto pr-1 custom-scrollbar">
-              <AnimatePresence mode="popLayout">
-                {finals.map(t => <TaskCard key={t.id} task={t} />)}
-              </AnimatePresence>
+              {finals.map(t => <TaskCard key={t.id} task={t} />)}
             </div>
           </div>
 
@@ -486,11 +476,7 @@ export default function Incubation() {
                 <div className="text-sm text-[var(--text-muted)] p-4 text-center border border-dashed border-[var(--border-subtle)] rounded-xl">
                   No upcoming readings in this category.
                 </div>
-              ) : (
-                <AnimatePresence mode="popLayout">
-                  {queueTasks.map(t => <TaskCard key={t.id} task={t} />)}
-                </AnimatePresence>
-              )}
+              ) : queueTasks.map(t => <TaskCard key={t.id} task={t} />)}
             </div>
           </div>
 
@@ -511,11 +497,7 @@ export default function Incubation() {
                 <div className="text-sm text-[var(--text-muted)] p-4 text-center border border-dashed border-[var(--border-subtle)] rounded-xl opacity-70">
                   No overdue readings! Great job.
                 </div>
-              ) : (
-                <AnimatePresence mode="popLayout">
-                  {overdueTasks.map(t => <TaskCard key={t.id} task={t} isOverdue={true} />)}
-                </AnimatePresence>
-              )}
+              ) : overdueTasks.map(t => <TaskCard key={t.id} task={t} isOverdue={true} />)}
             </div>
           </div>
 

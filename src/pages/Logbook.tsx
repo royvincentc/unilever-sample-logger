@@ -12,6 +12,7 @@ import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { useStickyHeader } from '../hooks/useStickyHeader';
 import { getUserName } from '../utils/auth';
 import { listenToLogbookSettings, saveLogbookSettings } from '../utils/db';
+import { useDebounce } from '../hooks/useDebounce';
 
 
 function getRowControl(row: any): string {
@@ -105,10 +106,11 @@ export default function Logbook() {
   const [error, setError] = useState<string | null>(null);
   
   const [searchQuery, setSearchQuery] = useState('');
+  const debouncedSearchQuery = useDebounce(searchQuery, 300);
   const [sortColumn, setSortColumn] = useState<string | null>(null); // For table header clicks
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [currentPage, setCurrentPage] = useState(1);
-  const [rowsPerPage, setRowsPerPage] = useState(100);
+  const [rowsPerPage, setRowsPerPage] = useState(50);
   const [selectedRowIndex, setSelectedRowIndex] = useState<number | null>(null);
   
   // Restored filters
@@ -344,8 +346,8 @@ export default function Logbook() {
       result = result.filter(row => selectedAnalysts.includes(getRowAnalyst(row)));
     }
     
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase().trim();
+    if (debouncedSearchQuery.trim()) {
+      const query = debouncedSearchQuery.toLowerCase().trim();
       result = result.filter(row =>
         Object.values(row).some(val =>
           String(val).toLowerCase().includes(query)
@@ -409,12 +411,12 @@ export default function Logbook() {
         return compareControlNumbers(fallbackCtrlA, fallbackCtrlB);
       }
     });
-  }, [data, searchQuery, sortColumn, sortDirection, sortBy, selectedAnalysts]);
+  }, [data, debouncedSearchQuery, sortColumn, sortDirection, sortBy, selectedAnalysts]);
 
   // Reset to page 1 when filters/sorting changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, sortBy, selectedAnalysts, sortColumn, sortDirection]);
+  }, [debouncedSearchQuery, sortBy, selectedAnalysts, sortColumn, sortDirection]);
 
   const paginatedData = useMemo(() => {
     const start = (currentPage - 1) * rowsPerPage;
@@ -659,7 +661,7 @@ export default function Logbook() {
                         <tr 
                           key={rowIndex} 
                           onClick={() => setSelectedRowIndex(isSelected ? null : rowIndex)}
-                          className={`transition-colors group cursor-pointer ${isSelected ? 'bg-[var(--bg-selected)] outline outline-2 outline-primary-500 relative z-10' : 'hover:bg-[var(--bg-hover)]'}`}
+                          className={`group cursor-pointer ${isSelected ? 'bg-[var(--bg-selected)] outline outline-2 outline-primary-500 relative z-10' : 'hover:bg-[var(--bg-hover)]'}`}
                         >
                           {visibleHeaders.map((h, colIndex) => {
                             const isControl = isControlHeader(h);

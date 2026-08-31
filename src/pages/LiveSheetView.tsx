@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { RefreshCw, Key, Shield, AlertCircle, X, Check, Save, Search, ArrowDown, ArrowUp, Columns, Pin, Eye, EyeOff, Lock, LogOut } from 'lucide-react';
@@ -10,6 +10,7 @@ import { useStickyHeader } from '../hooks/useStickyHeader';
 import { getSettings } from '../utils/auth';
 import { updateSheetRow, fetchSheetSchema } from '../utils/api';
 import { listenToLiveSheetSettings, saveLiveSheetSettings } from '../utils/db';
+import { useDebounce } from '../hooks/useDebounce';
 
 // 5 minutes in milliseconds
 const PASSWORD_VALIDITY_MS = 5 * 60 * 1000;
@@ -30,12 +31,13 @@ export default function LiveSheetView() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const debouncedSearchQuery = useDebounce(searchQuery, 300);
   
   // Sorting: Default to descending order on _rowIndex (latest samples first)
   const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' }>({ key: '_rowIndex', direction: 'desc' });
   
   const [currentPage, setCurrentPage] = useState(1);
-  const [rowsPerPage, setRowsPerPage] = useState(100);
+  const [rowsPerPage, setRowsPerPage] = useState(50);
   
   const [passwordPromptVisible, setPasswordPromptVisible] = useState(false);
   const [passwordInput, setPasswordInput] = useState('');
@@ -181,7 +183,7 @@ export default function LiveSheetView() {
   // Reset page when tab or search changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [activeTab, searchQuery]);
+  }, [activeTab, debouncedSearchQuery]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -265,14 +267,15 @@ export default function LiveSheetView() {
 
   const filteredData = useMemo(() => {
     return data.filter(row => {
-      const query = searchQuery.toLowerCase();
+      const query = debouncedSearchQuery.toLowerCase();
+      if (!query) return true;
       const rowValues = Object.values(row)
         .filter(v => typeof v === 'string' || typeof v === 'number')
         .join(' ')
         .toLowerCase();
       return rowValues.includes(query);
     });
-  }, [data, searchQuery]);
+  }, [data, debouncedSearchQuery]);
 
   const sortedData = useMemo(() => {
     let sortableItems = [...filteredData];
@@ -650,11 +653,11 @@ export default function LiveSheetView() {
                       <tr 
                         key={row._rowIndex} 
                         onClick={() => setExpandedCardId(isSelected ? null : String(row._rowIndex))}
-                        className={`transition-colors group cursor-pointer ${isSelected ? 'bg-[var(--bg-selected)] outline outline-2 outline-primary-500 relative z-10' : 'hover:bg-[var(--bg-hover)]'}`}
+                        className={`group cursor-pointer ${isSelected ? 'bg-[var(--bg-selected)] outline outline-2 outline-primary-500 relative z-10' : 'hover:bg-[var(--bg-hover)]'}`}
                       >
                         
                         <td 
-                          className={`px-3 py-2 border-r border-[var(--border-subtle)] text-[var(--text-muted)] font-mono text-[10px] backdrop-blur-sm ${isSelected ? 'bg-[var(--bg-selected)]' : 'bg-[var(--bg-card)]/95'}`}
+                          className={`px-3 py-2 border-r border-[var(--border-subtle)] text-[var(--text-muted)] font-mono text-[10px] ${isSelected ? 'bg-[var(--bg-selected)]' : 'bg-[var(--bg-card)]'}`}
                           style={{ position: 'sticky', left: frozenLeftOffsets['__row'], zIndex: 10 }}
                         >
                           {row._rowIndex}
@@ -668,7 +671,7 @@ export default function LiveSheetView() {
                           
                           let cellBg = '';
                           if (frozen) {
-                            cellBg = isSelected ? 'bg-[var(--bg-selected)]' : 'bg-[var(--bg-card)]/95 backdrop-blur-sm';
+                            cellBg = isSelected ? 'bg-[var(--bg-selected)]' : 'bg-[var(--bg-card)]';
                           } else {
                             cellBg = isSelected ? 'bg-[var(--bg-selected)]' : '';
                           }

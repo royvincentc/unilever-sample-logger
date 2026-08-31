@@ -10,6 +10,7 @@ import { fetchHistoryFromSheet } from '../utils/api';
 import { getSettings } from '../utils/auth';
 import type { HistoryEntry } from '../types';
 import { useTheme } from '../hooks/useTheme';
+import Pagination from '../components/ui/Pagination';
 
 export default function SampleHistory() {
   const { theme, setTheme } = useTheme();
@@ -22,6 +23,8 @@ export default function SampleHistory() {
   const [activeTab, setActiveTab] = useState<'ONGOING' | 'COMPLETED'>('ONGOING');
   const [activeAnalyst, setActiveAnalyst] = useState<string>('All');
   const [activeSampleType, setActiveSampleType] = useState<string>('All');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(50);
 
   const loadHistory = useCallback(async () => {
     const history = await getHistory(5000);
@@ -166,6 +169,16 @@ export default function SampleHistory() {
     });
   }, [entries, activeAnalyst, activeTab, activeSampleType]);
 
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab, activeAnalyst, activeSampleType]);
+
+  const paginatedGroups = useMemo(() => {
+    const start = (currentPage - 1) * rowsPerPage;
+    return groupedEntries.slice(start, start + rowsPerPage);
+  }, [groupedEntries, currentPage, rowsPerPage]);
+
   const badge = (type: string) =>
     type === 'ENVI' ? 'from-emerald-500 to-teal-500' :
     type === 'WATER' ? 'from-blue-500 to-cyan-500' : 'from-violet-500 to-purple-500';
@@ -237,7 +250,7 @@ export default function SampleHistory() {
           </motion.div>
         ) : (
           <div className="glass rounded-2xl overflow-hidden divide-y divide-[var(--border-subtle)] border border-[var(--border-subtle)] shadow-sm">
-            {groupedEntries.map(([ctrlNum, group]) => {
+            {paginatedGroups.map(([ctrlNum, group]) => {
               const isExpanded = expandedGroups.has(ctrlNum);
               const sampleType = group[0].sampleType;
               const dateSampled = group[0].dateSampled;
@@ -342,6 +355,18 @@ export default function SampleHistory() {
                 </div>
               );
             })}
+          </div>
+        )}
+        
+        {groupedEntries.length > 0 && (
+          <div className="mt-4 glass rounded-2xl overflow-hidden border border-[var(--border-subtle)]">
+            <Pagination
+              currentPage={currentPage}
+              totalRows={groupedEntries.length}
+              rowsPerPage={rowsPerPage}
+              onPageChange={setCurrentPage}
+              onRowsPerPageChange={setRowsPerPage}
+            />
           </div>
         )}
       </div>

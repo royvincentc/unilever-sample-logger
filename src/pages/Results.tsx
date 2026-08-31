@@ -19,6 +19,7 @@ import Button from '../components/ui/Button';
 import { generateDocxReport } from '../utils/report';
 
 import { useSearchParams } from 'react-router-dom';
+import { useDebounce } from '../hooks/useDebounce';
 
 type TabOption = 'ENVI' | 'WATER' | 'RawMats' | 'AIR';
 
@@ -101,6 +102,7 @@ export default function Results() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [selectedTab, setSelectedTab] = useState<TabOption>((searchParams.get('tab') as TabOption) || 'ENVI');
   const [searchQuery, setSearchQuery] = useState(searchParams.get('search') || '');
+  const debouncedSearchQuery = useDebounce(searchQuery, 300);
   const [data, setData] = useState<any[]>([]);
   const [headers, setHeaders] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
@@ -108,7 +110,7 @@ export default function Results() {
   const [sortColumn, setSortColumn] = useState<string | null>(null); // null means default to Control #
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [currentPage, setCurrentPage] = useState(1);
-  const [rowsPerPage, setRowsPerPage] = useState(100);  
+  const [rowsPerPage, setRowsPerPage] = useState(50);  
   
   const theadRef = useRef<HTMLTableSectionElement>(null);
   const tableContainerRef = useRef<HTMLDivElement>(null);
@@ -354,8 +356,8 @@ export default function Results() {
   const processedData = useMemo(() => {
     // 1. Filter by search query
     let result = data;
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase().trim();
+    if (debouncedSearchQuery.trim()) {
+      const query = debouncedSearchQuery.toLowerCase().trim();
       result = result.filter(row =>
         Object.values(row).some(val =>
           String(val).toLowerCase().includes(query)
@@ -397,12 +399,12 @@ export default function Results() {
       // Tie breaker 2: Original Sheet Row Index
       return (a._rowIndex || 0) - (b._rowIndex || 0);
     });
-  }, [data, searchQuery, sortColumn, sortDirection, headers]);
+  }, [data, debouncedSearchQuery, sortColumn, sortDirection, headers]);
 
   // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, selectedTab, sortColumn, sortDirection]);
+  }, [debouncedSearchQuery, selectedTab, sortColumn, sortDirection]);
 
   const paginatedData = useMemo(() => {
     const start = (currentPage - 1) * rowsPerPage;
@@ -650,7 +652,7 @@ export default function Results() {
                     <tr 
                       key={rowIndex} 
                       onClick={() => setSelectedRowIndex(isSelected ? null : rowIndex)}
-                      className={`transition-colors group cursor-pointer ${isSelected ? 'bg-[var(--bg-selected)] outline outline-2 outline-primary-500 relative z-10' : 'hover:bg-[var(--bg-hover)]'}`}
+                      className={`group cursor-pointer ${isSelected ? 'bg-[var(--bg-selected)] outline outline-2 outline-primary-500 relative z-10' : 'hover:bg-[var(--bg-hover)]'}`}
                     >
                       <td className={`px-3 py-1.5 border border-[var(--border-subtle)] ${isSelected ? 'bg-[var(--bg-selected)]' : 'bg-[var(--bg-surface)]'}`}>
                         <div className="flex items-center gap-2">
