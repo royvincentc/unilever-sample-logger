@@ -40,6 +40,17 @@ function getRowAnalyst(row: any): string {
   return String(row['ANALYZED BY'] || row['TESTED BY'] || row['SUBMITTED BY'] || row['ANALYST'] || row['ANALYSTS'] || row['WHO COLLECTED'] || '').trim();
 }
 
+function getRowSampleName(row: any): string {
+  if (!row) return '';
+  for (const key of Object.keys(row)) {
+    const k = key.toUpperCase().trim();
+    if (k === 'SAMPLE' || k === 'SAMPLE NAME' || k === 'SAMPLING POINT' || k === 'POINT' || k === 'SAMPLE DESCRIPTION') {
+      return String(row[key] || '').trim();
+    }
+  }
+  return '';
+}
+
 function getRowType(row: any): string {
   if (!row) return '';
   return String(row['TYPE'] || row['SAMPLE TYPE'] || row['CATEGORY'] || row['__sheetName']?.split(' ')[0] || '').trim();
@@ -440,13 +451,13 @@ export default function Logbook() {
     groups.forEach(group => {
       if (group.isEnviGroup) {
         // Derive the group name by looking at the entire cluster of samples
-        const sampleNames = group.rows.map(r => String(r['SAMPLE'] || r['SAMPLE NAME'] || r['SAMPLING POINT'] || r['POINT'] || ''));
+        const sampleNames = group.rows.map(r => getRowSampleName(r));
         group.enviGroupName = getEnviClusterGroupName(sampleNames);
 
         // Sort rows strictly by the numbered list
         group.rows.sort((a, b) => {
-          const sampleA = String(a['SAMPLE'] || a['SAMPLE NAME'] || a['SAMPLING POINT'] || a['POINT'] || '');
-          const sampleB = String(b['SAMPLE'] || b['SAMPLE NAME'] || b['SAMPLING POINT'] || b['POINT'] || '');
+          const sampleA = getRowSampleName(a);
+          const sampleB = getRowSampleName(b);
           return getEnviSortIndex(sampleA) - getEnviSortIndex(sampleB);
         });
       }
@@ -737,7 +748,8 @@ export default function Logbook() {
                                     >
                                       {(() => {
                                         let displayVal = val;
-                                        const isSampleCol = h.toUpperCase() === 'SAMPLE' || h.toUpperCase() === 'SAMPLE NAME' || h.toUpperCase() === 'SAMPLING POINT' || h.toUpperCase() === 'POINT';
+                                        const cleanH = h.trim().toUpperCase();
+                                        const isSampleCol = cleanH === 'SAMPLE' || cleanH === 'SAMPLE NAME' || cleanH === 'SAMPLING POINT' || cleanH === 'POINT' || cleanH === 'SAMPLE DESCRIPTION';
                                         
                                         if (group.isEnviGroup && isPrimaryRow && isSampleCol) {
                                           displayVal = group.enviGroupName || displayVal;
