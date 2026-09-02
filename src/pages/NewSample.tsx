@@ -192,6 +192,7 @@ export default function NewSample({ onQueueUpdate }: NewSampleProps) {
       const sample = data.selectedSamples[i];
       const rowData = { ...data, qty: '1', unit: '1 Swab' };
       await submitSample('ENVI', rowData as unknown as EnviFormData, sample, sharedControlNumber);
+      if (i < total - 1) await new Promise(r => setTimeout(r, 1200));
     }
   };
 
@@ -228,6 +229,7 @@ export default function NewSample({ onQueueUpdate }: NewSampleProps) {
       // Clone data and inject the specific sampling point so the mapper picks it up
       const rowData = { ...data, samplingPoint: point };
       await submitSample('AIR', rowData, name, sharedControlNumber);
+      if (i < total - 1) await new Promise(r => setTimeout(r, 1200));
     }
   };
 

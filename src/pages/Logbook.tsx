@@ -1,7 +1,7 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef, Fragment } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { BookOpen, RefreshCw, AlertCircle, Search, ArrowUp, ArrowDown, ArrowUpDown, Eye, EyeOff, GripVertical } from 'lucide-react';
+import { BookOpen, RefreshCw, AlertCircle, Search, ArrowUp, ArrowDown, ArrowUpDown, Eye, EyeOff, GripVertical, ChevronRight, ChevronDown } from 'lucide-react';
 import Header from '../components/Layout/Header';
 import CustomSelect from '../components/ui/CustomSelect';
 import MultiSelect from '../components/ui/MultiSelect';
@@ -418,10 +418,38 @@ export default function Logbook() {
     setCurrentPage(1);
   }, [debouncedSearchQuery, sortBy, selectedAnalysts, sortColumn, sortDirection]);
 
-  const paginatedData = useMemo(() => {
+  const groupedData = useMemo(() => {
+    const groups: { control: string; rows: any[] }[] = [];
+    const seen = new Set<string>();
+    
+    processedData.forEach(row => {
+      const ctrl = getRowControl(row) || `_unknown_${Math.random()}`;
+      if (!seen.has(ctrl)) {
+        seen.add(ctrl);
+        groups.push({ control: ctrl, rows: [row] });
+      } else {
+        const group = groups.find(g => g.control === ctrl);
+        if (group) group.rows.push(row);
+      }
+    });
+    return groups;
+  }, [processedData]);
+
+  const paginatedGroups = useMemo(() => {
     const start = (currentPage - 1) * rowsPerPage;
-    return processedData.slice(start, start + rowsPerPage);
-  }, [processedData, currentPage, rowsPerPage]);
+    return groupedData.slice(start, start + rowsPerPage);
+  }, [groupedData, currentPage, rowsPerPage]);
+
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+  const toggleGroup = (ctrl: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setExpandedGroups(prev => {
+      const next = new Set(prev);
+      if (next.has(ctrl)) next.delete(ctrl);
+      else next.add(ctrl);
+      return next;
+    });
+  };
 
   return (
     <div className="min-h-screen bg-transparent flex flex-col">
@@ -436,7 +464,7 @@ export default function Logbook() {
             <div>
               <h3 className="font-bold text-[var(--text-primary)]">Combined Logbook</h3>
               <p className="text-[10px] text-[var(--text-muted)] font-medium">
-                {processedData.length} total records across all sample types
+                {groupedData.length} groups ({processedData.length} records)
               </p>
             </div>
           </div>
@@ -648,37 +676,71 @@ export default function Logbook() {
                   </tr>
                 </thead>
                 <tbody>
-                  {paginatedData.length === 0 ? (
+                  {paginatedGroups.length === 0 ? (
                     <tr>
                       <td colSpan={visibleHeaders.length} className="p-8 text-center text-sm text-[var(--text-muted)] bg-[var(--bg-surface)]">
                         No records found matching your criteria.
                       </td>
                     </tr>
                   ) : (
-                    paginatedData.map((row, rowIndex) => {
-                      const isSelected = selectedRowIndex === rowIndex;
+                    paginatedGroups.map((group, groupIndex) => {
+                      const isExpanded = expandedGroups.has(group.control);
+                      const hasMultiple = group.rows.length > 1;
+
                       return (
-                        <tr 
-                          key={rowIndex} 
-                          onClick={() => setSelectedRowIndex(isSelected ? null : rowIndex)}
-                          className={`group cursor-pointer ${isSelected ? 'bg-[var(--bg-selected)] outline outline-2 outline-primary-500 relative z-10' : 'hover:bg-[var(--bg-hover)]'}`}
-                        >
-                          {visibleHeaders.map((h, colIndex) => {
-                            const isControl = isControlHeader(h);
-                            const baseBg = h === '__sheetName' ? 'bg-[color-mix(in_srgb,var(--bg-card)_95%,var(--color-primary-500))]' : 'bg-[var(--bg-card)]';
-                            const cellBg = isSelected ? 'bg-[var(--bg-selected)]' : baseBg;
-                            
+                        <Fragment key={groupIndex}>
+                          {group.rows.map((row, rowIndex) => {
+                            // If this group has multiple items and is NOT expanded, only show the first item
+                            if (hasMultiple && !isExpanded && rowIndex > 0) return null;
+
+                            const isSelected = selectedRowIndex === (groupIndex * 1000 + rowIndex); // A simple unique index trick
+                            const isPrimaryRow = rowIndex === 0;
+
                             return (
-                              <td 
-                                key={colIndex} 
-                                className={`px-3 py-1.5 text-xs text-[var(--text-primary)] border border-[var(--border-subtle)] whitespace-nowrap max-w-[300px] truncate ${h === '__sheetName' ? 'font-semibold text-primary-600' : ''} ${isControl ? `sticky left-0 z-20 ${cellBg} shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]` : cellBg}`}
-                                style={isControl ? { left: 0 } : {}}
+                              <tr 
+                                key={rowIndex} 
+                                onClick={() => setSelectedRowIndex(isSelected ? null : (groupIndex * 1000 + rowIndex))}
+                                className={`group cursor-pointer ${isSelected ? 'bg-[var(--bg-selected)] outline outline-2 outline-primary-500 relative z-10' : (hasMultiple && !isPrimaryRow ? 'bg-[color-mix(in_srgb,var(--bg-hover)_50%,transparent)] hover:bg-[var(--bg-hover)]' : 'hover:bg-[var(--bg-hover)]')}`}
                               >
-                                {row[h] !== undefined && row[h] !== null && String(row[h]).trim() !== '' ? String(row[h]) : '-'}
-                              </td>
+                                {visibleHeaders.map((h, colIndex) => {
+                                  const isControl = isControlHeader(h);
+                                  const baseBg = h === '__sheetName' ? 'bg-[color-mix(in_srgb,var(--bg-card)_95%,var(--color-primary-500))]' : 'bg-[var(--bg-card)]';
+                                  const cellBg = isSelected ? 'bg-[var(--bg-selected)]' : (hasMultiple && !isPrimaryRow ? 'bg-[color-mix(in_srgb,var(--bg-card)_70%,transparent)]' : baseBg);
+                                  
+                                  const val = row[h] !== undefined && row[h] !== null && String(row[h]).trim() !== '' ? String(row[h]) : '-';
+
+                                  return (
+                                    <td 
+                                      key={colIndex} 
+                                      className={`px-3 py-1.5 text-xs text-[var(--text-primary)] border border-[var(--border-subtle)] whitespace-nowrap max-w-[300px] truncate ${h === '__sheetName' ? 'font-semibold text-primary-600' : ''} ${isControl ? `sticky left-0 z-20 ${cellBg} shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]` : cellBg}`}
+                                      style={isControl ? { left: 0 } : {}}
+                                    >
+                                      {isControl && isPrimaryRow && hasMultiple ? (
+                                        <div className="flex items-center gap-1.5">
+                                          <button
+                                            onClick={(e) => toggleGroup(group.control, e)}
+                                            className="p-0.5 rounded hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] shrink-0"
+                                            title={isExpanded ? "Collapse group" : "Expand group"}
+                                          >
+                                            {isExpanded ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+                                          </button>
+                                          <span>{val}</span>
+                                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-primary-500/10 text-primary-600 ml-1">
+                                            {group.rows.length}
+                                          </span>
+                                        </div>
+                                      ) : (
+                                        <span className={isControl && !isPrimaryRow ? 'pl-6 text-[var(--text-muted)]' : ''}>
+                                          {isControl && !isPrimaryRow && val === group.control ? '↳' : val}
+                                        </span>
+                                      )}
+                                    </td>
+                                  );
+                                })}
+                              </tr>
                             );
                           })}
-                        </tr>
+                        </Fragment>
                       );
                     })
                   )}
@@ -689,7 +751,7 @@ export default function Logbook() {
         </div>
         <Pagination
           currentPage={currentPage}
-          totalRows={processedData.length}
+          totalRows={groupedData.length}
           rowsPerPage={rowsPerPage}
           onPageChange={setCurrentPage}
           onRowsPerPageChange={(val) => { setRowsPerPage(val); setCurrentPage(1); }}

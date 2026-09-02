@@ -146,24 +146,40 @@ const FIELD_KEYWORDS: Record<string, string[]> = {
   'performedBy':           ['performed by', 'sampled by', 'collected by'],
 };
 
-export function resolveColumn(logicalName: string, headers: string[]): string {
+export function resolveColumn(logicalName: string, headers: string[], claimedKeys: Set<string> = new Set(), strict: boolean = false): string | null {
   // 1. Exact
-  const exact = headers.find(h => h === logicalName);
-  if (exact) return exact;
+  let match = headers.find(h => h === logicalName && !claimedKeys.has(h));
+  if (match) return match;
 
-  // 2. Case-insensitive
-  const ci = headers.find(h => h.toUpperCase() === logicalName.toUpperCase());
-  if (ci) return ci;
+  // 2. Case-insensitive & trimmed
+  match = headers.find(h => h.trim().toUpperCase() === logicalName.trim().toUpperCase() && !claimedKeys.has(h));
+  if (match) return match;
 
-  // 3. Keyword
+  // 3. Keyword exact match
   const keywords = FIELD_KEYWORDS[logicalName] ?? [];
   for (const kw of keywords) {
-    const kMatch = headers.find(h => h.toLowerCase().includes(kw.toLowerCase()));
-    if (kMatch) return kMatch;
+    match = headers.find(h => h.trim().toLowerCase() === kw.toLowerCase() && !claimedKeys.has(h));
+    if (match) return match;
   }
 
-  // 4. Fallback
-  return logicalName;
+  if (strict) return null;
+
+  // 4. Keyword substring match
+  for (const kw of keywords) {
+    match = headers.find(h => {
+      if (claimedKeys.has(h)) return false;
+      const ht = h.toLowerCase();
+      const kwl = kw.toLowerCase();
+      // Prevent 'sample' from matching 'sampled'
+      if (kwl === 'sample' && ht.includes('sampled')) return false;
+      // Prevent 'date' from matching 'update'
+      if (kwl === 'date' && ht.includes('update')) return false;
+      return ht.includes(kwl);
+    });
+    if (match) return match;
+  }
+
+  return null;
 }
 
 /**
@@ -183,10 +199,31 @@ export function remapPayloadToLiveColumns(
   // Initialise all known sheet columns to empty string
   headers.forEach(h => { remapped[h] = ''; });
 
-  // Fill in our values using live column names
-  for (const [logicalKey, value] of Object.entries(payload)) {
-    const liveKey = resolveColumn(logicalKey, headers);
-    remapped[liveKey] = value;
+  const claimedLiveKeys = new Set<string>();
+  const unmappedKeys: string[] = [];
+
+  // Pass 1: Strict matches (exact name or exact keyword)
+  for (const logicalKey of Object.keys(payload)) {
+    const liveKey = resolveColumn(logicalKey, headers, claimedLiveKeys, true);
+    if (liveKey) {
+      remapped[liveKey] = payload[logicalKey];
+      claimedLiveKeys.add(liveKey);
+    } else {
+      unmappedKeys.push(logicalKey);
+    }
+  }
+
+  // Pass 2: Loose substring matches
+  for (const logicalKey of unmappedKeys) {
+    let liveKey = resolveColumn(logicalKey, headers, claimedLiveKeys, false);
+    if (liveKey) {
+      remapped[liveKey] = payload[logicalKey];
+      claimedLiveKeys.add(liveKey);
+    } else {
+      // Fallback: if no match found at all, just map to the logical key itself
+      // (This preserves keys that might be mapped later or handled specially)
+      remapped[logicalKey] = payload[logicalKey];
+    }
   }
 
   return remapped;
