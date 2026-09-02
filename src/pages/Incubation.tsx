@@ -52,6 +52,10 @@ export default function Incubation() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<FilterTab>('All');
   const [selectedAnalysts, setSelectedAnalysts] = useState<string[]>(['All']);
+  const [reportDate, setReportDate] = useState<string>(() => {
+    const d = new Date();
+    return new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+  });
   const navigate = useNavigate();
   const { showToast } = useToast();
 
@@ -59,7 +63,8 @@ export default function Incubation() {
     setLoading(true);
     try {
       const history = await fetchActiveIncubationsFromSheet();
-      const now = new Date();
+      const [year, month, day] = reportDate.split('-').map(Number);
+      const now = new Date(year, month - 1, day);
       // Normalize to start of day for accurate day differences
       const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
@@ -161,13 +166,13 @@ export default function Incubation() {
       // Sort by due date (closest first)
       upcomingTasks.sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
       setTasks(upcomingTasks);
-    } catch (e) {
-      console.error('Failed to load incubations from sheet:', e);
-      showToast('error', 'Error', 'Failed to load incubation data from Google Sheets');
+    } catch (error) {
+      console.error('Error loading incubations:', error);
+      showToast('error', 'Error', 'Failed to load incubations');
     } finally {
       setLoading(false);
     }
-  }, [showToast]);
+  }, [showToast, reportDate]);
 
   useEffect(() => {
     loadIncubations();
@@ -345,17 +350,28 @@ export default function Incubation() {
         
         {/* Top Controls */}
         <div className="flex flex-col gap-5">
-          <div className="flex items-center gap-3">
-            <span className="text-sm font-semibold text-[var(--text-muted)]">Filter Analyst (Today):</span>
-            <MultiSelect
-              values={selectedAnalysts}
-              onChange={setSelectedAnalysts}
-              options={[
-                { value: 'All', label: 'All Analysts' },
-                ...uniqueAnalysts.map(a => ({ value: a, label: a }))
-              ]}
-              className="w-48 z-40"
-            />
+          <div className="flex flex-wrap items-center gap-6">
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-semibold text-[var(--text-muted)]">Assume Date:</span>
+              <input
+                type="date"
+                value={reportDate}
+                onChange={(e) => setReportDate(e.target.value)}
+                className="px-3 py-1.5 bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-xl text-sm font-medium text-[var(--text-primary)] focus:outline-none focus:border-primary-500 transition-colors"
+              />
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-semibold text-[var(--text-muted)]">Filter Analyst:</span>
+              <MultiSelect
+                values={selectedAnalysts}
+                onChange={setSelectedAnalysts}
+                options={[
+                  { value: 'All', label: 'All Analysts' },
+                  ...uniqueAnalysts.map(a => ({ value: a, label: a }))
+                ]}
+                className="w-48 z-40"
+              />
+            </div>
           </div>
 
           {/* Universal Filter Tabs */}
