@@ -132,7 +132,8 @@ export default function Incubation() {
             my: entry.my,
             indicativeRemarks: entry.indicativeRemarks,
             time: entry.time,
-            rawMatsType: entry.rawMatsType
+            rawMatsType: entry.rawMatsType,
+            size: entry.size
           });
         };
 
