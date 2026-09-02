@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo, useRef, Fragment } from 'rea
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BookOpen, RefreshCw, AlertCircle, Search, ArrowUp, ArrowDown, ArrowUpDown, Eye, EyeOff, GripVertical, ChevronRight, ChevronDown } from 'lucide-react';
-import { getEnviGroupName, getEnviSortIndex } from '../utils/enviSorting';
+import { getEnviClusterGroupName, getEnviSortIndex } from '../utils/enviSorting';
 import Header from '../components/Layout/Header';
 import CustomSelect from '../components/ui/CustomSelect';
 import MultiSelect from '../components/ui/MultiSelect';
@@ -425,30 +425,25 @@ export default function Logbook() {
     
     processedData.forEach(row => {
       const type = getRowType(row);
-      let groupKey = getRowControl(row) || `_unknown_${Math.random()}`;
-      let isEnviGroup = false;
-      let enviGroupName = '';
-      
-      if (type === 'ENVI') {
-        const sampleName = String(row['SAMPLE'] || row['SAMPLE NAME'] || row['SAMPLING POINT'] || row['POINT'] || '');
-        enviGroupName = getEnviGroupName(sampleName);
-        const dateStr = getRowDate(row).toISOString().split('T')[0];
-        groupKey = `ENVI_${dateStr}_${enviGroupName}_${getRowControl(row)}`;
-        isEnviGroup = true;
-      }
+      const groupKey = getRowControl(row) || `_unknown_${Math.random()}`;
       
       if (!seen.has(groupKey)) {
         seen.add(groupKey);
-        groups.push({ control: groupKey, rows: [row], isEnviGroup, enviGroupName });
+        groups.push({ control: groupKey, rows: [row], isEnviGroup: type === 'ENVI' });
       } else {
         const group = groups.find(g => g.control === groupKey);
         if (group) group.rows.push(row);
       }
     });
 
-    // Sort rows within each group
+    // Sort rows within each group, and compute the group name for ENVI
     groups.forEach(group => {
       if (group.isEnviGroup) {
+        // Derive the group name by looking at the entire cluster of samples
+        const sampleNames = group.rows.map(r => String(r['SAMPLE'] || r['SAMPLE NAME'] || r['SAMPLING POINT'] || r['POINT'] || ''));
+        group.enviGroupName = getEnviClusterGroupName(sampleNames);
+
+        // Sort rows strictly by the numbered list
         group.rows.sort((a, b) => {
           const sampleA = String(a['SAMPLE'] || a['SAMPLE NAME'] || a['SAMPLING POINT'] || a['POINT'] || '');
           const sampleB = String(b['SAMPLE'] || b['SAMPLE NAME'] || b['SAMPLING POINT'] || b['POINT'] || '');

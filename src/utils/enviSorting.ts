@@ -1,3 +1,5 @@
+import { ENVI_CATEGORIES, EQUIPMENT_GROUPS } from '../data/sampleData';
+
 export const ENVI_SAMPLE_ORDER = [
   "Side Pot 1 - Inner Dome",
   "Side Pot 1 - Outer Dome",
@@ -58,7 +60,7 @@ export const ENVI_SAMPLE_ORDER = [
   "Storage Tank 2- Outer Dome",
   "Storage Tank 2 - Outer Dome",
   "Storage Tank 2 - Body",
-  "Storage Tank 2 - Body",
+  "Storage Tank 2 - Body ",
   "Storage Tank 3 - Inner Dome",
   "Storage Tank 3 - Outer Dome",
   "Storage Tank 3 - Body",
@@ -87,6 +89,7 @@ export const ENVI_SAMPLE_ORDER = [
   "Leepack Nozzle 2",
   "Leepack Nozzle 3",
   "Leepack Nozzle 4",
+  "LEEPACK JOINT 1",
   "LEEPACK JOINT 1",
   "Leepack Hose 1",
   "LEEPACK JOINT 2",
@@ -122,10 +125,11 @@ export const ENVI_SAMPLE_ORDER = [
   "Akash 2 Nozzle 3",
   "Akash 2 Nozzle 4",
   "Akash 2 Nozzle 5",
+  "Akash 2  Nozzle 5",
   "Akash 2 Nozzle 6",
-  "MV01 Inner Dome",
+  "MV01 Inner Dome ",
   "MV01 Outer Dome",
-  "MV01 Body",
+  "MV01 Body ",
   "MV01 Stirrer",
   "Storage Tank 1 - Inner Dome (CIP+SWAB)",
   "Storage Tank 1 - Outer Dome (CIP+SWAB)",
@@ -135,8 +139,25 @@ export const ENVI_SAMPLE_ORDER = [
   "Storage Tank 1 - Body (Manual + Alcohol)"
 ];
 
-// Helper to determine the Base Group Name from a sample string
-export function getEnviGroupName(sampleName: string): string {
+const CLEAN_CACHE = new Map<string, string>();
+function clean(s: string) {
+  if (!s) return '';
+  const cached = CLEAN_CACHE.get(s);
+  if (cached) return cached;
+  const res = s.trim().toUpperCase().replace(/\s+/g, ' ');
+  CLEAN_CACHE.set(s, res);
+  return res;
+}
+
+export function getEnviSortIndex(sampleName: string): number {
+  if (!sampleName) return 9999;
+  const cleanName = clean(sampleName);
+  const index = ENVI_SAMPLE_ORDER.findIndex(n => clean(n) === cleanName);
+  return index !== -1 ? index : 9999;
+}
+
+// Fallback logic for when cluster is small, or mixed, or doesn't match a big category
+function getBaseEquipmentName(sampleName: string): string {
   if (!sampleName) return '';
   const upper = sampleName.toUpperCase();
   
@@ -174,9 +195,63 @@ export function getEnviGroupName(sampleName: string): string {
   return sampleName.trim();
 }
 
-export function getEnviSortIndex(sampleName: string): number {
-  if (!sampleName) return 9999;
-  const cleanName = sampleName.trim().toUpperCase().replace(/\s+/g, ' ');
-  const index = ENVI_SAMPLE_ORDER.findIndex(n => n.trim().toUpperCase().replace(/\s+/g, ' ') === cleanName);
-  return index !== -1 ? index : 9999;
+/**
+ * Derives the best group name for a cluster of samples sharing the same Control Number.
+ * 1. Checks if the cluster closely matches a major preset (e.g. LIQUID DETERGENT, FABCON).
+ * 2. If it perfectly matches a single equipment group (e.g. LEEPACK), returns that.
+ * 3. Otherwise, returns the most common base equipment name in the cluster.
+ */
+export function getEnviClusterGroupName(samples: string[]): string {
+  if (!samples || samples.length === 0) return '';
+  
+  const sampleSet = new Set(samples.map(s => clean(s)));
+  
+  // Pre-calculate expected samples for each preset category
+  for (const cat of ENVI_CATEGORIES) {
+    if (cat.id === 'Other') continue;
+    
+    // Collect all expected samples for this category
+    const expectedSamples = new Set<string>();
+    for (const eqId of cat.equipmentIds) {
+      const eq = EQUIPMENT_GROUPS[eqId];
+      if (eq) {
+        eq.samples.forEach(s => expectedSamples.add(clean(s)));
+      }
+    }
+    
+    // Check overlap
+    if (expectedSamples.size > 0) {
+      let matches = 0;
+      for (const s of sampleSet) {
+        if (expectedSamples.has(s)) matches++;
+      }
+      
+      // If the cluster has at least 80% of the expected samples, AND the cluster doesn't have way too many extra samples
+      const matchRatio = matches / expectedSamples.size;
+      const extraSamples = sampleSet.size - matches;
+      
+      // If it's a huge category like LIQUID DETERGENT, and it matches most of it
+      if (matchRatio >= 0.7 && extraSamples <= 5) {
+        return cat.label;
+      }
+    }
+  }
+
+  // Fallback: determine the most common base equipment name
+  const counts = new Map<string, number>();
+  for (const s of samples) {
+    const base = getBaseEquipmentName(s);
+    counts.set(base, (counts.get(base) || 0) + 1);
+  }
+  
+  let bestBase = '';
+  let max = 0;
+  for (const [base, count] of counts.entries()) {
+    if (count > max) {
+      max = count;
+      bestBase = base;
+    }
+  }
+  
+  return bestBase || samples[0];
 }
