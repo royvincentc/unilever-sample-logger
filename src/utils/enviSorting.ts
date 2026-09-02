@@ -195,17 +195,13 @@ function getBaseEquipmentName(sampleName: string): string {
   return sampleName.trim();
 }
 
-/**
- * Derives the best group name for a cluster of samples sharing the same Control Number.
- * 1. Checks if the cluster closely matches a major preset (e.g. LIQUID DETERGENT, FABCON).
- * 2. If it perfectly matches a single equipment group (e.g. LEEPACK), returns that.
- * 3. Otherwise, returns the most common base equipment name in the cluster.
- */
 export function getEnviClusterGroupName(samples: string[]): string {
   if (!samples || samples.length === 0) return '';
   
   const sampleSet = new Set(samples.map(s => clean(s)));
   
+  const candidates: { label: string; expectedSamples: Set<string>; matches: number }[] = [];
+
   // Pre-calculate expected samples for each preset category
   for (const cat of ENVI_CATEGORIES) {
     if (cat.id === 'Other') continue;
@@ -226,15 +222,69 @@ export function getEnviClusterGroupName(samples: string[]): string {
         if (expectedSamples.has(s)) matches++;
       }
       
-      // If the cluster has at least 80% of the expected samples, AND the cluster doesn't have way too many extra samples
       const matchRatio = matches / expectedSamples.size;
-      const extraSamples = sampleSet.size - matches;
       
-      // If it's a huge category like LIQUID DETERGENT, and it matches most of it
-      if (matchRatio >= 0.7 && extraSamples <= 5) {
-        return cat.label;
+      // If it matches most of the category
+      if (matchRatio >= 0.7) {
+        candidates.push({ label: cat.label, expectedSamples, matches });
       }
     }
+  }
+
+  candidates.sort((a, b) => b.matches - a.matches); // largest matches first
+
+  const matchedCategories: string[] = [];
+  const matchedSamples = new Set<string>();
+
+  for (const cand of candidates) {
+    let newMatches = 0;
+    for (const s of cand.expectedSamples) {
+      if (sampleSet.has(s) && !matchedSamples.has(s)) {
+        newMatches++;
+      }
+    }
+    
+    // Accept if it contributes at least 30% of its expected size as NEW unique matches, or if it's the first one
+    if (newMatches >= (cand.expectedSamples.size * 0.3) || matchedCategories.length === 0) {
+      matchedCategories.push(cand.label);
+      for (const s of cand.expectedSamples) {
+        if (sampleSet.has(s)) matchedSamples.add(s);
+      }
+    }
+  }
+
+  // Find remaining unmatched samples
+  const remainingSamples: string[] = [];
+  for (const s of samples) {
+    if (!matchedSamples.has(clean(s))) {
+      remainingSamples.push(s);
+    }
+  }
+
+  // If we matched categories, we might have extra samples to append
+  if (matchedCategories.length > 0) {
+    const uniqueCats = Array.from(new Set(matchedCategories));
+    
+    if (remainingSamples.length > 0) {
+      const extraCounts = new Map<string, number>();
+      for (const s of remainingSamples) {
+        const base = getBaseEquipmentName(s);
+        extraCounts.set(base, (extraCounts.get(base) || 0) + 1);
+      }
+      
+      const extraBases: string[] = [];
+      for (const [base, count] of extraCounts.entries()) {
+        if (count >= 2 || remainingSamples.length <= 2) {
+          extraBases.push(base);
+        }
+      }
+      
+      if (extraBases.length > 0) {
+        return uniqueCats.join(' + ') + ' + ' + extraBases.join(' + ');
+      }
+    }
+    
+    return uniqueCats.join(' + ');
   }
 
   // Fallback: determine the most common base equipment name
