@@ -5,8 +5,7 @@ import { DatePicker, TimePicker } from '../ui/TextInput';
 import Dropdown from '../ui/Dropdown';
 import ComboBox from '../ui/ComboBox';
 import Button from '../ui/Button';
-import { PERSONNEL } from '../../data/personnelData';
-import { getWaterSamplers } from '../../hooks/usePersonnel';
+import { usePersonnel } from '../../hooks/usePersonnel';
 import { STATUS_OPTIONS, WATER_SOURCES } from '../../data/constants';
 import type { WaterFormData, WaterSource } from '../../types';
 
@@ -25,6 +24,7 @@ const fadeUp = {
 };
 
 export default function WaterForm({ onSubmit, onBack }: WaterFormProps) {
+  const { lists, addNameRaw, addName } = usePersonnel();
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState<WaterFormData>({
     dateSampled: new Date().toISOString().split('T')[0],
@@ -41,6 +41,8 @@ export default function WaterForm({ onSubmit, onBack }: WaterFormProps) {
     e.preventDefault();
     setLoading(true);
     try {
+      if (form.sampledBy) addNameRaw('waterSampler', form.sampledBy);
+      if (form.analyzedBy) addName('waterAnalyst', form.analyzedBy);
       await onSubmit(form);
     } finally {
       setLoading(false);
@@ -52,12 +54,14 @@ export default function WaterForm({ onSubmit, onBack }: WaterFormProps) {
   return (
     <form onSubmit={handleSubmit}>
       <motion.div variants={stagger} initial="hidden" animate="show" className="space-y-6">
+        {/* Back button */}
         <motion.div variants={fadeUp}>
           <button type="button" onClick={onBack} className="flex items-center gap-2 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors cursor-pointer">
             <ArrowLeft className="w-4 h-4" /> Back to sample type
           </button>
         </motion.div>
 
+        {/* Header */}
         <motion.div variants={fadeUp}>
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center shadow-lg">
@@ -65,56 +69,34 @@ export default function WaterForm({ onSubmit, onBack }: WaterFormProps) {
             </div>
             <div>
               <h3 className="text-lg font-bold text-[var(--text-primary)]">WATER Sample</h3>
-              <p className="text-sm text-[var(--text-secondary)]">Water source logging</p>
+              <p className="text-sm text-[var(--text-secondary)]">Process water logging</p>
             </div>
           </div>
         </motion.div>
 
-        {/* Date & Time */}
+        {/* Details */}
         <motion.div variants={fadeUp} className="glass rounded-2xl p-5 space-y-4">
-          <h4 className="text-sm font-semibold text-[var(--text-primary)] uppercase tracking-wider">Collection Info</h4>
+          <h4 className="text-sm font-semibold text-[var(--text-primary)] uppercase tracking-wider">Sample Details</h4>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <DatePicker label="Date Sampled" value={form.dateSampled} onChange={(v) => setForm({ ...form, dateSampled: v })} required />
             <TimePicker label="Time Sampled" value={form.timeSampled} onChange={(v) => setForm({ ...form, timeSampled: v })} required />
-          </div>
-        </motion.div>
-
-        {/* Water Source */}
-        <motion.div variants={fadeUp} className="glass rounded-2xl p-5 space-y-4">
-          <h4 className="text-sm font-semibold text-[var(--text-primary)] uppercase tracking-wider">Sample Info</h4>
-          <Dropdown
-            label="Water Source"
-            value={form.waterSource}
-            options={WATER_SOURCES}
-            onChange={(v) => setForm({ ...form, waterSource: v as WaterSource })}
-            required
-          />
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <label className="block text-sm font-medium text-[var(--text-secondary)]">QTY</label>
-              <div className="px-4 py-3 rounded-xl bg-[var(--bg-hover)] border border-[var(--border-color)] text-sm text-[var(--text-primary)] font-medium">1</div>
-            </div>
-            <div className="space-y-1.5">
-              <label className="block text-sm font-medium text-[var(--text-secondary)]">Unit</label>
-              <div className="px-4 py-3 rounded-xl bg-[var(--bg-hover)] border border-[var(--border-color)] text-sm text-[var(--text-primary)] font-medium">120 mL</div>
-            </div>
-          </div>
-        </motion.div>
-
-        {/* Personnel & Status */}
-        <motion.div variants={fadeUp} className="glass rounded-2xl p-5 space-y-4">
-          <h4 className="text-sm font-semibold text-[var(--text-primary)] uppercase tracking-wider">Details</h4>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <ComboBox
-              label="Sampled By"
-              value={form.sampledBy}
-              options={getWaterSamplers()}
-              onChange={(v) => setForm({ ...form, sampledBy: v })}
-              customPlaceholder="Type sampler name..."
+            <Dropdown
+              label="Water Source"
+              value={form.waterSource}
+              options={WATER_SOURCES}
+              onChange={(v) => setForm({ ...form, waterSource: v as WaterSource })}
               required
             />
+            <ComboBox label="Sampled By" value={form.sampledBy} options={lists.waterSampler} onChange={(v) => setForm({ ...form, sampledBy: v })} required />
+          </div>
+        </motion.div>
+
+        {/* Analysis */}
+        <motion.div variants={fadeUp} className="glass rounded-2xl p-5 space-y-4">
+          <h4 className="text-sm font-semibold text-[var(--text-primary)] uppercase tracking-wider">Analysis Info</h4>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <DatePicker label="Date Analyzed" value={form.dateAnalyzed} onChange={(v) => setForm({ ...form, dateAnalyzed: v })} />
-            <Dropdown label="Analyzed By" value={form.analyzedBy} options={PERSONNEL} onChange={(v) => setForm({ ...form, analyzedBy: v })} />
+            <ComboBox label="Analyzed By" value={form.analyzedBy} options={lists.waterAnalyst} onChange={(v) => setForm({ ...form, analyzedBy: v })} />
             <Dropdown label="Status" value={form.status} options={STATUS_OPTIONS} onChange={(v) => setForm({ ...form, status: v as any })} />
           </div>
           <div className="space-y-1.5">
@@ -132,9 +114,17 @@ export default function WaterForm({ onSubmit, onBack }: WaterFormProps) {
           </div>
         </motion.div>
 
+        {/* Submit */}
         <motion.div variants={fadeUp}>
-          <Button type="submit" size="lg" loading={loading} disabled={!isValid} icon={<Send className="w-4 h-4" />} className="w-full">
-            Submit Water Sample
+          <Button
+            type="submit"
+            size="lg"
+            loading={loading}
+            disabled={!isValid}
+            icon={<Send className="w-4 h-4" />}
+            className="w-full"
+          >
+            Submit Sample
           </Button>
         </motion.div>
       </motion.div>

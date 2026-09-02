@@ -77,14 +77,7 @@ export const RAWMATS_SOURCES = [
   'PALLECON',
 ] as const;
 
-// ===== DEFAULT SETTINGS =====
 export const DEFAULT_SETTINGS = {
-  webhookUrls: {
-    envi: 'https://n8n-royvincentc.onrender.com/webhook/envi-submit',
-    water: 'https://n8n-royvincentc.onrender.com/webhook/water-submit',
-    rawmats: 'https://n8n-royvincentc.onrender.com/webhook/rawmats-submit',
-    sync: 'https://n8n-royvincentc.onrender.com/webhook/sync-history',
-  },
   spreadsheetId: '1yfoeCEFrL6AYftrmjcuAqsWU6Pu2bZ_mahaUvs9TzbI',
   theme: 'system' as const,
   authMode: 'password' as const,

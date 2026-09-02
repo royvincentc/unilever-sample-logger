@@ -11,7 +11,9 @@
  * data files. The hook version is used in the Settings editor.
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
+import { db as firestore } from '../utils/firebase';
+import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
 
 const STORAGE_KEYS = {
   envi:         'personnel_envi',
@@ -38,7 +40,7 @@ const DEFAULT_WATER_ANALYSTS = [...DEFAULT_ENVI_PERSONNEL];
 
 // ── Storage helpers ───────────────────────────────────────────────────────────
 
-function load(key: string, fallback: string[]): string[] {
+function loadLocal(key: string, fallback: string[]): string[] {
   try {
     const raw = localStorage.getItem(key);
     if (!raw) return [...fallback];
@@ -49,21 +51,32 @@ function load(key: string, fallback: string[]): string[] {
   }
 }
 
-function save(key: string, list: string[]) {
+function saveLocal(key: string, list: string[]) {
   try { localStorage.setItem(key, JSON.stringify(list)); } catch {}
+}
+
+const FIREBASE_DOC = 'app_config/personnel_lists';
+
+async function saveFirebase(lists: PersonnelState) {
+  try {
+    const docRef = doc(firestore, 'app_config', 'personnel_lists');
+    await setDoc(docRef, lists, { merge: true });
+  } catch (e) {
+    console.warn('Could not sync personnel to Firestore:', e);
+  }
 }
 
 // ── Public getters (for non-React contexts like personnelData.ts) ─────────────
 
-export function getEnviPersonnel():    string[] { return load(STORAGE_KEYS.envi,         DEFAULT_ENVI_PERSONNEL); }
-export function getWaterSamplers():    string[] { return load(STORAGE_KEYS.waterSampler,  DEFAULT_WATER_SAMPLERS); }
-export function getWaterAnalysts():    string[] { return load(STORAGE_KEYS.waterAnalyst,  DEFAULT_WATER_ANALYSTS); }
+export function getEnviPersonnel():    string[] { return loadLocal(STORAGE_KEYS.envi,         DEFAULT_ENVI_PERSONNEL); }
+export function getWaterSamplers():    string[] { return loadLocal(STORAGE_KEYS.waterSampler,  DEFAULT_WATER_SAMPLERS); }
+export function getWaterAnalysts():    string[] { return loadLocal(STORAGE_KEYS.waterAnalyst,  DEFAULT_WATER_ANALYSTS); }
 
 // ── React hook ────────────────────────────────────────────────────────────────
 
 export type PersonnelListKey = 'envi' | 'waterSampler' | 'waterAnalyst';
 
-interface PersonnelState {
+export interface PersonnelState {
   envi:         string[];
   waterSampler: string[];
   waterAnalyst: string[];
@@ -71,16 +84,52 @@ interface PersonnelState {
 
 export function usePersonnel() {
   const [lists, setLists] = useState<PersonnelState>(() => ({
-    envi:         load(STORAGE_KEYS.envi,         DEFAULT_ENVI_PERSONNEL),
-    waterSampler: load(STORAGE_KEYS.waterSampler, DEFAULT_WATER_SAMPLERS),
-    waterAnalyst: load(STORAGE_KEYS.waterAnalyst, DEFAULT_WATER_ANALYSTS),
+    envi:         loadLocal(STORAGE_KEYS.envi,         DEFAULT_ENVI_PERSONNEL),
+    waterSampler: loadLocal(STORAGE_KEYS.waterSampler, DEFAULT_WATER_SAMPLERS),
+    waterAnalyst: loadLocal(STORAGE_KEYS.waterAnalyst, DEFAULT_WATER_ANALYSTS),
   }));
+
+  useEffect(() => {
+    const docRef = doc(firestore, 'app_config', 'personnel_lists');
+    
+    // First read
+    getDoc(docRef).then((snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.data() as PersonnelState;
+        if (data.envi && data.waterSampler && data.waterAnalyst) {
+          setLists(data);
+          saveLocal(STORAGE_KEYS.envi, data.envi);
+          saveLocal(STORAGE_KEYS.waterSampler, data.waterSampler);
+          saveLocal(STORAGE_KEYS.waterAnalyst, data.waterAnalyst);
+        }
+      }
+    }).catch(console.warn);
+
+    // Subscribe to changes
+    const unsubscribe = onSnapshot(docRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.data() as PersonnelState;
+        if (data.envi && data.waterSampler && data.waterAnalyst) {
+          setLists(data);
+          saveLocal(STORAGE_KEYS.envi, data.envi);
+          saveLocal(STORAGE_KEYS.waterSampler, data.waterSampler);
+          saveLocal(STORAGE_KEYS.waterAnalyst, data.waterAnalyst);
+        }
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   const updateList = useCallback((key: PersonnelListKey, updater: (prev: string[]) => string[]) => {
     setLists(prev => {
       const next = updater(prev[key]);
-      save(STORAGE_KEYS[key], next);
-      return { ...prev, [key]: next };
+      saveLocal(STORAGE_KEYS[key], next);
+      
+      const newLists = { ...prev, [key]: next };
+      saveFirebase(newLists);
+      
+      return newLists;
     });
   }, []);
 
@@ -90,7 +139,6 @@ export function usePersonnel() {
     updateList(key, prev => prev.includes(trimmed) ? prev : [...prev, trimmed]);
   }, [updateList]);
 
-  // Water sampler names can have mixed case (e.g. "PF4: Darren Teofilo")
   const addNameRaw = useCallback((key: PersonnelListKey, name: string) => {
     const trimmed = name.trim();
     if (!trimmed) return;
@@ -125,8 +173,13 @@ export function usePersonnel() {
       waterSampler: DEFAULT_WATER_SAMPLERS,
       waterAnalyst: DEFAULT_WATER_ANALYSTS,
     };
-    save(STORAGE_KEYS[key], defaults[key]);
-    setLists(prev => ({ ...prev, [key]: [...defaults[key]] }));
+    
+    setLists(prev => {
+      const newLists = { ...prev, [key]: [...defaults[key]] };
+      saveLocal(STORAGE_KEYS[key], newLists[key]);
+      saveFirebase(newLists);
+      return newLists;
+    });
   }, []);
 
   return { lists, addName, addNameRaw, removeName, moveUp, moveDown, resetToDefault };

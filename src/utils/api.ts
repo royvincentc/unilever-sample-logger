@@ -203,10 +203,16 @@ export async function fetchActiveIncubationsFromSheet(): Promise<any[]> {
           const batchNumber = mixBatch || row['CONTROL #'] || '';
 
           let size = '';
+          const unit = String(row['UNIT'] || '').trim();
           if (row['QTY']) {
-            size = `${row['QTY']} ${row['UNIT'] || ''}`.trim();
+            size = `${row['QTY']} ${unit}`.trim();
           } else {
-            size = row['PACK SIZE'] || row['SIZE'] || row['VOLUME'] || '';
+            const rawSize = String(row['PACK SIZE'] || row['SIZE'] || row['VOLUME'] || '').trim();
+            if (rawSize && unit && !rawSize.toLowerCase().endsWith(unit.toLowerCase())) {
+              size = `${rawSize} ${unit}`;
+            } else {
+              size = rawSize || unit;
+            }
           }
 
           activeIncubations.push({

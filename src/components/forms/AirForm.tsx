@@ -5,9 +5,10 @@ import type { AirFormData, AirMethod, AirSamplingPoint } from '../../types';
 import DatePicker from '../ui/DatePicker';
 import TimePicker from '../ui/TimePicker';
 import Dropdown from '../ui/Dropdown';
+import ComboBox from '../ui/ComboBox';
 import MultiSelectGroup from '../ui/MultiSelectGroup';
 import Button from '../ui/Button';
-import { PERSONNEL } from '../../data/personnelData';
+import { usePersonnel } from '../../hooks/usePersonnel';
 import { STATUS_OPTIONS } from '../../data/constants';
 
 interface AirFormProps {
@@ -39,6 +40,7 @@ const fadeUp = {
 };
 
 export default function AirForm({ onSubmit, onBack }: AirFormProps) {
+  const { lists, addName } = usePersonnel();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [form, setForm] = useState<AirFormData>({
     method: '',
@@ -55,6 +57,7 @@ export default function AirForm({ onSubmit, onBack }: AirFormProps) {
     if (form.samplingPoints.length === 0) return;
     setIsSubmitting(true);
     try {
+      if (form.performedBy) addName('envi', form.performedBy);
       await onSubmit(form);
     } finally {
       setIsSubmitting(false);
@@ -120,10 +123,10 @@ const stagger = {
         <motion.div variants={fadeUp} className="glass rounded-2xl p-5 space-y-4">
           <h4 className="text-sm font-semibold text-[var(--text-primary)] uppercase tracking-wider">Details</h4>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Dropdown
+            <ComboBox
               label="Performed By"
               value={form.performedBy}
-              options={PERSONNEL}
+              options={lists.envi}
               onChange={(v: string) => setForm({ ...form, performedBy: v })}
               required
             />

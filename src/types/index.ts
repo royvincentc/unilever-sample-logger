@@ -125,31 +125,10 @@ export interface QueueItem {
 
 // ===== SETTINGS =====
 export interface AppSettings {
-  webhookUrls: {
-    envi: string;
-    water: string;
-    rawmats: string;
-    sync?: string;
-    liveSheet?: string;
-    schema?: string; // n8n get-sheet-schema endpoint
-  };
   spreadsheetId: string;
   theme: 'light' | 'dark' | 'system';
   authMode: 'password' | 'pin';
   pin: string;
-  columnMappings?: {
-    envi?: ColumnMapping[];
-    water?: ColumnMapping[];
-    rawmats?: ColumnMapping[];
-  };
-}
-
-// ===== COLUMN MAPPING =====
-// Maps the webapp's internal "logical" field name to whatever the
-// current Google Sheet column header actually says.
-export interface ColumnMapping {
-  logicalName: string; // e.g. 'WATER SOURCE' — what the app calls it
-  sheetColumn: string; // e.g. 'WATER SUPPLY' — current name in the sheet
 }
 
 // Represents the live schema fetched from the sheet header row.
@@ -159,8 +138,6 @@ export interface SheetSchema {
   headers: string[];      // All column headers in order
   fetchedAt: string;      // ISO timestamp
 }
-
-// ===== HISTORY =====
 export interface HistoryEntry {
   id: string;
   sampleType: SampleType;

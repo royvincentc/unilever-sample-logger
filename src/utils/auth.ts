@@ -162,14 +162,9 @@ export function getSettings() {
     const stored = localStorage.getItem(SETTINGS_KEY);
     if (stored) {
       const parsed = JSON.parse(stored);
-      // Ensure nested webhookUrls are merged, not overwritten
       return { 
         ...DEFAULT_SETTINGS, 
-        ...parsed,
-        webhookUrls: {
-          ...DEFAULT_SETTINGS.webhookUrls,
-          ...(parsed.webhookUrls || {})
-        }
+        ...parsed
       };
     }
   } catch {

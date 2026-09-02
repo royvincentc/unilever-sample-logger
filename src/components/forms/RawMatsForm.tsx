@@ -6,7 +6,7 @@ import Dropdown from '../ui/Dropdown';
 import ComboBox from '../ui/ComboBox';
 import RadioGroup from '../ui/RadioGroup';
 import Button from '../ui/Button';
-import { PERSONNEL, PERSONNEL_WITH_MARK } from '../../data/personnelData';
+import { usePersonnel } from '../../hooks/usePersonnel';
 import {
   STATUS_OPTIONS,
   RAWMATS_TYPES,
@@ -31,6 +31,7 @@ const fadeUp = {
 };
 
 export default function RawMatsForm({ onSubmit, onBack }: RawMatsFormProps) {
+  const { lists, addName } = usePersonnel();
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState<RawMatsFormData>({
     dateSampled: new Date().toISOString().split('T')[0],
@@ -55,6 +56,9 @@ export default function RawMatsForm({ onSubmit, onBack }: RawMatsFormProps) {
     e.preventDefault();
     setLoading(true);
     try {
+      if (form.receivedBy) addName('envi', form.receivedBy); // Shared with ENVI personnel list
+      if (form.analyzedBy) addName('envi', form.analyzedBy);
+      
       const submissionData: RawMatsFormData = {
         ...form,
         batchNo: form.mixingBatchNo || form.cucNo || form.batchNo,
@@ -120,9 +124,9 @@ export default function RawMatsForm({ onSubmit, onBack }: RawMatsFormProps) {
         <motion.div variants={fadeUp} className="glass rounded-2xl p-5 space-y-4">
           <h4 className="text-sm font-semibold text-[var(--text-primary)] uppercase tracking-wider">Details</h4>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Dropdown label="Received By" value={form.receivedBy} options={PERSONNEL_WITH_MARK} onChange={(v) => setForm({ ...form, receivedBy: v })} required />
+            <ComboBox label="Received By" value={form.receivedBy} options={lists.envi} onChange={(v) => setForm({ ...form, receivedBy: v })} required />
             <DatePicker label="Date Analyzed" value={form.dateAnalyzed} onChange={(v) => setForm({ ...form, dateAnalyzed: v })} />
-            <Dropdown label="Analyzed By" value={form.analyzedBy} options={PERSONNEL} onChange={(v) => setForm({ ...form, analyzedBy: v })} />
+            <ComboBox label="Analyzed By" value={form.analyzedBy} options={lists.envi} onChange={(v) => setForm({ ...form, analyzedBy: v })} />
             <Dropdown label="Status" value={form.status} options={STATUS_OPTIONS} onChange={(v) => setForm({ ...form, status: v as any })} />
           </div>
           <div className="space-y-1.5">
