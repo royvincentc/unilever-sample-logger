@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo, useRef, Fragment } from 'rea
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BookOpen, RefreshCw, AlertCircle, Search, ArrowUp, ArrowDown, ArrowUpDown, Eye, EyeOff, GripVertical, ChevronRight, ChevronDown } from 'lucide-react';
+import { getEnviGroupName, getEnviSortIndex } from '../utils/enviSorting';
 import Header from '../components/Layout/Header';
 import CustomSelect from '../components/ui/CustomSelect';
 import MultiSelect from '../components/ui/MultiSelect';
@@ -419,19 +420,43 @@ export default function Logbook() {
   }, [debouncedSearchQuery, sortBy, selectedAnalysts, sortColumn, sortDirection]);
 
   const groupedData = useMemo(() => {
-    const groups: { control: string; rows: any[] }[] = [];
+    const groups: { control: string; rows: any[]; isEnviGroup?: boolean; enviGroupName?: string }[] = [];
     const seen = new Set<string>();
     
     processedData.forEach(row => {
-      const ctrl = getRowControl(row) || `_unknown_${Math.random()}`;
-      if (!seen.has(ctrl)) {
-        seen.add(ctrl);
-        groups.push({ control: ctrl, rows: [row] });
+      const type = getRowType(row);
+      let groupKey = getRowControl(row) || `_unknown_${Math.random()}`;
+      let isEnviGroup = false;
+      let enviGroupName = '';
+      
+      if (type === 'ENVI') {
+        const sampleName = String(row['SAMPLE'] || row['SAMPLE NAME'] || row['SAMPLING POINT'] || row['POINT'] || '');
+        enviGroupName = getEnviGroupName(sampleName);
+        const dateStr = getRowDate(row).toISOString().split('T')[0];
+        groupKey = `ENVI_${dateStr}_${enviGroupName}_${getRowControl(row)}`;
+        isEnviGroup = true;
+      }
+      
+      if (!seen.has(groupKey)) {
+        seen.add(groupKey);
+        groups.push({ control: groupKey, rows: [row], isEnviGroup, enviGroupName });
       } else {
-        const group = groups.find(g => g.control === ctrl);
+        const group = groups.find(g => g.control === groupKey);
         if (group) group.rows.push(row);
       }
     });
+
+    // Sort rows within each group
+    groups.forEach(group => {
+      if (group.isEnviGroup) {
+        group.rows.sort((a, b) => {
+          const sampleA = String(a['SAMPLE'] || a['SAMPLE NAME'] || a['SAMPLING POINT'] || a['POINT'] || '');
+          const sampleB = String(b['SAMPLE'] || b['SAMPLE NAME'] || b['SAMPLING POINT'] || b['POINT'] || '');
+          return getEnviSortIndex(sampleA) - getEnviSortIndex(sampleB);
+        });
+      }
+    });
+
     return groups;
   }, [processedData]);
 
@@ -715,25 +740,41 @@ export default function Logbook() {
                                       className={`px-3 py-1.5 text-xs text-[var(--text-primary)] border border-[var(--border-subtle)] whitespace-nowrap max-w-[300px] truncate ${h === '__sheetName' ? 'font-semibold text-primary-600' : ''} ${isControl ? `sticky left-0 z-20 ${cellBg} shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]` : cellBg}`}
                                       style={isControl ? { left: 0 } : {}}
                                     >
-                                      {isControl && isPrimaryRow && hasMultiple ? (
-                                        <div className="flex items-center gap-1.5">
-                                          <button
-                                            onClick={(e) => toggleGroup(group.control, e)}
-                                            className="p-0.5 rounded hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] shrink-0"
-                                            title={isExpanded ? "Collapse group" : "Expand group"}
-                                          >
-                                            {isExpanded ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
-                                          </button>
-                                          <span>{val}</span>
-                                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-primary-500/10 text-primary-600 ml-1">
-                                            {group.rows.length}
+                                      {(() => {
+                                        let displayVal = val;
+                                        const isSampleCol = h.toUpperCase() === 'SAMPLE' || h.toUpperCase() === 'SAMPLE NAME' || h.toUpperCase() === 'SAMPLING POINT' || h.toUpperCase() === 'POINT';
+                                        
+                                        if (group.isEnviGroup && isPrimaryRow && isSampleCol) {
+                                          displayVal = group.enviGroupName || displayVal;
+                                        }
+
+                                        if (isControl && isPrimaryRow && hasMultiple) {
+                                          return (
+                                            <div className="flex items-center gap-1.5">
+                                              <button
+                                                onClick={(e) => toggleGroup(group.control, e)}
+                                                className="p-0.5 rounded hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] shrink-0"
+                                                title={isExpanded ? "Collapse group" : "Expand group"}
+                                              >
+                                                {isExpanded ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+                                              </button>
+                                              <span>{displayVal}</span>
+                                              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-primary-500/10 text-primary-600 ml-1">
+                                                {group.rows.length}
+                                              </span>
+                                            </div>
+                                          );
+                                        }
+
+                                        const primaryVal = group.rows[0][h] !== undefined && group.rows[0][h] !== null ? String(group.rows[0][h]).trim() : '-';
+                                        const showArrow = isControl && !isPrimaryRow && val === primaryVal;
+
+                                        return (
+                                          <span className={isControl && !isPrimaryRow ? 'pl-6 text-[var(--text-muted)]' : ''}>
+                                            {showArrow ? '↳' : displayVal}
                                           </span>
-                                        </div>
-                                      ) : (
-                                        <span className={isControl && !isPrimaryRow ? 'pl-6 text-[var(--text-muted)]' : ''}>
-                                          {isControl && !isPrimaryRow && val === group.control ? '↳' : val}
-                                        </span>
-                                      )}
+                                        );
+                                      })()}
                                     </td>
                                   );
                                 })}
