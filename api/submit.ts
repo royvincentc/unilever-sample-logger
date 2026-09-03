@@ -167,17 +167,24 @@ function getColumnLetter(colNumber: number): string {
         return existingRowData[i] || ''; // preserve existing
       });
 
+      const valuesToWrite = [finalRowData];
+      if (isBulk && rowDataArray.length > 1) {
+        for (let j = 1; j < rowDataArray.length; j++) {
+          valuesToWrite.push(rowDataArray[j].map(v => v === null ? '' : v));
+        }
+      }
+
       await sheets.spreadsheets.values.update({
         spreadsheetId,
         range: `'${sheetTab}'!A${sheetRowNumber}`,
         valueInputOption: 'USER_ENTERED',
         requestBody: {
-          values: [finalRowData]
+          values: valuesToWrite
         }
       });
       
       success = true;
-      message = 'Row updated successfully';
+      message = isBulk ? 'Rows updated/inserted successfully' : 'Row updated successfully';
     } else {
       // Insert new row logic: Find the first empty row below the headers
       // A row is considered empty if its Control Number AND Sample Name are blank.
@@ -202,6 +209,8 @@ function getColumnLetter(colNumber: number): string {
         }
       }
 
+      const valuesToAppend = isBulk ? rowDataArray.map(row => row.map(v => v === null ? '' : v)) : [rowData.map(v => v === null ? '' : v)];
+
       if (emptyRowIndex !== -1) {
         sheetRowNumber = emptyRowIndex + 1;
         try {
@@ -210,11 +219,11 @@ function getColumnLetter(colNumber: number): string {
             range: `'${sheetTab}'!A${sheetRowNumber}`,
             valueInputOption: 'USER_ENTERED',
             requestBody: {
-              values: [rowData.map(v => v === null ? '' : v)]
+              values: valuesToAppend
             }
           });
           success = true;
-          message = 'Inserted into first empty row';
+          message = isBulk ? 'Bulk inserted into empty rows' : 'Inserted into first empty row';
         } catch (updateErr: any) {
           if (updateErr.message && updateErr.message.includes('exceeds grid limits')) {
             await sheets.spreadsheets.values.append({
@@ -223,11 +232,11 @@ function getColumnLetter(colNumber: number): string {
               valueInputOption: 'USER_ENTERED',
               insertDataOption: 'INSERT_ROWS',
               requestBody: {
-                values: [rowData.map(v => v === null ? '' : v)]
+                values: valuesToAppend
               }
             });
             success = true;
-            message = 'Row appended (fallback after grid limit)';
+            message = isBulk ? 'Bulk appended (fallback)' : 'Row appended (fallback after grid limit)';
           } else {
             throw updateErr;
           }
@@ -239,11 +248,11 @@ function getColumnLetter(colNumber: number): string {
           valueInputOption: 'USER_ENTERED',
           insertDataOption: 'INSERT_ROWS',
           requestBody: {
-            values: [rowData.map(v => v === null ? '' : v)]
+            values: valuesToAppend
           }
         });
         success = true;
-        message = 'Row appended';
+        message = isBulk ? 'Bulk appended' : 'Row appended';
       }
     }
 
@@ -257,6 +266,28 @@ function getColumnLetter(colNumber: number): string {
            headers.forEach((h: string, i: number) => {
               fullPayloadData[h] = finalRowData[i] || '';
            });
+           
+           // Single update case for supabase
+           const sampleNameStr = String(
+             fullPayloadData['SAMPLE NAME'] || 
+             fullPayloadData['SAMPLE'] || 
+             fullPayloadData['WATER SOURCE'] || 
+             fullPayloadData['SAMPLING POINT'] || 
+             fullPayloadData['POINT'] || 
+             'Unknown'
+           ).trim();
+
+           await supabase
+             .from('samples')
+             .upsert({
+               control_number: controlNumber,
+               sample_name: sampleNameStr,
+               sample_type: sampleType || 'UNKNOWN',
+               sheet_tab: sheetTab,
+               status: fullPayloadData['STATUS'] || fullPayloadData['Status'] || 'ON GOING',
+               sheet_data: fullPayloadData,
+               updated_at: new Date().toISOString()
+             }, { onConflict: 'control_number,sample_name' });
         } else {
            // On insert, loop over all items for supabase dual write
            const supabasePayloads = items.map((item, index) => {
@@ -276,30 +307,7 @@ function getColumnLetter(colNumber: number): string {
              };
            });
            await supabase.from('samples').upsert(supabasePayloads, { onConflict: 'control_number,sample_name' });
-           return;
         }
-
-        // Single update case for supabase
-        const sampleNameStr = String(
-          fullPayloadData['SAMPLE NAME'] || 
-          fullPayloadData['SAMPLE'] || 
-          fullPayloadData['WATER SOURCE'] || 
-          fullPayloadData['SAMPLING POINT'] || 
-          fullPayloadData['POINT'] || 
-          'Unknown'
-        ).trim();
-
-        await supabase
-          .from('samples')
-          .upsert({
-            control_number: controlNumber,
-            sample_name: sampleNameStr,
-            sample_type: sampleType || 'UNKNOWN',
-            sheet_tab: sheetTab,
-            status: fullPayloadData['STATUS'] || fullPayloadData['Status'] || 'ON GOING',
-            sheet_data: fullPayloadData,
-            updated_at: new Date().toISOString()
-          }, { onConflict: 'control_number,sample_name' });
           
       } catch (sbError) {
         console.error('Supabase dual-write error:', sbError);
