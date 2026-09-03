@@ -45,7 +45,8 @@ function getRowSampleName(row: any): string {
   for (const key of Object.keys(row)) {
     const k = key.toUpperCase().trim();
     if (k === 'SAMPLE' || k === 'SAMPLE NAME' || k === 'SAMPLING POINT' || k === 'POINT' || k === 'SAMPLE DESCRIPTION') {
-      return String(row[key] || '').trim();
+      const val = String(row[key] || '').trim();
+      if (val) return val;
     }
   }
   return '';

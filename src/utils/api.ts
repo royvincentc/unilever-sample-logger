@@ -369,3 +369,46 @@ export async function fetchSheetSchema(sheetTab: string): Promise<string[]> {
     return [];
   }
 }
+
+
+/**
+ * Send bulk sample data to Vercel Serverless Function (replaces n8n).
+ */
+export async function sendToWebhookBulk(
+  endpoint: 'envi' | 'water' | 'rawmats' | 'air',
+  items: Record<string, unknown>[]
+): Promise<WebhookResponse> {
+  const settings = getSettings();
+
+  try {
+    const response = await fetch('/api/submit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        bulk: true,
+        items: items.map(item => ({
+          ...item,
+          spreadsheetId: settings.spreadsheetId,
+        })),
+      }),
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new Error(errText || `HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const result = await response.json();
+
+    return {
+      success: result.success,
+      controlNumber: result.controlNumber || 'N/A',
+      error: result.error || result.message
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+}

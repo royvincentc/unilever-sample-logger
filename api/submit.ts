@@ -35,9 +35,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const payload = req.body;
     console.log('--- POST /api/submit ---');
-    console.log('Payload:', JSON.stringify(payload));
+    console.log('Payload is bulk?', !!payload.bulk);
     
-    const { spreadsheetId, sheetTab, controlNumber, isUpdate, sampleType } = payload;
+    const isBulk = payload.bulk === true && Array.isArray(payload.items);
+    const basePayload = isBulk ? payload.items[0] : payload;
+    
+    const { spreadsheetId, sheetTab, controlNumber, isUpdate, sampleType } = basePayload;
 
     if (!spreadsheetId || !sheetTab || !controlNumber) {
       return res.status(400).json({ error: 'Missing required metadata fields (spreadsheetId, sheetTab, controlNumber)' });
@@ -63,13 +66,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(404).json({ error: `Sheet tab '${sheetTab}' has no headers.` });
     }
 
-    // 2. Prepare the row array matching the header order
-    const rowData = headers.map(header => {
-      // If the payload has this header, use it, else empty string.
-      // But don't overwrite if it's undefined/missing during an update.
-      // For append, missing is empty string.
-      return payload[header] !== undefined ? String(payload[header]) : null;
+    // 2. Prepare the row arrays matching the header order
+    const items = isBulk ? payload.items : [payload];
+    const rowDataArray = items.map(item => {
+      return headers.map(header => item[header] !== undefined ? String(item[header]) : null);
     });
+    const rowData = rowDataArray[0]; // for backward compatibility in single mode
 
     let success = false;
     let message = '';
@@ -256,13 +258,28 @@ function getColumnLetter(colNumber: number): string {
               fullPayloadData[h] = finalRowData[i] || '';
            });
         } else {
-           // On insert, just use the rowData array mapped to headers
-           headers.forEach((h: string, i: number) => {
-              fullPayloadData[h] = rowData[i] || '';
+           // On insert, loop over all items for supabase dual write
+           const supabasePayloads = items.map((item, index) => {
+             const pd: any = {};
+             headers.forEach((h: string, i: number) => {
+                pd[h] = rowDataArray[index][i] || '';
+             });
+             const sName = String(pd['SAMPLE NAME'] || pd['SAMPLE'] || pd['WATER SOURCE'] || pd['SAMPLING POINT'] || pd['POINT'] || 'Unknown').trim();
+             return {
+                control_number: item.controlNumber || controlNumber,
+                sample_name: sName,
+                sample_type: item.sampleType || sampleType || 'UNKNOWN',
+                sheet_tab: item.sheetTab || sheetTab,
+                status: pd['STATUS'] || pd['Status'] || 'ON GOING',
+                sheet_data: pd,
+                updated_at: new Date().toISOString()
+             };
            });
+           await supabase.from('samples').upsert(supabasePayloads, { onConflict: 'control_number,sample_name' });
+           return;
         }
 
-        // Properly extract the sample name based on known column headers
+        // Single update case for supabase
         const sampleNameStr = String(
           fullPayloadData['SAMPLE NAME'] || 
           fullPayloadData['SAMPLE'] || 

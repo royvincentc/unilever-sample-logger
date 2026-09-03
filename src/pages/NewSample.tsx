@@ -9,7 +9,7 @@ import RawMatsForm from '../components/forms/RawMatsForm';
 import AirForm from '../components/forms/AirForm';
 import { useToast } from '../components/ui/Toast';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
-import { sendToWebhook, analyseSheetForSubmission } from '../utils/api';
+import { sendToWebhook, sendToWebhookBulk, analyseSheetForSubmission } from '../utils/api';
 import { generateNextControlNumber } from '../utils/controlNumber';
 import { getSheetTabName } from '../utils/sheetMapping';
 import { addToQueue, addToHistory, getHighestControlNumberForSubmission } from '../utils/db';
@@ -64,7 +64,7 @@ export default function NewSample({ onQueueUpdate }: NewSampleProps) {
       const endpoint = sampleType === 'ENVI' ? 'envi' : sampleType === 'WATER' ? 'water' : sampleType === 'AIR' ? 'air' : 'rawmats';
 
       // For WATER, RawMats, and AIR: one sheet read returns both the incomplete row
-      // control number AND the highest existing number — no double fetch.
+      // control number AND the highest existing number â€” no double fetch.
       let controlNumber: string;
       let isUpdate = false;
 
@@ -85,11 +85,11 @@ export default function NewSample({ onQueueUpdate }: NewSampleProps) {
           }
           isUpdate = true;
         } else {
-          // No blank row found — generate the next sequential control number
+          // No blank row found â€” generate the next sequential control number
           controlNumber = generateNextControlNumber(sampleType, highestControlNumber, formData.dateSampled);
         }
       } else {
-        // ENVI or offline — fall back to local DB lookup
+        // ENVI or offline â€” fall back to local DB lookup
         const highestControl = await getHighestControlNumberForSubmission(sampleType, formData.dateSampled, isOnline);
         controlNumber = generateNextControlNumber(sampleType, highestControl, formData.dateSampled);
       }
@@ -127,7 +127,7 @@ export default function NewSample({ onQueueUpdate }: NewSampleProps) {
         queueItem.formData = payload as any; 
         await addToQueue(queueItem);
         onQueueUpdate();
-        showToast('info', 'Queued', 'You\'re offline — submission queued for later');
+        showToast('info', 'Queued', 'You\'re offline â€” submission queued for later');
         return;
       }
 
@@ -179,20 +179,138 @@ export default function NewSample({ onQueueUpdate }: NewSampleProps) {
     }
   };
 
+  
+  const submitBulkSamples = async (
+    sampleType: SampleType,
+    items: { formData: any; sampleName: string }[],
+    sharedControlNumber: string
+  ) => {
+    try {
+      if (!isOnline) {
+        // Fallback to offline queuing if connection drops during bulk attempt
+        for (const item of items) {
+          const queueItem = makeQueueItem(sampleType, item.formData, item.sampleName);
+          queueItem.controlNumber = sharedControlNumber;
+          queueItem.formData = {
+            ...(item.formData as any),
+            controlNumber: sharedControlNumber,
+            sheetTab: getSheetTabName(sampleType, sampleType === 'RawMats' ? (item.formData as any).type : undefined),
+            sampleType,
+            isUpdate: false,
+            sample: item.sampleName,
+            category: (item.formData as any).categories ? (item.formData as any).categories.join(', ') : undefined
+          } as any;
+          if (schema?.headers && schema.headers.length > 0) {
+            queueItem.formData = {
+              ...remapPayloadToLiveColumns(queueItem.formData as any, schema.headers),
+              controlNumber: sharedControlNumber,
+              sheetTab: (queueItem.formData as any).sheetTab,
+              sampleType,
+              isUpdate: false
+            } as any;
+          }
+          await addToQueue(queueItem);
+        }
+        onQueueUpdate();
+        showToast('info', 'Queued', "You're offline — submission queued for later");
+        return;
+      }
+
+      const endpoint = sampleType === 'ENVI' ? 'envi' : sampleType === 'AIR' ? 'air' : 'water';
+      const sheetTab = getSheetTabName(sampleType);
+      
+      const bulkPayloads = items.map(item => {
+        const basePayload: Record<string, unknown> = {
+          ...(item.formData as unknown as Record<string, unknown>),
+          controlNumber: sharedControlNumber,
+          sheetTab,
+          sampleType,
+          isUpdate: false,
+          sample: item.sampleName,
+          category: (item.formData as any).categories ? (item.formData as any).categories.join(', ') : undefined,
+        };
+
+        const liveHeaders = schema?.headers ?? [];
+        return liveHeaders.length > 0
+          ? {
+              ...remapPayloadToLiveColumns(basePayload, liveHeaders),
+              controlNumber: sharedControlNumber,
+              sheetTab,
+              sampleType,
+              isUpdate: false,
+            }
+          : basePayload;
+      });
+
+      const result = await sendToWebhookBulk(endpoint, bulkPayloads);
+      
+      let finalControlNumber = (result.controlNumber && result.controlNumber !== 'N/A' && !result.controlNumber.includes('{{')) 
+        ? result.controlNumber 
+        : sharedControlNumber;
+
+      if (sampleType === 'RawMats') {
+        finalControlNumber = finalControlNumber.replace(/^RM-?/i, '');
+      }
+
+      if (result.success) {
+        for (const item of items) {
+          const historyEntry = {
+            id: `${finalControlNumber}-${item.sampleName}-${Date.now()}-${Math.random()}`,
+            sampleType,
+            controlNumber: finalControlNumber,
+            sampleName: item.sampleName,
+            dateSampled: item.formData.dateSampled,
+            dateAnalyzed: item.formData.dateAnalyzed || item.formData.dateSampled,
+            rawMatsType: item.formData.type || null,
+            status: item.formData.status || 'ON GOING',
+            submittedAt: new Date().toISOString(),
+            submittedBy: getUserName(),
+          };
+          await addToHistory(historyEntry);
+        }
+        showToast('success', 'Submitted Bulk!', `Control #: ${finalControlNumber}`);
+        setSelectedType(null);
+        if (onQueueUpdate) onQueueUpdate();
+      } else {
+        // Enqueue them as failed
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i];
+          const queueItem = makeQueueItem(sampleType, item.formData, item.sampleName);
+          queueItem.status = 'failed';
+          queueItem.errorMessage = result.error;
+          queueItem.controlNumber = sharedControlNumber;
+          queueItem.formData = bulkPayloads[i] as any;
+          await addToQueue(queueItem);
+        }
+        onQueueUpdate();
+        showToast('error', 'Bulk Submission Failed', result.error || 'Moved to queue for retry');
+      }
+    } catch (error) {
+      console.error('Bulk submission error:', error);
+      showToast('error', 'Error', error instanceof Error ? error.message : 'An unexpected error occurred during submission');
+    }
+  };
+
   const handleEnviSubmit = async (data: EnviFormData) => {
-    // Submit a separate row for EACH selected sample, but share ONE unique control number for the whole batch
     const total = data.selectedSamples.length;
     if (total === 0) return;
 
-    // Generate the ONE control number for the whole batch
     const highestControl = await getHighestControlNumberForSubmission('ENVI', data.dateSampled, isOnline);
     const sharedControlNumber = generateNextControlNumber('ENVI', highestControl, data.dateSampled);
 
-    for (let i = 0; i < total; i++) {
-      const sample = data.selectedSamples[i];
-      const rowData = { ...data, qty: '1', unit: '1 Swab' };
-      await submitSample('ENVI', rowData as unknown as EnviFormData, sample, sharedControlNumber);
-      if (i < total - 1) await new Promise(r => setTimeout(r, 1200));
+    if (isOnline) {
+      const items = data.selectedSamples.map(sample => ({
+        formData: { ...data, qty: '1', unit: '1 Swab' },
+        sampleName: sample
+      }));
+      await submitBulkSamples('ENVI', items, sharedControlNumber);
+    } else {
+      for (let i = 0; i < total; i++) {
+        const sample = data.selectedSamples[i];
+        const rowData = { ...data, qty: '1', unit: '1 Swab' };
+        await submitSample('ENVI', rowData as unknown as EnviFormData, sample, sharedControlNumber);
+        if (i < total - 1) await new Promise(r => setTimeout(r, 1200));
+      }
     }
   };
 
@@ -209,27 +327,28 @@ export default function NewSample({ onQueueUpdate }: NewSampleProps) {
     const total = data.samplingPoints.length;
     if (total === 0) return;
 
-    // We still call analyseSheetForSubmission via submitSample to grab the blank row or generate one.
-    // We'll generate it ONCE manually if we want to share. But Air in sheets might not have pre-created blank rows,
-    // wait, Air uses "AIR" format. If it's online, `submitSample` handles the logic. 
-    // To ensure they ALL share the same control number, we should fetch it once here.
     let sharedControlNumber: string;
 
     if (isOnline) {
       const { incompleteControlNumber, highestControlNumber } = await analyseSheetForSubmission('AIR', getSheetTabName('AIR'));
       sharedControlNumber = incompleteControlNumber || generateNextControlNumber('AIR', highestControlNumber, data.dateSampled);
+      
+      const items = data.samplingPoints.map(point => ({
+        formData: { ...data, samplingPoint: point },
+        sampleName: `${data.method} - ${point}`
+      }));
+      await submitBulkSamples('AIR', items, sharedControlNumber);
     } else {
       const highestControl = await getHighestControlNumberForSubmission('AIR', data.dateSampled, isOnline);
       sharedControlNumber = generateNextControlNumber('AIR', highestControl, data.dateSampled);
-    }
 
-    for (let i = 0; i < total; i++) {
-      const point = data.samplingPoints[i];
-      const name = `${data.method} - ${point}`;
-      // Clone data and inject the specific sampling point so the mapper picks it up
-      const rowData = { ...data, samplingPoint: point };
-      await submitSample('AIR', rowData, name, sharedControlNumber);
-      if (i < total - 1) await new Promise(r => setTimeout(r, 1200));
+      for (let i = 0; i < total; i++) {
+        const point = data.samplingPoints[i];
+        const name = `${data.method} - ${point}`;
+        const rowData = { ...data, samplingPoint: point };
+        await submitSample('AIR', rowData, name, sharedControlNumber);
+        if (i < total - 1) await new Promise(r => setTimeout(r, 1200));
+      }
     }
   };
 
