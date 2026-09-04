@@ -148,7 +148,7 @@ export async function generateDocxReport(data: any, analyzedBy: string, tab: str
             
             if (sampleNameStr.includes('Surf Fabric Conditioner')) {
               const expDateObj = new Date(dateObj);
-              expDateObj.setMonth(expDateObj.getMonth() + 18);
+              expDateObj.setMonth(expDateObj.getMonth() + 15);
               const expMm = String(expDateObj.getMonth() + 1).padStart(2, '0');
               const expDd = String(expDateObj.getDate()).padStart(2, '0');
               const expYy = expDateObj.getFullYear();
