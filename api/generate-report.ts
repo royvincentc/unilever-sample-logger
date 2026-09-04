@@ -291,16 +291,51 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       const mixBatch = getVal(matchedRows[0], ['MIXING BATCH #', 'BATCH #', 'BATCH / LOT NO.']);
       const batchLotNo = mixBatch || getVal(matchedRows[0], ['CONTROL #']);
+      const sampleNameStr = getVal(matchedRows[0], ['SAMPLE', 'NAME OF SAMPLE', 'SAMPLE NAME']);
+
+      let dateMfd = getVal(matchedRows[0], ['MFG DATE']) || 'N/A';
+      let expiryDate = getVal(matchedRows[0], ['EXPIRY DATE']) || 'N/A';
+
+      if (rawType === 'CUC' || rawType === 'FG') {
+        const match = batchLotNo.match(/^(\d{2})(\d{2})(\d{2})/);
+        if (match) {
+          const dd = match[1];
+          const mm = match[2];
+          const yy = match[3];
+          const year = parseInt(yy, 10) + 2000;
+          const dateObj = new Date(year, parseInt(mm, 10) - 1, parseInt(dd, 10));
+          
+          if (!isNaN(dateObj.getTime())) {
+            dateMfd = `${mm.padStart(2, '0')}/${dd.padStart(2, '0')}/${year}`;
+            
+            if (sampleNameStr.includes('Surf Fabric Conditioner')) {
+              const expDateObj = new Date(dateObj);
+              expDateObj.setMonth(expDateObj.getMonth() + 18);
+              const expMm = String(expDateObj.getMonth() + 1).padStart(2, '0');
+              const expDd = String(expDateObj.getDate()).padStart(2, '0');
+              const expYy = expDateObj.getFullYear();
+              expiryDate = `${expMm}/${expDd}/${expYy}`;
+            } else if (sampleNameStr.includes('Surf Liquid Detergent')) {
+              const expDateObj = new Date(dateObj);
+              expDateObj.setFullYear(expDateObj.getFullYear() + 2);
+              const expMm = String(expDateObj.getMonth() + 1).padStart(2, '0');
+              const expDd = String(expDateObj.getDate()).padStart(2, '0');
+              const expYy = expDateObj.getFullYear();
+              expiryDate = `${expMm}/${expDd}/${expYy}`;
+            }
+          }
+        }
+      }
 
       headerData = {
         'Category':            category,
         'Date&Time Received':  getVal(matchedRows[0], ['DATE RECEIVED/SAMPLED', 'DATE RECEIVED', 'DATE & TIME RECEIVED']) + '; ' + getVal(matchedRows[0], ['TIME', 'TIME RECEIVED']),
-        'Name of Sample':      getVal(matchedRows[0], ['SAMPLE', 'NAME OF SAMPLE', 'SAMPLE NAME']),
+        'Name of Sample':      sampleNameStr,
         'Date&Time Released':  getVal(matchedRows[0], ['DATE RELEASED', 'DATE & TIME RELEASED']) + '; ' + getVal(matchedRows[0], ['TIME RELEASED']),
-        'Date Mfd.':           getVal(matchedRows[0], ['MFG DATE']) || 'N/A',
+        'Date Mfd.':           dateMfd,
         'Batch/Lot No.':       batchLotNo,
         'Fill Vol./Wt.':       getVal(matchedRows[0], ['UNIT', 'PACK SIZE', 'VOLUME', 'SIZE']) || 'N/A',
-        'Expiry Date':         getVal(matchedRows[0], ['EXPIRY DATE']) || 'N/A',
+        'Expiry Date':         expiryDate,
         'Batch/Lot Size':      getVal(matchedRows[0], ['BATCH/LOT SIZE']) || 'N/A',
         'Requested by':        getVal(matchedRows[0], ['RFAF', 'SUBMITTED BY', 'ENDORSED TO', 'REQUESTED BY']) || '[REFER TO RFAF]',
         'Purpose':             'Microbial Analysis',

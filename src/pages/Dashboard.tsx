@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import Header from '../components/Layout/Header';
 import NotificationPopup from '../components/ui/NotificationPopup';
+import PatchNotesModal from '../components/ui/PatchNotesModal';
 import { auth } from '../utils/firebase';
 import { getHistory, importHistoryBatch, listenToHistory, getQueueItems } from '../utils/db';
 import { getUserName } from '../utils/auth';
@@ -116,6 +117,7 @@ export default function Dashboard({ theme, onSetTheme }: DashboardProps) {
     <div className="min-h-screen bg-[var(--bg-app)] overflow-hidden relative">
       <Header theme={theme} onSetTheme={onSetTheme} title="Dashboard" />
       <NotificationPopup userName={userName} />
+      <PatchNotesModal />
 
       <div className="px-4 lg:px-8 py-4 sm:py-6 max-w-7xl mx-auto space-y-6 sm:space-y-8 lg:space-y-10">
         {/* Welcome Section */}

@@ -127,11 +127,49 @@ export async function generateDocxReport(data: any, analyzedBy: string, tab: str
       // OverallRemarks from REMARKS / REMARKS2 / column AI/AH
       const overallRemarks = String(data['REMARKS '] || data['REMARKS'] || raw[34] || raw[33] || raw[17] || '');
 
+      const typeStr = String(data['TYPE'] || raw[4] || raw[3]).toUpperCase().trim();
+      const sampleNameStr = String(data['SAMPLE'] || raw[5] || raw[4] || 'Unknown Sample');
+      const batchNoStr = getBatchNo();
+
+      let dateMfd = 'N/A';
+      let expiryDate = 'N/A';
+
+      if (typeStr === 'CUC' || typeStr === 'FG') {
+        const match = batchNoStr.match(/^(\d{2})(\d{2})(\d{2})/);
+        if (match) {
+          const dd = match[1];
+          const mm = match[2];
+          const yy = match[3];
+          const year = parseInt(yy, 10) + 2000;
+          const dateObj = new Date(year, parseInt(mm, 10) - 1, parseInt(dd, 10));
+          
+          if (!isNaN(dateObj.getTime())) {
+            dateMfd = `${mm.padStart(2, '0')}/${dd.padStart(2, '0')}/${year}`;
+            
+            if (sampleNameStr.includes('Surf Fabric Conditioner')) {
+              const expDateObj = new Date(dateObj);
+              expDateObj.setMonth(expDateObj.getMonth() + 18);
+              const expMm = String(expDateObj.getMonth() + 1).padStart(2, '0');
+              const expDd = String(expDateObj.getDate()).padStart(2, '0');
+              const expYy = expDateObj.getFullYear();
+              expiryDate = `${expMm}/${expDd}/${expYy}`;
+            } else if (sampleNameStr.includes('Surf Liquid Detergent')) {
+              const expDateObj = new Date(dateObj);
+              expDateObj.setFullYear(expDateObj.getFullYear() + 2);
+              const expMm = String(expDateObj.getMonth() + 1).padStart(2, '0');
+              const expDd = String(expDateObj.getDate()).padStart(2, '0');
+              const expYy = expDateObj.getFullYear();
+              expiryDate = `${expMm}/${expDd}/${expYy}`;
+            }
+          }
+        }
+      }
+
       templateData = {
-        Category: mapCategory(data['TYPE'] || raw[4] || raw[3]),
-        SampleName: data['SAMPLE'] || raw[5] || raw[4] || 'Unknown Sample',
-        DateMfd: 'N/A',
-        ExpiryDate: 'N/A',
+        Category: mapCategory(typeStr),
+        SampleName: sampleNameStr,
+        DateMfd: dateMfd,
+        ExpiryDate: expiryDate,
         Purpose: 'Microbial Analysis',
         DateReceived: [data['DATE RECEIVED/SAMPLED'] || raw[9] || raw[8], data['TIME'] || raw[10] || raw[9]].filter(v => v && String(v).trim().length > 0).join('; '),
         DateReleased: [data['DATE RELEASED'] || raw[15] || raw[14], new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })].filter(v => v && String(v).trim().length > 0).join('; '),
