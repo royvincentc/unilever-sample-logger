@@ -68,14 +68,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           
           controlNumber = String(controlNumber).replace(/^RM-?/i, '').trim();
 
-          const sampleNameStr = String(
-            payloadData['SAMPLE NAME'] || 
+          const rawSampleName = payloadData['SAMPLE NAME'] || 
             payloadData['SAMPLE'] || 
             payloadData['WATER SOURCE'] || 
             payloadData['SAMPLING POINT'] || 
-            payloadData['POINT'] || 
-            'Unknown'
-          ).trim();
+            payloadData['POINT'];
+
+          if (!rawSampleName || String(rawSampleName).trim() === '') continue;
+
+          const sampleNameStr = String(rawSampleName).trim();
 
           let sampleType = 'UNKNOWN';
           if (tab.toUpperCase().includes('WATER')) sampleType = 'WATER';

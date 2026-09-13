@@ -203,7 +203,7 @@ function getColumnLetter(colNumber: number): string {
         const ctrl = r[controlColIndex] ? String(r[controlColIndex]).trim() : '';
         const smpl = r[sampleNameColIndex] ? String(r[sampleNameColIndex]).trim() : '';
         
-        if (!ctrl && !smpl) {
+        if (!smpl) {
           emptyRowIndex = i;
           break;
         }
@@ -213,13 +213,21 @@ function getColumnLetter(colNumber: number): string {
 
       if (emptyRowIndex !== -1) {
         sheetRowNumber = emptyRowIndex + 1;
+        
+        const mergedValuesToAppend = isBulk 
+          ? rowDataArray.map((row, j) => {
+              const existingRow = allRows[emptyRowIndex + j] || [];
+              return row.map((v, idx) => v === null ? (existingRow[idx] || '') : v);
+            })
+          : [rowData.map((v, idx) => v === null ? ((allRows[emptyRowIndex] || [])[idx] || '') : v)];
+
         try {
           await sheets.spreadsheets.values.update({
             spreadsheetId,
             range: `'${sheetTab}'!A${sheetRowNumber}`,
             valueInputOption: 'USER_ENTERED',
             requestBody: {
-              values: valuesToAppend
+              values: mergedValuesToAppend
             }
           });
           success = true;
