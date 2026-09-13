@@ -517,8 +517,183 @@ export default function LiveSheetView() {
                 const controlCol = Object.keys(row).find(k => k.toUpperCase().includes('CONTROL'));
                 const controlNumber = controlCol ? row[controlCol] : `Row ${row._rowIndex}`;
                 
-                // Fields to show when expanded (non-empty)
+                // Fields to show (non-empty)
                 const visibleFields = dynamicColumns.filter(col => row[col] && String(row[col]).trim() !== '');
+
+                const isWaterOrRM = activeTab === 'WATER 2026' || activeTab === 'RM,FG,SFG 2026';
+                
+                if (isWaterOrRM) {
+                  // DIRECT BLOCK RENDER (NO ACCORDION)
+                  const findValue = (labelMatches: string[]) => {
+                    const col = visibleFields.find(c => labelMatches.some(l => c.toUpperCase().includes(l)));
+                    return col ? { col, val: row[col] } : null;
+                  };
+
+                  const renderFieldRow = (label: string, fieldSearch: string[]) => {
+                    const field = findValue(fieldSearch);
+                    const val = field ? field.val : '';
+                    const colName = field ? field.col : label;
+                    const isEditingThis = editingCell?.id === String(row._rowIndex) && editingCell?.field === colName;
+
+                    return (
+                      <div className="flex flex-col mb-3">
+                        <span className="text-[10px] font-bold text-[var(--text-muted)] mb-1 uppercase tracking-wider">{label}</span>
+                        {isEditingThis ? (
+                          <div className="relative">
+                            <input 
+                              autoFocus
+                              className="w-full bg-[var(--bg-input)] text-[var(--text-primary)] px-3 py-2 rounded-lg outline-none border-2 border-primary-500 text-sm font-medium"
+                              value={editValue}
+                              onChange={e => setEditValue(e.target.value)}
+                              onBlur={saveCellEdit}
+                              onKeyDown={e => { if (e.key === 'Enter') saveCellEdit(); else if (e.key === 'Escape') setEditingCell(null); }}
+                            />
+                            {savingId === String(row._rowIndex) && <RefreshCw className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-primary-500" />}
+                          </div>
+                        ) : (
+                          <div 
+                            className={`text-sm font-bold text-[var(--text-primary)] break-words cursor-pointer p-1.5 -ml-1.5 rounded-lg hover:bg-[var(--bg-hover)] transition-colors active:bg-[var(--bg-hover)] ${val ? '' : 'text-[var(--text-muted)] italic'}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (field) handleCellDoubleClick(String(row._rowIndex), colName, val);
+                            }}
+                          >
+                            {String(val || '-')}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  };
+
+                  const dateRecField = findValue(['DATE REC', 'DATE SAMPLED', 'DATE SWABBED']);
+                  const timeField = findValue(['TIME']);
+
+                  return (
+                    <div 
+                      key={row._rowIndex} 
+                      className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-xl overflow-hidden shadow-sm p-4 relative"
+                    >
+                      <div className="absolute top-4 right-4 bg-primary-500/10 text-primary-500 text-[10px] font-mono font-bold px-2 py-1 rounded">
+                        #{row._rowIndex}
+                      </div>
+                      
+                      {renderFieldRow('CONTROL #', ['CONTROL'])}
+                      {renderFieldRow('BATCH#', ['BATCH'])}
+                      {renderFieldRow('TYPE', ['TYPE', 'CATEGORY'])}
+                      {renderFieldRow('SAMPLE NAME', ['SAMPLE'])}
+                      {renderFieldRow('UNIT', ['UNIT', 'VOL', 'WT'])}
+                      
+                      <div className="flex items-start gap-4 mb-3">
+                        <div className="flex-1">
+                          <span className="text-[10px] font-bold text-[var(--text-muted)] mb-1 uppercase tracking-wider block">DATE RECEIVED/SAMPLED/SWABBED</span>
+                          {dateRecField && (
+                            editingCell?.id === String(row._rowIndex) && editingCell?.field === dateRecField.col ? (
+                              <div className="relative">
+                                <input 
+                                  autoFocus
+                                  className="w-full bg-[var(--bg-input)] text-[var(--text-primary)] px-3 py-2 rounded-lg outline-none border-2 border-primary-500 text-sm font-medium"
+                                  value={editValue}
+                                  onChange={e => setEditValue(e.target.value)}
+                                  onBlur={saveCellEdit}
+                                  onKeyDown={e => { if (e.key === 'Enter') saveCellEdit(); else if (e.key === 'Escape') setEditingCell(null); }}
+                                />
+                                {savingId === String(row._rowIndex) && <RefreshCw className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-primary-500" />}
+                              </div>
+                            ) : (
+                              <div 
+                                className={`text-sm font-bold text-[var(--text-primary)] break-words cursor-pointer p-1.5 -ml-1.5 rounded-lg hover:bg-[var(--bg-hover)] transition-colors active:bg-[var(--bg-hover)] ${dateRecField.val ? '' : 'text-[var(--text-muted)] italic'}`}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleCellDoubleClick(String(row._rowIndex), dateRecField.col, dateRecField.val);
+                                }}
+                              >
+                                {String(dateRecField.val || '-')}
+                              </div>
+                            )
+                          )}
+                        </div>
+                        <div className="w-24 shrink-0">
+                          <span className="text-[10px] font-bold text-[var(--text-muted)] mb-1 uppercase tracking-wider block">TIME</span>
+                          {timeField && (
+                            editingCell?.id === String(row._rowIndex) && editingCell?.field === timeField.col ? (
+                              <div className="relative">
+                                <input 
+                                  autoFocus
+                                  className="w-full bg-[var(--bg-input)] text-[var(--text-primary)] px-3 py-2 rounded-lg outline-none border-2 border-primary-500 text-sm font-medium"
+                                  value={editValue}
+                                  onChange={e => setEditValue(e.target.value)}
+                                  onBlur={saveCellEdit}
+                                  onKeyDown={e => { if (e.key === 'Enter') saveCellEdit(); else if (e.key === 'Escape') setEditingCell(null); }}
+                                />
+                              </div>
+                            ) : (
+                              <div 
+                                className={`text-sm font-bold text-[var(--text-primary)] break-words cursor-pointer p-1.5 -ml-1.5 rounded-lg hover:bg-[var(--bg-hover)] transition-colors active:bg-[var(--bg-hover)] ${timeField.val ? '' : 'text-[var(--text-muted)] italic'}`}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleCellDoubleClick(String(row._rowIndex), timeField.col, timeField.val);
+                                }}
+                              >
+                                {String(timeField.val || '-')}
+                              </div>
+                            )
+                          )}
+                        </div>
+                      </div>
+
+                      {renderFieldRow('DATE ANALYZED', ['DATE ANALYZED'])}
+                      {renderFieldRow('ANALYZED BY', ['ANALYZED BY'])}
+                      {renderFieldRow('STATUS', ['STATUS', 'REMARKS'])}
+
+                      {/* Show any remaining fields not covered above */}
+                      {(() => {
+                        const usedLabels = ['CONTROL', 'BATCH', 'TYPE', 'CATEGORY', 'SAMPLE', 'UNIT', 'VOL', 'WT', 'DATE REC', 'DATE SAMPLED', 'DATE SWABBED', 'TIME', 'DATE ANALYZED', 'ANALYZED BY', 'STATUS', 'REMARKS'];
+                        const remainingFields = visibleFields.filter(col => !usedLabels.some(l => col.toUpperCase().includes(l)));
+                        if (remainingFields.length === 0) return null;
+                        
+                        return (
+                          <div className="mt-4 pt-4 border-t border-[var(--border-subtle)]">
+                            <h4 className="text-[10px] font-bold text-[var(--text-muted)] mb-3 uppercase tracking-wider">Other Fields</h4>
+                            <div className="grid grid-cols-1 gap-y-3">
+                              {remainingFields.map(col => {
+                                const cellValue = row[col];
+                                const isEditingThis = editingCell?.id === String(row._rowIndex) && editingCell?.field === col;
+                                return (
+                                  <div key={col} className="flex flex-col">
+                                    <span className="text-[10px] uppercase font-bold text-[var(--text-muted)] mb-1">{col}</span>
+                                    {isEditingThis ? (
+                                      <div className="relative">
+                                        <input 
+                                          autoFocus
+                                          className="w-full bg-[var(--bg-input)] text-[var(--text-primary)] px-3 py-2 rounded-lg outline-none border-2 border-primary-500 text-sm font-medium"
+                                          value={editValue}
+                                          onChange={e => setEditValue(e.target.value)}
+                                          onBlur={saveCellEdit}
+                                          onKeyDown={e => { if (e.key === 'Enter') saveCellEdit(); else if (e.key === 'Escape') setEditingCell(null); }}
+                                        />
+                                        {savingId === String(row._rowIndex) && <RefreshCw className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-primary-500" />}
+                                      </div>
+                                    ) : (
+                                      <div 
+                                        className="text-sm font-medium text-[var(--text-primary)] break-words cursor-pointer p-1.5 -ml-1.5 rounded-lg hover:bg-[var(--bg-hover)] transition-colors active:bg-[var(--bg-hover)]"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleCellDoubleClick(String(row._rowIndex), col, cellValue);
+                                        }}
+                                      >
+                                        {String(cellValue)}
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  );
+                }
 
                 return (
                   <div 
@@ -551,6 +726,7 @@ export default function LiveSheetView() {
                           className="border-t border-[var(--border-subtle)] bg-[var(--bg-app)]/50 overflow-hidden"
                         >
                           <div className="p-4 grid grid-cols-1 gap-y-3">
+                            {/* Default layout for ENVI and AIR */}
                             {visibleFields.map(col => {
                               const cellValue = row[col];
                               const isEditingThis = editingCell?.id === String(row._rowIndex) && editingCell?.field === col;
