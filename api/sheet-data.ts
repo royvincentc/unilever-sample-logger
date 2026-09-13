@@ -95,6 +95,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       return obj;
+    }).filter(obj => {
+      const rawSampleName = obj['SAMPLE NAME'] || 
+        obj['SAMPLE'] || 
+        obj['WATER SOURCE'] || 
+        obj['SAMPLING POINT'] || 
+        obj['POINT'];
+      return rawSampleName && String(rawSampleName).trim() !== '';
     });
 
     return res.status(200).json(data);
