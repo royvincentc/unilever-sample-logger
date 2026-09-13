@@ -241,6 +241,41 @@ export default function Settings({ onLogout }: { onLogout?: () => void }) {
             </div>
           </div>
 
+          {/* Supabase Sync Utility */}
+          <div className="glass rounded-2xl border border-[var(--border-subtle)] overflow-hidden mt-6">
+            <div className="p-6">
+              <h3 className="text-sm font-bold text-[var(--text-primary)] uppercase tracking-wider mb-4 flex items-center gap-2">
+                <Table2 className="w-4 h-4 text-primary-500" />
+                Supabase Database Sync
+              </h3>
+              <p className="text-xs text-[var(--text-muted)] mb-4">
+                If your Supabase database is out of sync with Google Sheets (e.g. malformed data), this will force a full wipe and reload.
+              </p>
+              <button
+                onClick={async () => {
+                  if (window.confirm('This will wipe all samples in Supabase and re-import them from the Google Sheet. Continue?')) {
+                    setIsSyncing(true);
+                    try {
+                      const res = await fetch(`/api/sync-sheets-to-supabase?spreadsheetId=${settings.spreadsheetId}`);
+                      if (!res.ok) throw new Error('Sync failed');
+                      const data = await res.json();
+                      showToast('success', 'Supabase Sync Complete!', `Synced ${data.totalSynced} items.`);
+                    } catch (e: any) {
+                      showToast('error', 'Sync failed', e.message || 'Check your connection.');
+                    } finally {
+                      setIsSyncing(false);
+                    }
+                  }
+                }}
+                disabled={isSyncing}
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-primary-500/10 text-primary-500 hover:bg-primary-500/20 rounded-xl font-bold transition-all disabled:opacity-50"
+              >
+                <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
+                {isSyncing ? 'Syncing...' : 'Force Sync to Supabase'}
+              </button>
+            </div>
+          </div>
+
           <div className="glass rounded-2xl border border-red-500/30 overflow-hidden mt-6">
             <div className="p-6">
               <h3 className="text-sm font-bold text-red-500 uppercase tracking-wider mb-4 flex items-center gap-2">
