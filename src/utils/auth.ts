@@ -1,4 +1,4 @@
-import { AUTH_USERS, PIN_USERS, DEFAULT_SETTINGS } from '../data/constants';
+import { AUTH_USERS, PIN_USERS, DEFAULT_SETTINGS, resolveSpreadsheetId } from '../data/constants';
 import { db as firestore, auth } from './firebase';
 import { doc, setDoc, getDoc, onSnapshot, collection, query, where, getDocs, limit } from 'firebase/firestore';
 import { GoogleAuthProvider, signInWithPopup, signInWithRedirect } from 'firebase/auth';
@@ -162,10 +162,20 @@ export function getSettings() {
     const stored = localStorage.getItem(SETTINGS_KEY);
     if (stored) {
       const parsed = JSON.parse(stored);
-      return { 
+      const settings = {
         ...DEFAULT_SETTINGS, 
         ...parsed
       };
+      settings.spreadsheetId = resolveSpreadsheetId(settings.spreadsheetId);
+      if (settings.spreadsheetId !== parsed.spreadsheetId) {
+        // Keep the resolved settings usable even if browser storage is read-only.
+        try {
+          localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+        } catch {
+          // The in-memory migration still applies to this request.
+        }
+      }
+      return settings;
     }
   } catch {
     // ignore
@@ -176,6 +186,7 @@ export function getSettings() {
 export function saveSettings(settings: Partial<typeof DEFAULT_SETTINGS>): void {
   const current = getSettings();
   const updated = { ...current, ...settings };
+  updated.spreadsheetId = resolveSpreadsheetId(updated.spreadsheetId);
   localStorage.setItem(SETTINGS_KEY, JSON.stringify(updated));
 }
 
@@ -183,6 +194,7 @@ export function saveSettings(settings: Partial<typeof DEFAULT_SETTINGS>): void {
 const SHEET_PREF_DOC = 'app_config/sheet_preference';
 
 export async function saveSheetPreference(spreadsheetId: string): Promise<void> {
+  spreadsheetId = resolveSpreadsheetId(spreadsheetId);
   try {
     const docRef = doc(firestore, 'app_config', 'sheet_preference');
     await setDoc(docRef, { spreadsheetId, updatedAt: new Date().toISOString() });
@@ -200,13 +212,14 @@ export function listenToSheetPreference(callback: (spreadsheetId: string) => voi
   return onSnapshot(docRef, (snapshot) => {
     if (snapshot.exists()) {
       const data = snapshot.data();
-      if (data.spreadsheetId) {
+      if (typeof data.spreadsheetId === 'string' && data.spreadsheetId) {
+        const spreadsheetId = resolveSpreadsheetId(data.spreadsheetId);
         // Update local settings to match cloud
         const current = getSettings();
-        if (current.spreadsheetId !== data.spreadsheetId) {
-          current.spreadsheetId = data.spreadsheetId;
+        if (current.spreadsheetId !== spreadsheetId) {
+          current.spreadsheetId = spreadsheetId;
           localStorage.setItem('sample_logger_settings', JSON.stringify(current));
-          callback(data.spreadsheetId);
+          callback(spreadsheetId);
         }
       }
     }

@@ -89,6 +89,14 @@ export const SPREADSHEETS = {
   official: '1yfoeCEFrL6AYftrmjcuAqsWU6Pu2bZ_mahaUvs9TzbI'
 };
 
+// Older installations saved this official workbook, which has monthly tabs.
+// The current app uses annual tabs in the replacement official workbook.
+export function resolveSpreadsheetId(spreadsheetId: string): string {
+  return spreadsheetId === '1-pGOoxmZw4qCfK3KnjeRvbK_VbfEAZJUn7GjI01hkXc'
+    ? SPREADSHEETS.official
+    : spreadsheetId;
+}
+
 // ===== AUTH CREDENTIALS =====
 export const AUTH_USERS = [
   { username: 'pf4micro@ipi.ph', password: 'ULmicrobiology_2025', name: 'PF4' },
