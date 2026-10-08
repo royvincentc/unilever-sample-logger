@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
+import { panelTransition } from '../../design/motion';
 import { ArrowLeft, Save } from 'lucide-react';
 import type { AirFormData, AirMethod, AirSamplingPoint } from '../../types';
 import DatePicker from '../ui/DatePicker';
@@ -36,7 +37,7 @@ const SAMPLING_POINTS: AirSamplingPoint[] = [
 
 const fadeUp = {
   hidden: { opacity: 0, y: 15 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.4 } }
+  show: { opacity: 1, y: 0, transition: panelTransition }
 };
 
 export default function AirForm({ onSubmit, onBack }: AirFormProps) {
@@ -139,7 +140,7 @@ const stagger = {
           </div>
           <div className="space-y-1.5">
             <label className="block text-sm font-medium text-[var(--text-secondary)]">Remarks</label>
-            <textarea
+            <textarea aria-label="Remarks"
               value={form.remarks || ''}
               onChange={(e) => setForm({ ...form, remarks: e.target.value })}
               placeholder="Optional remarks or notes..."

@@ -1,3 +1,4 @@
+import PageIntro from '../components/ui/PageIntro';
 import { useState, useEffect, useCallback, useMemo, useRef, Fragment } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -487,7 +488,8 @@ export default function Logbook() {
     <div className="min-h-screen bg-transparent flex flex-col">
       <Header theme={theme} onSetTheme={setTheme} title="Logbook" />
       
-      <div className="flex-1 px-4 lg:px-8 py-6 max-w-[1600px] mx-auto w-full flex flex-col">
+      <div className="lab-page-content flex-1 px-4 lg:px-8 py-6 max-w-[1600px] mx-auto w-full flex flex-col">
+        <PageIntro title="The lab logbook" description="Organize records by sample type, analyst, and date with your existing column controls." kind="empty" />
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 glass p-4 rounded-2xl border border-[var(--border-subtle)] mb-6 shrink-0">
           <div className="flex items-center gap-4">
             <div className="w-10 h-10 rounded-xl bg-primary-500/10 flex items-center justify-center shrink-0">
@@ -503,6 +505,7 @@ export default function Logbook() {
 
           <div className="flex flex-wrap items-center justify-end gap-2">
             <CustomSelect 
+              label="Sample type"
                value={sortBy} 
                onChange={(v) => setSortBy(v as any)}
                options={[
@@ -525,6 +528,7 @@ export default function Logbook() {
               <input
                 type="text"
                 placeholder="Search any field..."
+                aria-label="Search logbook records"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-xl py-2 pl-9 pr-4 text-sm text-[var(--text-primary)] focus:outline-none focus:border-primary-500 transition-colors"
@@ -535,6 +539,7 @@ export default function Logbook() {
             <div className="relative" ref={colDropdownRef}>
               <button 
                 onClick={() => setShowColumnDropdown(!showColumnDropdown)}
+                aria-label="Choose visible columns" aria-expanded={showColumnDropdown}
                 className="flex items-center gap-2 p-2 px-3 rounded-xl bg-[var(--bg-card)] border border-[var(--border-subtle)] text-sm text-[var(--text-secondary)] hover:text-primary-500 hover:border-primary-500 transition-colors"
               >
                 <Eye className="w-4 h-4" />
@@ -809,13 +814,3 @@ export default function Logbook() {
     </div>
   );
 }
-
-
-
-
-
-
-
-
-
-

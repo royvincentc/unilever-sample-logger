@@ -355,7 +355,7 @@ export default function LoginPage({ onLogin, onPinLogin, onGoogleLogin }: LoginP
   );
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 gradient-mesh">
+    <div className="lab-login min-h-screen flex items-center justify-center p-4 gradient-mesh">
       <motion.div
         initial={{ opacity: 0, y: 20, scale: 0.95 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -371,10 +371,10 @@ export default function LoginPage({ onLogin, onPinLogin, onGoogleLogin }: LoginP
             className="w-20 h-20 rounded-3xl bg-gradient-to-br from-primary-500 to-accent-500
                         flex items-center justify-center mx-auto mb-4 shadow-xl shadow-primary-500/25"
           >
-            <Beaker className="w-10 h-10 text-white" />
+            <img src="/unilever-logo.png" alt="Unilever" className="w-10 h-12 object-contain brightness-0 invert" />
           </motion.div>
-          <h1 className="text-2xl font-bold text-[var(--text-primary)]">SampleLog</h1>
-          <p className="text-sm text-[var(--text-secondary)] mt-1">QC Microbiology Lab</p>
+          <h1 className="text-2xl font-bold text-[var(--text-primary)]">Your lab starts here.</h1>
+          <p className="text-sm text-[var(--text-secondary)] mt-1">Unilever QC Microbiology · Sample Logger</p>
           <p className="text-[10px] text-[var(--text-muted)] mt-1.5 opacity-50 tracking-wide">
             developed &amp; maintained by R. Codinera
           </p>
@@ -470,6 +470,7 @@ export default function LoginPage({ onLogin, onPinLogin, onGoogleLogin }: LoginP
                         value={setupName}
                         onChange={(e) => setSetupName(e.target.value)}
                         placeholder="Enter your name"
+                        aria-label="Your name"
                         className="w-full px-4 py-3 rounded-xl bg-[var(--bg-input)] border border-[var(--border-color)] text-sm text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-primary-500/40 focus:border-primary-500 transition-all"
                         autoFocus
                         onKeyDown={(e) => e.key === 'Enter' && handleSetupSubmit()}
@@ -527,15 +528,15 @@ export default function LoginPage({ onLogin, onPinLogin, onGoogleLogin }: LoginP
                     <label className="block text-sm font-medium text-[var(--text-secondary)]">Email</label>
                     <div className="relative">
                       <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)]" />
-                      <input type="email" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="Enter your email" className="w-full pl-10" required />
+                      <input aria-label="Email" type="email" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="Enter your email" className="w-full pl-10" required />
                     </div>
                   </div>
                   <div className="space-y-1.5">
                     <label className="block text-sm font-medium text-[var(--text-secondary)]">Password</label>
                     <div className="relative">
                       <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)]" />
-                      <input type={showPassword ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Enter your password" className="w-full pl-10 pr-10" required />
-                      <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--text-secondary)] cursor-pointer">
+                      <input aria-label="Password" type={showPassword ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Enter your password" className="w-full pl-10 pr-10" required />
+                      <button type="button" aria-label={showPassword ? 'Hide password' : 'Show password'} onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 min-w-11 min-h-11 grid place-items-center text-[var(--text-muted)] hover:text-[var(--text-secondary)] cursor-pointer">
                         {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                       </button>
                     </div>

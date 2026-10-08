@@ -1,3 +1,6 @@
+import { useId } from 'react';
+import { useRef } from 'react';
+import { useDialogFocus } from '../../hooks/useDialogFocus';
 import { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -57,7 +60,11 @@ export default function TimePicker({
   required = false,
   id,
 }: TimePickerProps) {
+  const generatedId = useId();
+  const controlId = id || generatedId;
   const [open, setOpen] = useState(false);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useDialogFocus(dialogRef, open, () => setOpen(false));
   const [activeField, setActiveField] = useState<'hour' | 'minute'>('hour');
 
   // Temp selections while picker is open
@@ -143,14 +150,14 @@ export default function TimePicker({
   return (
     <div className="space-y-1.5">
       {/* Label */}
-      <label className="block text-sm font-medium text-[var(--text-secondary)]">
+      <label htmlFor={controlId} className="block text-sm font-medium text-[var(--text-secondary)]">
         {label}
         {required && <span className="text-danger-500 ml-0.5">*</span>}
       </label>
 
       {/* Trigger button */}
       <button
-        id={id}
+        id={controlId} aria-label={label} aria-required={required} aria-expanded={open}
         type="button"
         onClick={handleOpen}
         className="
@@ -179,6 +186,7 @@ export default function TimePicker({
           {open && (
             <motion.div
               className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
+              style={{ pointerEvents: open ? 'auto' : 'none' }}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
@@ -200,6 +208,7 @@ export default function TimePicker({
 
             {/* Card */}
             <motion.div
+              ref={dialogRef} role="dialog" aria-modal="true" aria-label={`Select ${label}`}
               className="
                 relative z-10 w-full max-w-[325px]
                 rounded-2xl border border-[var(--border-color)]
@@ -209,7 +218,7 @@ export default function TimePicker({
               initial={{ opacity: 0, scale: 0.9, y: 30 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 30 }}
-              transition={{ type: 'spring', stiffness: 400, damping: 28 }}
+              transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
             >
               {/* Header */}
               <div className="px-5 pt-4 pb-2 text-center border-b border-[var(--border-subtle)]">
@@ -358,6 +367,7 @@ export default function TimePicker({
                             <button
                               type="button"
                               onClick={() => setTempMinute((m) => (m === 0 ? 59 : m - 1))}
+                              aria-label="Decrease minute"
                               className="p-1 rounded bg-[var(--bg-input)] hover:bg-[var(--bg-hover)] text-[var(--text-primary)] transition-colors cursor-pointer"
                             >
                               <Minus className="w-3.5 h-3.5" />
@@ -366,6 +376,7 @@ export default function TimePicker({
                             <button
                               type="button"
                               onClick={() => setTempMinute((m) => (m === 59 ? 0 : m + 1))}
+                              aria-label="Increase minute"
                               className="p-1 rounded bg-[var(--bg-input)] hover:bg-[var(--bg-hover)] text-[var(--text-primary)] transition-colors cursor-pointer"
                             >
                               <Plus className="w-3.5 h-3.5" />

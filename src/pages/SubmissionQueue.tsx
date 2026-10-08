@@ -1,12 +1,15 @@
+import ScienceGraphic from '../components/ui/ScienceGraphic';
+import PageIntro from '../components/ui/PageIntro';
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { RotateCcw, Trash2, RefreshCw, AlertCircle, Clock, CheckCircle2, Loader2, Inbox } from 'lucide-react';
 import Header from '../components/Layout/Header';
 import Button from '../components/ui/Button';
 import { useToast } from '../components/ui/Toast';
-import { getQueueItems, removeFromQueue, updateQueueItem } from '../utils/db';
+import { getQueueItems, removeFromQueue, updateQueueItem, addToHistory } from '../utils/db';
 import { sendToWebhook } from '../utils/api';
 import type { QueueItem } from '../types';
+import { historyFromQueuedSample } from '../utils/queueHistory';
 
 import { useTheme } from '../hooks/useTheme';
 
@@ -17,7 +20,7 @@ interface Props {
 const cfg: Record<string, { icon: any; color: string; bg: string; label: string }> = {
   queued:  { icon: Clock, color: 'text-warning-500', bg: 'bg-warning-500/10', label: 'Queued' },
   sending: { icon: Loader2, color: 'text-primary-500', bg: 'bg-primary-500/10', label: 'Sending' },
-  success: { icon: CheckCircle2, color: 'text-success-500', bg: 'bg-success-500/10', label: 'Done' },
+  success: { icon: CheckCircle2, color: 'text-success-500', bg: 'bg-success-500/10', label: 'Sent' },
   failed:  { icon: AlertCircle, color: 'text-danger-500', bg: 'bg-danger-500/10', label: 'Failed' },
 };
 
@@ -35,11 +38,20 @@ export default function SubmissionQueue({ onQueueUpdate }: Props) {
     setRetrying(item.id);
     await updateQueueItem({ ...item, status: 'sending', lastAttempt: new Date().toISOString() });
     await refresh();
-    const ep = item.sampleType === 'ENVI' ? 'envi' as const : item.sampleType === 'WATER' ? 'water' as const : 'rawmats' as const;
+    const ep = item.sampleType === 'ENVI' ? 'envi' as const : item.sampleType === 'WATER' ? 'water' as const : item.sampleType === 'AIR' ? 'air' as const : 'rawmats' as const;
     const r = await sendToWebhook(ep, item.formData as unknown as Record<string, unknown>);
     if (r.success) {
-      await removeFromQueue(item.id);
-      showToast('success', 'Sent!', `${item.sampleType} succeeded`);
+      const historyEntry = historyFromQueuedSample(item, r.controlNumber);
+      // Persist server acceptance before writing history so a cloud failure
+      // cannot turn an accepted submission into a duplicate retry.
+      await updateQueueItem({ ...item, status: 'success', errorMessage: undefined, controlNumber: historyEntry.controlNumber });
+      try {
+        await addToHistory(historyEntry);
+        await removeFromQueue(item.id);
+        showToast('success', 'Sent!', `${item.sampleType} succeeded`);
+      } catch {
+        showToast('info', 'Sent; history sync pending', 'The confirmed record is retained on this device. Refresh history when the connection is available.');
+      }
     } else {
       await updateQueueItem({ ...item, status: 'failed', errorMessage: r.error, lastAttempt: new Date().toISOString() });
       showToast('error', 'Failed', r.error || 'Unknown');
@@ -65,7 +77,8 @@ export default function SubmissionQueue({ onQueueUpdate }: Props) {
   return (
     <div>
       <Header theme={theme} onSetTheme={setTheme} title="Queue" />
-      <div className="px-4 lg:px-8 max-w-3xl mx-auto space-y-4 py-4">
+      <div className="lab-page-content px-4 lg:px-8 max-w-3xl mx-auto space-y-4 py-4">
+        <PageIntro title="Your offline queue" description="Review saved submissions, retry failed records, and track what is waiting to sync." kind="offline" />
         {pending > 0 && (
           <Button variant="primary" size="sm" loading={retryingAll} icon={<RefreshCw className="w-4 h-4" />} onClick={handleRetryAll}>
             Retry All ({pending})
@@ -73,7 +86,7 @@ export default function SubmissionQueue({ onQueueUpdate }: Props) {
         )}
         {items.length === 0 ? (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass rounded-2xl p-12 text-center">
-            <Inbox className="w-12 h-12 text-[var(--text-muted)] mx-auto mb-3" />
+            <ScienceGraphic kind="offline" className="w-40 h-28 mx-auto mb-3" />
             <p className="text-sm text-[var(--text-secondary)]">Queue is empty</p>
           </motion.div>
         ) : (
@@ -92,18 +105,19 @@ export default function SubmissionQueue({ onQueueUpdate }: Props) {
                           <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${c.bg} ${c.color}`}>{item.sampleType}</span>
                           <span className={`text-xs font-medium ${c.color}`}>{c.label}</span>
                         </div>
-                        <p className="text-xs text-[var(--text-muted)] mt-1">{new Date(item.createdAt).toLocaleString()}</p>
+                        <p className="text-sm font-semibold text-[var(--text-primary)] mt-2 break-words">{item.sampleName || item.sampleType}</p><p className="text-xs font-mono text-[var(--text-secondary)] mt-1">{item.controlNumber || "Number assigned on submission"}</p><p className="text-xs text-[var(--text-muted)] mt-1">{new Date(item.createdAt).toLocaleString()}</p>
                         {item.errorMessage && <p className="text-xs text-danger-500 mt-1">{item.errorMessage}</p>}
+                        {item.status === 'success' && <p className="text-xs text-[var(--text-secondary)] mt-2">Server accepted this record. A confirmed copy is retained here while history sync is unavailable.</p>}
                       </div>
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
                       {(item.status === 'queued' || item.status === 'failed') && (
                         <>
-                          <motion.button whileTap={{ scale: 0.9 }} onClick={() => handleRetry(item)} disabled={retrying === item.id}
+                          <motion.button whileTap={{ scale: 0.98 }} aria-label={`Retry ${item.sampleName || item.sampleType}`} onClick={() => handleRetry(item)} disabled={retrying === item.id}
                             className="p-2 rounded-lg hover:bg-primary-500/10 text-primary-500 transition-colors cursor-pointer disabled:opacity-50">
                             <RotateCcw className={`w-4 h-4 ${retrying === item.id ? 'animate-spin' : ''}`} />
                           </motion.button>
-                          <motion.button whileTap={{ scale: 0.9 }} onClick={() => handleDelete(item.id)}
+                          <motion.button whileTap={{ scale: 0.98 }} aria-label={`Delete queued ${item.sampleName || item.sampleType}`} onClick={() => handleDelete(item.id)}
                             className="p-2 rounded-lg hover:bg-danger-500/10 text-danger-500 transition-colors cursor-pointer">
                             <Trash2 className="w-4 h-4" />
                           </motion.button>
@@ -120,4 +134,3 @@ export default function SubmissionQueue({ onQueueUpdate }: Props) {
     </div>
   );
 }
-

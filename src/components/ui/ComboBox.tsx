@@ -1,3 +1,4 @@
+import { useId } from 'react';
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -23,6 +24,8 @@ export default function ComboBox({
   required = false,
   id,
 }: ComboBoxProps) {
+  const generatedId = useId();
+  const controlId = id || generatedId;
   const [open, setOpen] = useState(false);
   const [inputValue, setInputValue] = useState(value);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -122,6 +125,7 @@ export default function ComboBox({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Escape') { e.preventDefault(); setOpen(false); }
     if (e.key === 'Enter') {
       e.preventDefault(); // Prevent form submission
       setOpen(false);
@@ -131,14 +135,14 @@ export default function ComboBox({
 
   return (
     <div className="space-y-1.5" ref={containerRef}>
-      <label className="block text-sm font-medium text-[var(--text-secondary)]">
+      <label htmlFor={controlId} className="block text-sm font-medium text-[var(--text-secondary)]">
         {label}
         {required && <span className="text-danger-500 ml-0.5">*</span>}
       </label>
 
       <div className="relative">
         <input
-          id={id}
+          id={controlId} aria-label={label} aria-required={required} aria-expanded={open}
           type="text"
           value={inputValue}
           onChange={handleInputChange}
@@ -154,7 +158,7 @@ export default function ComboBox({
             ${open ? 'border-primary-500 ring-2 ring-primary-500/15' : ''}
           `}
         />
-        <button
+        <button aria-label={`Show ${label} options`}
           type="button"
           onClick={() => setOpen(!open)}
           className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer p-1"
@@ -166,19 +170,6 @@ export default function ComboBox({
 
         {createPortal(
           <AnimatePresence>
-            {open && (
-              <motion.div
-                key="cb-backdrop"
-                style={{ position: 'fixed', inset: 0, zIndex: 9998 }}
-                onClick={() => {
-                  setOpen(false);
-                  onChange(inputValue.trim());
-                }}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-              />
-            )}
             {open && (
               <motion.div
                 key="cb-menu"
@@ -195,7 +186,7 @@ export default function ComboBox({
               >
                 {filteredOptions.length > 0 ? (
                   filteredOptions.map((opt) => (
-                    <button
+                    <button aria-label={`Show ${label} options`}
                       key={opt}
                       type="button"
                       onClick={() => handleSelect(opt)}

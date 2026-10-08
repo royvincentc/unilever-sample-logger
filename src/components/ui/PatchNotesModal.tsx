@@ -1,4 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { useDialogFocus } from '../../hooks/useDialogFocus';
+import ScienceGraphic from './ScienceGraphic';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Sparkles, CheckCircle2, Rocket } from 'lucide-react';
 
@@ -7,22 +9,24 @@ const CURRENT_PATCH_VERSION = "v1.2.0"; // Update this to show modal to users ag
 const PATCH_NOTES = {
   version: "v1.2.0",
   date: new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
-  title: "Dashboard Overhaul & Performance Boost",
-  description: "We've made some massive improvements under the hood and gave the dashboard a fresh new look. Logging samples is now faster than ever.",
+  title: "Your precision lab workspace",
+  description: "A clearer workspace for sample logging, laboratory records, and connected workflows.",
   image: "/assets/images/patch_notes.jpg",
   highlights: [
-    "High-quality modern UI updates across all forms.",
-    "Significantly faster data syncing and offline support.",
-    "Brand new live sheet integration with real-time feedback."
+    "Consistent light, dark, and system themes across all screens.",
+    "Visible connection and offline queue status.",
+    "Scientific illustrations and reduced-motion alternatives."
   ],
   fixes: [
-    "Fixed minor bugs in the incubation timeline display.",
-    "Resolved an issue where water reminders didn't trigger correctly."
+    "Clearer sample identifiers and labels on narrow screens.",
+    "Keyboard focus and accessible names for shared controls."
   ]
 };
 
 export default function PatchNotesModal() {
   const [isOpen, setIsOpen] = useState(false);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useDialogFocus(dialogRef, isOpen, () => { setIsOpen(false); localStorage.setItem('seen_patch_version', CURRENT_PATCH_VERSION); });
 
   useEffect(() => {
     // Check if the user has already seen this specific patch version
@@ -56,23 +60,21 @@ export default function PatchNotesModal() {
 
         {/* Modal */}
         <motion.div
+          ref={dialogRef} role="dialog" aria-modal="true" aria-label="Workspace update"
           initial={{ opacity: 0, y: 50, scale: 0.95 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: 20, scale: 0.95 }}
-          transition={{ type: "spring", damping: 25, stiffness: 300 }}
+          transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
           className="relative w-full max-w-2xl bg-[var(--bg-app)] border border-[var(--border-subtle)] rounded-3xl shadow-2xl overflow-hidden pointer-events-auto flex flex-col max-h-[90vh]"
         >
           {/* Header Image */}
           <div className="relative h-48 sm:h-64 w-full bg-black overflow-hidden">
-            <img 
-              src={PATCH_NOTES.image} 
-              alt="Update Illustration" 
-              className="w-full h-full object-cover opacity-80"
-            />
+            <ScienceGraphic kind="molecule" animated className="w-full h-full text-teal-300" />
             <div className="absolute inset-0 bg-gradient-to-t from-[var(--bg-app)] to-transparent" />
             
             <button 
               onClick={handleDismiss}
+              aria-label="Close workspace update"
               className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-black/20 hover:bg-black/40 text-white backdrop-blur-md transition-all z-10"
             >
               <X className="w-5 h-5" />

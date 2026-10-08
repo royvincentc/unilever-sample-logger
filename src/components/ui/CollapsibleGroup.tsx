@@ -45,6 +45,7 @@ export default function CollapsibleGroup({
         <button
           type="button"
           onClick={handleHeaderToggle}
+          aria-label={`${allSelected ? 'Deselect' : 'Select'} all ${label} samples`} aria-pressed={allSelected}
           className={`
             w-5 h-5 rounded-md border-2 flex items-center justify-center
             transition-all duration-200 flex-shrink-0 cursor-pointer
@@ -65,6 +66,7 @@ export default function CollapsibleGroup({
         <button
           type="button"
           onClick={() => setExpanded(!expanded)}
+          aria-expanded={expanded} aria-controls={`samples-${id}`}
           className="flex-1 flex items-center justify-between cursor-pointer"
         >
           <span className="text-sm font-semibold text-[var(--text-primary)]">
@@ -88,6 +90,7 @@ export default function CollapsibleGroup({
       <AnimatePresence>
         {expanded && (
           <motion.div
+            id={`samples-${id}`}
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
@@ -101,6 +104,7 @@ export default function CollapsibleGroup({
                   <button
                     key={`${id}-${sample}`}
                     type="button"
+                    aria-pressed={isSelected}
                     onClick={() => onToggleSample(sample)}
                     className={`
                       w-full flex items-center gap-3 px-3 py-2 rounded-lg

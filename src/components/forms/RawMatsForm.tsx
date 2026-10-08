@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
+import { panelTransition } from '../../design/motion';
 import { Send, ArrowLeft } from 'lucide-react';
 import TextInput, { DatePicker, TimePicker } from '../ui/TextInput';
 import Dropdown from '../ui/Dropdown';
@@ -27,7 +28,7 @@ const stagger = {
 };
 const fadeUp = {
   hidden: { opacity: 0, y: 12 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.3 } },
+  show: { opacity: 1, y: 0, transition: panelTransition },
 };
 
 export default function RawMatsForm({ onSubmit, onBack }: RawMatsFormProps) {
@@ -131,7 +132,7 @@ export default function RawMatsForm({ onSubmit, onBack }: RawMatsFormProps) {
           </div>
           <div className="space-y-1.5">
             <label className="block text-sm font-medium text-[var(--text-secondary)]">Remarks</label>
-            <textarea
+            <textarea aria-label="Remarks"
               value={form.remarks || ''}
               onChange={(e) => setForm({ ...form, remarks: e.target.value })}
               placeholder="Optional remarks or notes..."

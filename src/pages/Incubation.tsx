@@ -1,3 +1,4 @@
+import PageIntro from '../components/ui/PageIntro';
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
@@ -246,7 +247,7 @@ export default function Incubation() {
             </div>
           )}
           <div className="flex items-center gap-2 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-200">
-            <button onClick={() => {
+            <button aria-label={`Open results for ${task.controlNumber}`} onClick={() => {
               let tab = 'ENVI';
               if (task.filterTab === 'Water Samples') tab = 'WATER';
               else if (['Raw Materials', 'Semi-Finished Goods (SFG)', 'Finished Goods (FG)'].includes(task.filterTab)) tab = 'RawMats';
@@ -347,7 +348,8 @@ export default function Incubation() {
     <div className="min-h-screen bg-transparent">
       <Header theme={theme} onSetTheme={setTheme} title="Incubations" />
       
-      <div className="px-4 lg:px-6 py-4 max-w-[1400px] mx-auto space-y-6">
+      <div className="lab-page-content px-4 lg:px-6 py-4 max-w-[1400px] mx-auto space-y-6">
+        <PageIntro title="Keep every reading on time" description="Review due, overdue, and upcoming incubation readings across sample categories." kind="incubation" />
         
         {/* Top Controls */}
         <div className="flex flex-col gap-5">
@@ -523,4 +525,3 @@ export default function Incubation() {
     </div>
   );
 }
-

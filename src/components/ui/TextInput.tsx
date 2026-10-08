@@ -1,5 +1,6 @@
 import CustomDatePicker from './DatePicker';
 import CustomTimePicker from './TimePicker';
+import { useId } from 'react';
 
 interface TextInputProps {
   label: string;
@@ -20,14 +21,17 @@ export default function TextInput({
   type = 'text',
   id,
 }: TextInputProps) {
+  const generatedId = useId();
+  const inputId = id || generatedId;
   return (
     <div className="space-y-1.5">
-      <label className="block text-sm font-medium text-[var(--text-secondary)]">
+      <label htmlFor={inputId} className="block text-sm font-medium text-[var(--text-secondary)]">
         {label}
         {required && <span className="text-danger-500 ml-0.5">*</span>}
       </label>
       <input
-        id={id}
+        id={inputId}
+        aria-required={required}
         type={type}
         value={value}
         onChange={(e) => onChange(e.target.value)}

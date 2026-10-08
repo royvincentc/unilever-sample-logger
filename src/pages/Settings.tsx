@@ -1,3 +1,4 @@
+import PageIntro from '../components/ui/PageIntro';
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
@@ -61,7 +62,8 @@ export default function Settings({ onLogout }: { onLogout?: () => void }) {
   return (
     <div>
       <Header theme={theme} onSetTheme={setTheme} title="Settings" />
-      <div className="px-4 lg:px-8 max-w-2xl space-y-6">
+      <div className="lab-page-content px-4 lg:px-8 max-w-3xl mx-auto py-6 space-y-6">
+        <PageIntro title="Workspace settings" description="Manage appearance, personnel, connectivity, and protected administrative tools." kind="molecule" />
         
         {/* Header with Lock Status */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -107,6 +109,7 @@ export default function Settings({ onLogout }: { onLogout?: () => void }) {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Enter admin password..."
+                  aria-label="Admin password"
                   className="flex-1 bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded-xl px-4 py-2 text-sm text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-primary-500"
                   autoFocus
                   onKeyDown={(e) => e.key === 'Enter' && handleUnlock()}
@@ -308,4 +311,3 @@ export default function Settings({ onLogout }: { onLogout?: () => void }) {
     </div>
   );
 }
-

@@ -81,14 +81,16 @@ export default function NotificationPopup({ userName }: NotificationPopupProps) 
         initial={{ opacity: 0, y: 50, scale: 0.9 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         exit={{ opacity: 0, y: 50, scale: 0.9 }}
-        className="fixed bottom-24 right-4 left-4 sm:left-auto sm:right-6 sm:bottom-6 z-50 w-auto sm:w-full max-w-sm mx-auto sm:mx-0 glass-strong rounded-2xl shadow-2xl border border-[var(--border-subtle)] overflow-hidden"
+        className="lab-reminders glass rounded-xl overflow-hidden"
+        role="region" aria-label="Today's reading reminders"
       >
         <div className="bg-primary-500/10 px-4 py-3 flex items-center justify-between border-b border-[var(--border-subtle)]">
           <div className="flex items-center gap-2 text-primary-500">
-            <Bell className="w-5 h-5 animate-bounce" />
+            <Bell className="w-5 h-5" />
             <span className="font-bold text-sm tracking-wider uppercase">Today's Reminders</span>
           </div>
           <button 
+            aria-label="Dismiss reading reminders"
             onClick={() => {
               setIsOpen(false);
               setHasDismissed(true);
