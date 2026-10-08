@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import { useDialogFocus } from '../../hooks/useDialogFocus';
+import React, { useState, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { HelpCircle, X, CheckCircle, AlertTriangle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -31,6 +32,9 @@ export default function ReportIssueModal() {
     if (loading) return;
     setIsOpen(false);
   };
+
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useDialogFocus(dialogRef, isOpen, handleClose);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -67,14 +71,10 @@ ${description.trim()}
         transition={{ delay: 1, type: 'spring', stiffness: 260, damping: 20 }}
         whileHover={{ scale: 1.1 }}
         whileTap={{ scale: 0.9 }}
-        className="fixed left-5 bottom-[5.5rem] lg:left-8 lg:bottom-8 z-50
-                   w-10 h-10 rounded-full flex items-center justify-center
-                   bg-gradient-to-br from-primary-500 to-accent-500
-                   text-white shadow-lg opacity-70 hover:opacity-100
-                   cursor-pointer focus:outline-none transition-all"
+        className="lab-help-trigger"
         title="Report an Issue"
       >
-        <HelpCircle className="w-5 h-5" />
+        <HelpCircle className="w-4 h-4" /><span>Report an issue</span>
       </motion.button>
 
       {/* Modal Overlay and Content */}
@@ -92,6 +92,8 @@ ${description.trim()}
         {isOpen && (
           <div key="issue-modal-wrapper" className="fixed inset-0 flex items-center justify-center p-4 z-[100] pointer-events-none">
             <motion.div
+              ref={dialogRef}
+              role="dialog" aria-modal="true" aria-label="Report an issue"
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}

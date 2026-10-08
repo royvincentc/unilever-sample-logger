@@ -1,3 +1,5 @@
+import { useId } from 'react';
+import { useDialogFocus } from '../../hooks/useDialogFocus';
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -77,6 +79,8 @@ export default function DatePicker({
     return { year: y, month: m - 1, day: d };
   }, [value]);
 
+  const generatedId = useId();
+  const controlId = id || generatedId;
   const [open, setOpen] = useState(false);
   const [viewYear, setViewYear] = useState(parsedValue?.year ?? today.year);
   const [viewMonth, setViewMonth] = useState(parsedValue?.month ?? today.month);
@@ -85,6 +89,7 @@ export default function DatePicker({
 
   const btnRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
+  useDialogFocus(panelRef, open, () => setOpen(false));
   const [panelStyle, setPanelStyle] = useState<React.CSSProperties>({});
 
   // When opening, reset view to selected date or today
@@ -104,8 +109,8 @@ export default function DatePicker({
     const rect = btnRef.current.getBoundingClientRect();
     const viewportHeight = window.innerHeight;
     const viewportWidth = window.innerWidth;
-    const panelHeight = 380;
-    const panelWidth = 320;
+    const panelHeight = 430;
+    const panelWidth = Math.min(336, viewportWidth - 24);
     const spaceBelow = viewportHeight - rect.bottom - 12;
     const spaceAbove = rect.top - 12;
     const openUpward = spaceBelow < panelHeight && spaceAbove > spaceBelow;
@@ -243,7 +248,7 @@ export default function DatePicker({
 
   return (
     <div className="space-y-1.5">
-      <label className="block text-sm font-medium text-[var(--text-secondary)]">
+      <label htmlFor={controlId} className="block text-sm font-medium text-[var(--text-secondary)]">
         {label}
         {required && <span className="text-danger-500 ml-0.5">*</span>}
       </label>
@@ -251,7 +256,7 @@ export default function DatePicker({
         <button
           type="button"
           ref={btnRef}
-          id={id}
+          id={controlId} aria-label={label} aria-required={required} aria-expanded={open}
           onClick={() => setOpen(!open)}
           className={`
             w-full flex items-center justify-between
@@ -272,7 +277,7 @@ export default function DatePicker({
             {open && (
               <motion.div
                 key="datepicker-backdrop"
-                style={{ position: 'fixed', inset: 0, zIndex: 9998 }}
+                style={{ position: 'fixed', inset: 0, zIndex: 9998, pointerEvents: open ? 'auto' : 'none' }}
                 onClick={() => setOpen(false)}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -283,6 +288,7 @@ export default function DatePicker({
               <motion.div
                 key="datepicker-panel"
                 ref={panelRef}
+                role="dialog" aria-modal="true" aria-label={`Select ${label}`}
                 initial={{ opacity: 0, y: -8, scale: 0.96 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: -8, scale: 0.96 }}
@@ -296,7 +302,7 @@ export default function DatePicker({
                 <div className="flex items-center justify-between px-3 pt-3 pb-2">
                   <button
                     type="button"
-                    onClick={() => navigateMonth(-1)}
+                    aria-label="Previous month" onClick={() => navigateMonth(-1)}
                     className="p-1.5 rounded-lg hover:bg-[var(--bg-hover)] transition-colors
                                text-[var(--text-secondary)] cursor-pointer"
                   >
@@ -313,7 +319,7 @@ export default function DatePicker({
                   </button>
                   <button
                     type="button"
-                    onClick={() => navigateMonth(1)}
+                    aria-label="Next month" onClick={() => navigateMonth(1)}
                     className="p-1.5 rounded-lg hover:bg-[var(--bg-hover)] transition-colors
                                text-[var(--text-secondary)] cursor-pointer"
                   >
@@ -380,7 +386,7 @@ export default function DatePicker({
                       </div>
 
                       {/* Calendar grid with slide animation */}
-                      <div className="relative overflow-hidden" style={{ height: 240 }}>
+                      <div className="relative overflow-hidden" style={{ height: 280 }}>
                         <AnimatePresence initial={false} custom={direction} mode="popLayout">
                           <motion.div
                             key={`${viewYear}-${viewMonth}`}
@@ -413,12 +419,13 @@ export default function DatePicker({
                                 <button
                                   key={i}
                                   type="button"
+                                  aria-label={`${MONTHS[viewMonth]} ${cell.day}, ${viewYear}`}
                                   onClick={() => {
                                     if (isCurrentMonth) selectDate(cell.day);
                                   }}
                                   disabled={!isCurrentMonth}
                                   className={`
-                                    flex items-center justify-center h-8 w-full text-sm
+                                    flex items-center justify-center min-h-11 w-full text-sm
                                     rounded-lg transition-all duration-150
                                     ${
                                       isSelected

@@ -1,3 +1,5 @@
+import { useDialogFocus } from '../hooks/useDialogFocus';
+import PageIntro from '../components/ui/PageIntro';
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -40,6 +42,8 @@ export default function LiveSheetView() {
   const [rowsPerPage, setRowsPerPage] = useState(50);
   
   const [passwordPromptVisible, setPasswordPromptVisible] = useState(false);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useDialogFocus(dialogRef, passwordPromptVisible, () => setPasswordPromptVisible(false));
   const [passwordInput, setPasswordInput] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [lastAuthTime, setLastAuthTime] = useState<number>(() => {
@@ -325,9 +329,10 @@ export default function LiveSheetView() {
 
   return (
     <div className="min-h-screen bg-transparent flex flex-col">
-      <Header theme={theme} onSetTheme={setTheme} title="Live Data Editor" />
+      <Header theme={theme} onSetTheme={setTheme} title="Live sheet" />
       
-      <div className="px-4 lg:px-8 max-w-full mx-auto flex-1 flex flex-col pb-8 pt-4 space-y-4">
+      <div className="lab-page-content px-4 lg:px-8 max-w-full mx-auto flex-1 flex flex-col pb-8 pt-4 space-y-4">
+        <PageIntro title="Your live lab records" description="Search, sort, and review sheet records. Editing remains protected." kind="molecule" />
         
         {/* Tabs & Controls Bar */}
         <div className="glass p-3 rounded-2xl border border-[var(--border-subtle)] flex flex-col lg:flex-row lg:items-center justify-between gap-4 shrink-0">
@@ -416,6 +421,7 @@ export default function LiveSheetView() {
               <input
                 type="text"
                 placeholder="Search any field..."
+                aria-label="Search live sheet records"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full lg:w-48 bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded-xl py-2 pl-9 pr-4 text-xs text-[var(--text-primary)] focus:outline-none focus:border-primary-500 transition-colors"
@@ -526,6 +532,7 @@ export default function LiveSheetView() {
                 const batchField = findValue(['BATCH']);
                 const sampleNameField = findValue(['SAMPLE']);
                 const analyzedByField = findValue(['ANALYZED BY']);
+                const statusField = findValue(['STATUS']);
 
                 const isWaterOrRM = activeTab === 'WATER 2026' || activeTab === 'RM,FG,SFG 2026';
 
@@ -536,6 +543,8 @@ export default function LiveSheetView() {
                   >
                     <div 
                       className="p-4 cursor-pointer bg-[var(--bg-card)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)]"
+                      role="button" tabIndex={0} aria-expanded={isExpanded} aria-label={`Show record ${controlField ? String(controlField.val || row._rowIndex) : row._rowIndex}`}
+                      onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); setExpandedCardId(isExpanded ? null : String(row._rowIndex)); } }}
                       onClick={() => setExpandedCardId(isExpanded ? null : String(row._rowIndex))}
                     >
                       <div className="flex items-start justify-between">
@@ -554,6 +563,7 @@ export default function LiveSheetView() {
                       
                       {!isExpanded && (
                         <div className="grid grid-cols-2 gap-3 mt-4 border-t border-[var(--border-subtle)] pt-3">
+                          <div className="col-span-2"><span className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider block mb-0.5">Status</span><span className="text-xs font-medium text-[var(--text-primary)]">{statusField ? String(statusField.val || 'Unspecified') : 'Unspecified'}</span></div>
                           <div>
                             <span className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider block mb-0.5">Batch #</span>
                             <span className="text-xs font-medium text-[var(--text-primary)] truncate block">{batchField ? String(batchField.val || '-') : '-'}</span>
@@ -926,6 +936,7 @@ export default function LiveSheetView() {
               initial={{ scale: 0.95, opacity: 0, y: 10 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.95, opacity: 0, y: 10 }}
+              ref={dialogRef} role="dialog" aria-modal="true" aria-label="Unlock editor"
               className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-2xl shadow-xl max-w-sm w-full overflow-hidden"
             >
               <div className="p-5 border-b border-[var(--border-subtle)] flex items-center gap-4">
@@ -948,6 +959,7 @@ export default function LiveSheetView() {
                   <label className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-wider">Editor Password</label>
                   <input
                     type="password"
+                    aria-label="Editor password"
                     autoFocus
                     value={passwordInput}
                     onChange={(e) => setPasswordInput(e.target.value)}
@@ -980,7 +992,3 @@ export default function LiveSheetView() {
     </div>
   );
 }
-
-
-
-

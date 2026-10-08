@@ -1,3 +1,4 @@
+import PageIntro from '../components/ui/PageIntro';
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -127,7 +128,7 @@ export default function NewSample({ onQueueUpdate }: NewSampleProps) {
         queueItem.formData = payload as any; 
         await addToQueue(queueItem);
         onQueueUpdate();
-        showToast('info', 'Queued', 'You\'re offline â€” submission queued for later');
+        showToast('info', 'Queued', 'You\'re offline — submission queued for later');
         return;
       }
 
@@ -361,7 +362,8 @@ export default function NewSample({ onQueueUpdate }: NewSampleProps) {
   return (
     <div className="min-h-screen flex flex-col">
       <Header theme={theme} onSetTheme={setTheme} title="New Sample" />
-      <div className="flex-1 w-full max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-24">
+      <div className="lab-page-content flex-1 w-full max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-24">
+        <PageIntro title="Log a new sample" description="Choose a sample type. Your existing lab fields and submission workflow are ready." kind="envi" />
         <AnimatePresence mode="wait">
           {!selectedType ? (
             <motion.div
@@ -369,7 +371,7 @@ export default function NewSample({ onQueueUpdate }: NewSampleProps) {
               initial={{ opacity: 0, scale: 0.95, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: -10 }}
-              transition={{ duration: 0.3, type: "spring", bounce: 0.2 }}
+              transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
             >
               <SampleTypeSelector onSelect={setSelectedType} />
             </motion.div>
@@ -379,7 +381,7 @@ export default function NewSample({ onQueueUpdate }: NewSampleProps) {
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
-              transition={{ duration: 0.3, type: "spring", bounce: 0.2 }}
+              transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
             >
               <EnviForm onSubmit={handleEnviSubmit} onBack={() => setSelectedType(null)} />
             </motion.div>
@@ -389,7 +391,7 @@ export default function NewSample({ onQueueUpdate }: NewSampleProps) {
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
-              transition={{ duration: 0.3, type: "spring", bounce: 0.2 }}
+              transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
             >
               <WaterForm onSubmit={handleWaterSubmit} onBack={() => setSelectedType(null)} />
             </motion.div>
@@ -399,7 +401,7 @@ export default function NewSample({ onQueueUpdate }: NewSampleProps) {
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
-              transition={{ duration: 0.3, type: "spring", bounce: 0.2 }}
+              transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
             >
               <RawMatsForm onSubmit={handleRawMatsSubmit} onBack={() => setSelectedType(null)} />
             </motion.div>
@@ -409,7 +411,7 @@ export default function NewSample({ onQueueUpdate }: NewSampleProps) {
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
-              transition={{ duration: 0.3, type: "spring", bounce: 0.2 }}
+              transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
             >
               <AirForm onSubmit={handleAirSubmit} onBack={() => setSelectedType(null)} />
             </motion.div>
@@ -419,6 +421,3 @@ export default function NewSample({ onQueueUpdate }: NewSampleProps) {
     </div>
   );
 }
-
-
-

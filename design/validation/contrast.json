@@ -1,0 +1,110 @@
+[
+  {
+    "theme": "light",
+    "name": "text primary / app",
+    "contrast": 13.29,
+    "pass": true
+  },
+  {
+    "theme": "light",
+    "name": "text primary / card",
+    "contrast": 14.26,
+    "pass": true
+  },
+  {
+    "theme": "light",
+    "name": "text secondary / app",
+    "contrast": 5.71,
+    "pass": true
+  },
+  {
+    "theme": "light",
+    "name": "text secondary / card",
+    "contrast": 6.12,
+    "pass": true
+  },
+  {
+    "theme": "light",
+    "name": "text muted / app",
+    "contrast": 4.7,
+    "pass": true
+  },
+  {
+    "theme": "light",
+    "name": "text muted / card",
+    "contrast": 5.04,
+    "pass": true
+  },
+  {
+    "theme": "light",
+    "name": "blue status",
+    "contrast": 5.23,
+    "pass": true
+  },
+  {
+    "theme": "light",
+    "name": "teal status",
+    "contrast": 4.98,
+    "pass": true
+  },
+  {
+    "theme": "light",
+    "name": "amber status",
+    "contrast": 5.02,
+    "pass": true
+  },
+  {
+    "theme": "dark",
+    "name": "text primary / app",
+    "contrast": 18.31,
+    "pass": true
+  },
+  {
+    "theme": "dark",
+    "name": "text primary / card",
+    "contrast": 17.5,
+    "pass": true
+  },
+  {
+    "theme": "dark",
+    "name": "text secondary / app",
+    "contrast": 12.11,
+    "pass": true
+  },
+  {
+    "theme": "dark",
+    "name": "text secondary / card",
+    "contrast": 11.57,
+    "pass": true
+  },
+  {
+    "theme": "dark",
+    "name": "text muted / app",
+    "contrast": 7.77,
+    "pass": true
+  },
+  {
+    "theme": "dark",
+    "name": "text muted / card",
+    "contrast": 7.42,
+    "pass": true
+  },
+  {
+    "theme": "dark",
+    "name": "blue status",
+    "contrast": 6.77,
+    "pass": true
+  },
+  {
+    "theme": "dark",
+    "name": "teal status",
+    "contrast": 7.65,
+    "pass": true
+  },
+  {
+    "theme": "dark",
+    "name": "amber status",
+    "contrast": 9.03,
+    "pass": true
+  }
+]

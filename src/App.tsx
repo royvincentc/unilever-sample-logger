@@ -2,7 +2,9 @@ import { useState, useEffect, useCallback } from 'react';
 import { signInAnonymously } from 'firebase/auth';
 import { auth } from './utils/firebase';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion, MotionConfig, useReducedMotion } from 'framer-motion';
+import ScienceGraphic from './components/ui/ScienceGraphic';
+import { panelTransition } from './design/motion';
 import { RefreshCw } from 'lucide-react';
 import Layout from './components/Layout/Layout';
 import LoginPage from './components/auth/LoginPage';
@@ -22,12 +24,13 @@ import Logbook from './pages/Logbook';
 import Calendar from './pages/Calendar';
 
 function PageTransition({ children }: { children: React.ReactNode }) {
+  const reduced = useReducedMotion();
   return (
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      transition={{ duration: 0.15 }}
+      transition={reduced ? { duration: 0 } : panelTransition}
     >
       {children}
     </motion.div>
@@ -99,39 +102,7 @@ function AppContent({
                 className="min-h-screen bg-[var(--bg-app)] flex items-center justify-center p-6 text-center"
               >
                 <div className="flex flex-col items-center gap-6 max-w-sm">
-                  {/* Motion Graphic Loader */}
-                  <div className="relative w-20 h-20">
-                    <motion.div
-                      animate={{ 
-                        scale: [1, 1.2, 1],
-                        opacity: [0.3, 0.8, 0.3],
-                        rotate: [0, 90, 180, 270, 360]
-                      }}
-                      transition={{ 
-                        duration: 3,
-                        ease: "linear",
-                        repeat: Infinity 
-                      }}
-                      className="absolute inset-0 border-2 border-primary-500/30 rounded-xl"
-                    />
-                    <motion.div
-                      animate={{ 
-                        scale: [1, 1.5, 1],
-                        opacity: [0.5, 1, 0.5],
-                        rotate: [360, 270, 180, 90, 0]
-                      }}
-                      transition={{ 
-                        duration: 3,
-                        ease: "linear",
-                        repeat: Infinity 
-                      }}
-                      className="absolute inset-2 border-2 border-primary-500/50 rounded-full"
-                    />
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="w-4 h-4 bg-primary-500 rounded-full animate-pulse shadow-[0_0_15px_rgba(59,130,246,0.6)]" />
-                    </div>
-                  </div>
-                  
+                  <ScienceGraphic kind="sync" animated className="w-40 h-32" />
                   <motion.div
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -188,6 +159,13 @@ export default function App() {
     if (authenticated && firebaseReady) refreshQueueCount();
   }, [authenticated, firebaseReady, refreshQueueCount]);
 
+  useEffect(() => {
+    const update = () => document.documentElement.classList.toggle('document-hidden', document.visibilityState === 'hidden');
+    update();
+    document.addEventListener('visibilitychange', update);
+    return () => { document.removeEventListener('visibilitychange', update); document.documentElement.classList.remove('document-hidden'); };
+  }, []);
+
   // Auto-sync on reconnect
   useEffect(() => {
     const handler = () => {
@@ -198,7 +176,7 @@ export default function App() {
   }, [authenticated, refreshQueueCount]);
 
   return (
-    <ToastProvider>
+    <MotionConfig reducedMotion="user"><ToastProvider>
       <BrowserRouter>
         <AppContent
           authenticated={authenticated}
@@ -211,6 +189,6 @@ export default function App() {
           refreshQueueCount={refreshQueueCount}
         />
       </BrowserRouter>
-    </ToastProvider>
+    </ToastProvider></MotionConfig>
   );
 }

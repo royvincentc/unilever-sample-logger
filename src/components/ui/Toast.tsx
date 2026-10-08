@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback, createContext, useContext, type ReactNode } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CheckCircle2, XCircle, Info, AlertTriangle, X } from 'lucide-react';
+import ScienceGraphic from './ScienceGraphic';
+import { panelTransition } from '../../design/motion';
 
 type ToastType = 'success' | 'error' | 'info' | 'warning';
 
@@ -63,7 +65,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastContext.Provider value={{ showToast }}>
       {children}
-      <div className="fixed top-4 right-4 z-[100] flex flex-col gap-2 max-w-sm w-full pointer-events-none">
+      <div className="lab-toast-stack fixed top-4 right-4 z-[100] flex flex-col gap-2 pointer-events-none">
         <AnimatePresence>
           {toasts.map((toast) => {
             const Icon = icons[toast.type];
@@ -73,14 +75,15 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                 initial={{ opacity: 0, x: 100, scale: 0.95 }}
                 animate={{ opacity: 1, x: 0, scale: 1 }}
                 exit={{ opacity: 0, x: 100, scale: 0.95 }}
-                transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+                transition={panelTransition}
+                role={toast.type === 'error' ? 'alert' : 'status'}
                 className={`
-                  pointer-events-auto rounded-xl border-l-4 px-4 py-3
+                  lab-toast pointer-events-auto rounded-xl border-l-4 px-4 py-3
                   shadow-lg backdrop-blur-xl flex items-start gap-3
                   ${colors[toast.type]}
                 `}
               >
-                <Icon className={`w-5 h-5 flex-shrink-0 mt-0.5 ${iconColors[toast.type]}`} />
+                {toast.type === 'success' ? <ScienceGraphic kind="success" animated /> : <Icon className={`w-5 h-5 flex-shrink-0 mt-0.5 ${iconColors[toast.type]}`} />}
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-[var(--text-primary)]">{toast.title}</p>
                   {toast.message && (
@@ -88,6 +91,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                   )}
                 </div>
                 <button
+                  aria-label="Dismiss notification"
                   onClick={() => dismiss(toast.id)}
                   className="text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors cursor-pointer"
                 >

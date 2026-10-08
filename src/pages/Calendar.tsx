@@ -1,3 +1,6 @@
+import { useDialogFocus } from '../hooks/useDialogFocus';
+import { useRef } from 'react';
+import PageIntro from '../components/ui/PageIntro';
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -188,7 +191,10 @@ async function createCalendarEvent(accessToken: string, event: IncubationEvent):
 
     const [selectedEvents, setSelectedEvents] = useState<IncubationEvent[] | null>(null);
     const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+
     const [isModalOpen, setIsModalOpen] = useState(false);
+    useDialogFocus(dialogRef, isModalOpen, () => setIsModalOpen(false));
     const [selectedAnalyst, setSelectedAnalyst] = useState<string>('All Analysts');
 
     const uniqueAnalysts = useMemo(() => {
@@ -271,7 +277,8 @@ async function createCalendarEvent(accessToken: string, event: IncubationEvent):
   return (
     <div className="min-h-screen bg-transparent flex flex-col">
       <Header theme={theme} onSetTheme={setTheme} title="Calendar" />
-      <div className="px-4 lg:px-8 py-4 max-w-7xl mx-auto w-full flex-1 flex flex-col">
+      <div className="lab-page-content px-4 lg:px-8 py-4 max-w-7xl mx-auto w-full flex-1 flex flex-col">
+        <PageIntro title="Your reading schedule" description="See incubation dates, filter by analyst, and open the samples scheduled for each day." kind="incubation" />
         
         {/* Header Area */}
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-6">
@@ -281,6 +288,7 @@ async function createCalendarEvent(accessToken: string, event: IncubationEvent):
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <CustomSelect
+              label="Filter by analyst"
               value={selectedAnalyst}
               onChange={setSelectedAnalyst}
               options={uniqueAnalysts.map(a => ({ value: a, label: a }))}
@@ -398,6 +406,7 @@ async function createCalendarEvent(accessToken: string, event: IncubationEvent):
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              ref={dialogRef} role="dialog" aria-modal="true" aria-label="Scheduled readings"
               className="relative w-full max-w-lg bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-2xl shadow-2xl overflow-hidden my-8"
             >
               <div className="p-6 border-b border-[var(--border-subtle)] bg-[var(--bg-card)] sticky top-0 z-10">
@@ -410,6 +419,7 @@ async function createCalendarEvent(accessToken: string, event: IncubationEvent):
                   </div>
                   <button 
                     onClick={() => setIsModalOpen(false)}
+                    aria-label="Close scheduled readings"
                     className="p-2 text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] rounded-lg transition-colors"
                   >
                     <X className="w-5 h-5" />
@@ -448,4 +458,3 @@ async function createCalendarEvent(accessToken: string, event: IncubationEvent):
     </div>
   );
 }
-

@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import { Loader2 } from 'lucide-react';
+import { motionTiming } from '../../design/motion';
 import type { ReactNode, ButtonHTMLAttributes } from 'react';
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -37,10 +38,11 @@ export default function Button({
     <motion.button
       whileHover={{ scale: disabled || loading ? 1 : 1.02 }}
       whileTap={{ scale: disabled || loading ? 1 : 0.97 }}
-      transition={{ type: 'spring', stiffness: 400, damping: 17 }}
+      transition={{ duration: motionTiming.feedback }}
+      aria-busy={loading || undefined}
       className={`
         inline-flex items-center justify-center font-medium
-        transition-all duration-200 cursor-pointer
+        min-h-11 transition-colors duration-150 cursor-pointer
         disabled:opacity-50 disabled:cursor-not-allowed
         ${variantClasses[variant]}
         ${sizeClasses[size]}

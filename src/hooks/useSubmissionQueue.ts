@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
-import type { QueueItem, HistoryEntry } from '../types';
+import type { QueueItem } from '../types';
 import { addToQueue, getQueueItems, updateQueueItem, removeFromQueue, addToHistory } from '../utils/db';
 import { sendToWebhook } from '../utils/api';
+import { historyFromQueuedSample } from '../utils/queueHistory';
 
 export function useSubmissionQueue() {
   const [items, setItems] = useState<QueueItem[]>([]);
@@ -39,34 +40,18 @@ export function useSubmissionQueue() {
     await updateQueueItem(sending);
     await refresh();
 
-    const endpoint = item.sampleType === 'ENVI' ? 'envi' : item.sampleType === 'WATER' ? 'water' : 'rawmats';
+    const endpoint = item.sampleType === 'ENVI' ? 'envi' : item.sampleType === 'WATER' ? 'water' : item.sampleType === 'AIR' ? 'air' : 'rawmats';
     const result = await sendToWebhook(endpoint, item.formData as unknown as Record<string, unknown>);
 
     if (result.success) {
-      // Evaluate final control number from n8n response or fallback to local
-      let finalControlNumber = (result.controlNumber && !result.controlNumber.includes('{{')) 
-        ? result.controlNumber 
-        : item.controlNumber || 'UNKNOWN';
-
-      if (item.sampleType === 'RawMats') {
-        finalControlNumber = finalControlNumber.replace(/^RM-?/i, '');
+      const entry = historyFromQueuedSample(item, result.controlNumber);
+      await updateQueueItem({ ...item, status: 'success', errorMessage: undefined, controlNumber: entry.controlNumber });
+      try {
+        await addToHistory(entry);
+        await removeFromQueue(id);
+      } catch {
+        // Retain the accepted record locally; it must not be sent again.
       }
-
-      const historyEntry: HistoryEntry = {
-        id: `${finalControlNumber}-${item.sampleName}-${Date.now()}`,
-        sampleType: item.sampleType,
-        controlNumber: finalControlNumber,
-        sampleName: item.sampleName || 'Queued Sample',
-        dateSampled: item.formData.dateSampled,
-        dateAnalyzed: (item.formData as any).dateAnalyzed || item.formData.dateSampled,
-        rawMatsType: (item.formData as any).type || null,
-        status: (item.formData as any).status || 'ON GOING',
-        submittedAt: new Date().toISOString(),
-        submittedBy: item.submittedBy || 'Unknown User',
-      };
-      
-      await addToHistory(historyEntry);
-      await removeFromQueue(id);
     } else {
       const failed: QueueItem = {
         ...sending,

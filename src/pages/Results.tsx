@@ -1,3 +1,5 @@
+import { useDialogFocus } from '../hooks/useDialogFocus';
+import PageIntro from '../components/ui/PageIntro';
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -225,6 +227,8 @@ export default function Results() {
   };
 
   const [editingRow, setEditingRow] = useState<any | null>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useDialogFocus(dialogRef, !!editingRow, () => setEditingRow(null));
   const [editForm, setEditForm] = useState<Record<string, string>>({});
   const [isSaving, setIsSaving] = useState(false);
 
@@ -413,9 +417,10 @@ export default function Results() {
 
   return (
     <div className="min-h-screen bg-transparent flex flex-col">
-      <Header theme={theme} onSetTheme={setTheme} title="Live Results Dashboard" />
+      <Header theme={theme} onSetTheme={setTheme} title="Reports" />
       
-      <div className="flex-1 px-4 lg:px-8 py-6 max-w-[1600px] mx-auto w-full flex flex-col">
+      <div className="lab-page-content flex-1 px-4 lg:px-8 py-6 max-w-[1600px] mx-auto w-full flex flex-col">
+        <PageIntro title="Results & reports" description="Review readings, update records, and generate reports from your lab data." kind="envi" />
         
         <div className="flex items-center p-1 gap-1 overflow-x-auto hide-scrollbar bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-2xl w-max max-w-full mb-6">
           {TABS.map(tab => {
@@ -463,6 +468,7 @@ export default function Results() {
               <input
                 type="text"
                 placeholder="Search any column..."
+                aria-label="Search report records"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded-xl py-2.5 pl-9 pr-4 text-sm text-[var(--text-primary)] focus:outline-none focus:border-primary-500 transition-colors"
@@ -472,6 +478,7 @@ export default function Results() {
             <div className="relative" ref={colDropdownRef}>
               <button 
                 onClick={() => setShowColumnDropdown(!showColumnDropdown)}
+                aria-label="Choose visible columns" aria-expanded={showColumnDropdown}
                 className="flex items-center gap-2 px-4 py-2.5 bg-[var(--bg-surface)] border border-[var(--border-subtle)] text-[var(--text-primary)] rounded-xl text-sm font-bold hover:bg-[var(--bg-hover)] transition-all cursor-pointer"
               >
                 <Eye className="w-4 h-4" />
@@ -618,6 +625,7 @@ export default function Results() {
                       return (
                         <th 
                           key={h} 
+                          data-essential={isControl ? 'control' : h.trim().toUpperCase() === 'STATUS' ? 'status' : undefined}
                           draggable
                           onDragStart={(e) => handleDragStart(e, h)}
                           onDragOver={handleDragOver}
@@ -675,7 +683,7 @@ export default function Results() {
                         </div>
                       </td>
                       {visibleHeaders.map((h, colIndex) => (
-                        <td key={colIndex} className={`px-3 py-1.5 text-xs text-[var(--text-primary)] border border-[var(--border-subtle)] whitespace-nowrap max-w-[300px] truncate ${isSelected ? 'bg-[var(--bg-selected)]' : 'bg-[var(--bg-card)]'}`}>
+                        <td key={colIndex} data-essential={isControlHeader(h) ? 'control' : h.trim().toUpperCase() === 'STATUS' ? 'status' : undefined} className={`px-3 py-1.5 text-xs text-[var(--text-primary)] border border-[var(--border-subtle)] whitespace-nowrap max-w-[300px] truncate ${isSelected ? 'bg-[var(--bg-selected)]' : 'bg-[var(--bg-card)]'}`}>
                           {row[h] !== undefined && row[h] !== null && String(row[h]).trim() !== '' ? String(row[h]) : '-'}
                         </td>
                       ))}
@@ -712,6 +720,7 @@ export default function Results() {
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              ref={dialogRef} role="dialog" aria-modal="true" aria-label="Edit record"
               className="relative w-full max-w-2xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
             >
               <div className="flex items-center justify-between p-6 border-b border-[var(--border-subtle)] bg-[var(--bg-card)]">
@@ -723,6 +732,7 @@ export default function Results() {
                 </div>
                 <button
                   onClick={() => setEditingRow(null)}
+                  aria-label="Close record editor"
                   className="p-2 rounded-full hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] transition-colors"
                 >
                   <X className="w-6 h-6" />
@@ -817,6 +827,7 @@ export default function Results() {
                         {h} {isReadOnly && '(Read-Only)'}
                       </label>
                       <input
+                        aria-label={h}
                         type="text"
                         value={editForm[h] || ''}
                         onChange={(e) => setEditForm({ ...editForm, [h]: e.target.value })}
@@ -856,14 +867,3 @@ export default function Results() {
     </div>
   );
 }
-
-
-
-
-
-
-
-
-
-
-

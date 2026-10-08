@@ -21,11 +21,12 @@ export default function RadioGroup({
         {label}
         {required && <span className="text-danger-500 ml-0.5">*</span>}
       </label>
-      <div className="flex flex-wrap gap-2">
+      <div role="group" aria-label={label} className="flex flex-wrap gap-2">
         {(options as string[]).map((opt) => (
           <motion.button
             key={opt}
             type="button"
+            aria-pressed={value === opt}
             whileHover={{ scale: 1.03 }}
             whileTap={{ scale: 0.97 }}
             onClick={() => onChange(opt)}

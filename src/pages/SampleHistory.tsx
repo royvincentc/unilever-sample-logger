@@ -1,3 +1,6 @@
+import { useDialogFocus } from '../hooks/useDialogFocus';
+import { useRef } from 'react';
+import PageIntro from '../components/ui/PageIntro';
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Clock, X, FileText, Trash2, ChevronDown, Download } from 'lucide-react';
@@ -16,6 +19,8 @@ export default function SampleHistory() {
   const { theme, setTheme } = useTheme();
   const [entries, setEntries] = useState<HistoryEntry[]>([]);
   const [selectedEntry, setSelectedEntry] = useState<HistoryEntry | null>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useDialogFocus(dialogRef, !!selectedEntry, () => setSelectedEntry(null));
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [downloading, setDownloading] = useState<string | null>(null);
   const { showToast } = useToast();
@@ -187,7 +192,8 @@ export default function SampleHistory() {
   return (
     <div>
       <Header theme={theme} onSetTheme={setTheme} title="History" />
-      <div className="px-4 lg:px-8 max-w-4xl mx-auto pb-12">
+      <div className="lab-page-content px-4 lg:px-8 max-w-5xl mx-auto py-6 pb-12">
+        <PageIntro title="Every sample, recorded" description="Find your control numbers, review sample status, and download available reports." kind="empty" />
         
         {/* Filter Controls */}
         <div className="mb-6 flex flex-col gap-4">
@@ -212,6 +218,7 @@ export default function SampleHistory() {
             <div className="w-full md:w-auto flex flex-col md:flex-row items-center gap-3">
               <span className="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider hidden md:block">Sort By</span>
               <CustomSelect
+                label="Filter by analyst"
                 value={activeAnalyst}
                 onChange={setActiveAnalyst}
                 options={[
@@ -268,6 +275,8 @@ export default function SampleHistory() {
                 <div key={ctrlNum} className="flex flex-col">
                   {/* Group Header */}
                   <div 
+                    role="button" tabIndex={0} aria-expanded={isExpanded} aria-label={`Show samples for ${ctrlNum}`}
+                    onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); toggleGroup(ctrlNum); } }}
                     onClick={() => toggleGroup(ctrlNum)}
                     className={`w-full text-left flex items-center justify-between px-5 py-4 transition-colors cursor-pointer ${isExpanded ? 'bg-[var(--bg-hover)]/50' : 'hover:bg-[var(--bg-hover)]'}`}
                   >
@@ -383,6 +392,7 @@ export default function SampleHistory() {
             className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm cursor-pointer"
           >
             <motion.div 
+              ref={dialogRef} role="dialog" aria-modal="true" aria-label="Sample details"
               key="history-modal-card"
               initial={{ opacity: 0, scale: 0.95, y: 15 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -401,7 +411,7 @@ export default function SampleHistory() {
                     <p className="text-xs text-[var(--text-secondary)] truncate max-w-[200px]">{selectedEntry.sampleName}</p>
                   </div>
                 </div>
-                <button onClick={() => setSelectedEntry(null)} className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors cursor-pointer">
+                <button aria-label="Close sample details" onClick={() => setSelectedEntry(null)} className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors cursor-pointer">
                   <X className="w-5 h-5" />
                 </button>
               </div>
@@ -473,4 +483,3 @@ export default function SampleHistory() {
     </div>
   );
 }
-
