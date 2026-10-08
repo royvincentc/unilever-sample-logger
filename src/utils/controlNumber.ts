@@ -1,6 +1,28 @@
 import type { SampleType } from '../types';
 import { getYearShort } from './sheetMapping';
 
+/** Find the numeric maximum for this sample type and year, regardless of row order. */
+export function findHighestControlNumber(
+  sampleType: SampleType,
+  controlNumbers: string[],
+  dateStr: string
+): string | null {
+  const prefix = generateNextControlNumber(sampleType, null, dateStr).split('-')[0];
+  let highest: string | null = null;
+  let highestSequence = 0;
+  for (const raw of controlNumbers) {
+    const control = (sampleType === 'RawMats' ? raw.replace(/^RM-?/i, '') : raw).trim();
+    const match = control.match(/^([A-Z]?\d{2})-(\d+)$/i);
+    if (!match || match[1].toUpperCase() !== prefix) continue;
+    const sequence = Number(match[2]);
+    if (Number.isSafeInteger(sequence) && sequence > highestSequence) {
+      highest = control.toUpperCase();
+      highestSequence = sequence;
+    }
+  }
+  return highest;
+}
+
 /**
  * Generate next control number based on the previous one.
  * 

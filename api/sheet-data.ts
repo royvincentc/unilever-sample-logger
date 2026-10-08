@@ -25,7 +25,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const { sheetId, tab, schemaOnly } = req.query;
+    const { sheetId, tab, schemaOnly, controlNumbersOnly } = req.query;
+    res.setHeader('Cache-Control', 'no-store');
 
     if (!sheetId || typeof sheetId !== 'string') {
       return res.status(400).json({ error: 'Missing or invalid sheetId query parameter' });
@@ -45,7 +46,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const rows = response.data.values || [];
     
     if (rows.length === 0) {
-      return res.status(200).json([]);
+      return res.status(200).json(controlNumbersOnly === 'true' ? { controlNumbers: [] } : []);
     }
 
     // Find the header row dynamically
@@ -57,6 +58,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (schemaOnly === 'true') {
       return res.status(200).json({ headers });
+    }
+
+    // Number allocation must include every control cell, even rows with no sample
+    // name yet. Read these before filtering the rows for the logbook display.
+    if (controlNumbersOnly === 'true') {
+      const controlIndex = headers.findIndex((h: any) =>
+        typeof h === 'string' && h.toUpperCase().includes('CONTROL')
+      );
+      if (controlIndex === -1) {
+        return res.status(422).json({ error: 'Control number column not found.' });
+      }
+      const controlNumbers = rows.slice(headerRowIndex + 1)
+        .map(row => String(row[controlIndex] ?? '').trim())
+        .filter(Boolean);
+      return res.status(200).json({ controlNumbers });
     }
 
     const controlHeader = headers.find((h: any) => typeof h === 'string' && (h.toUpperCase().includes('CONTROL') || h.toUpperCase().includes('SAMPLE')));

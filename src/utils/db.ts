@@ -14,8 +14,9 @@ import {
   deleteDoc,
   writeBatch
 } from 'firebase/firestore';
-import { fetchLiveSheetData } from './api';
+import { fetchLiveSheetData, fetchSheetControlNumbers } from './api';
 import { getSheetTabName } from './sheetMapping';
+import { findHighestControlNumber } from './controlNumber';
 
 const DB_NAME = 'SampleLoggerDB';
 const DB_VERSION = 2; // Incremented version to ensure fresh DB structure if needed
@@ -324,6 +325,11 @@ export async function getHighestControlNumberForSubmission(
   isOnline: boolean
 ): Promise<string | null> {
   if (isOnline) {
+    if (sampleType === 'ENVI') {
+      const sheetTab = getSheetTabName(sampleType, undefined, new Date(dateStr));
+      const controls = await fetchSheetControlNumbers(sheetTab);
+      return findHighestControlNumber(sampleType, controls, dateStr);
+    }
     const sheetNum = await getHighestControlNumberFromSheets(sampleType, dateStr);
     if (sheetNum) return sheetNum;
   }

@@ -60,7 +60,7 @@ export default function NewSample({ onQueueUpdate }: NewSampleProps) {
   ) => {
     try {
       const subType = sampleType === 'RawMats' ? (formData as RawMatsFormData).type : undefined;
-      const sheetTab = getSheetTabName(sampleType, subType);
+      const sheetTab = getSheetTabName(sampleType, subType, sampleType === 'ENVI' ? new Date(formData.dateSampled) : undefined);
       const endpoint = sampleType === 'ENVI' ? 'envi' : sampleType === 'WATER' ? 'water' : sampleType === 'AIR' ? 'air' : 'rawmats';
 
       // For WATER, RawMats, and AIR: one sheet read returns both the incomplete row
@@ -194,7 +194,7 @@ export default function NewSample({ onQueueUpdate }: NewSampleProps) {
           queueItem.formData = {
             ...(item.formData as any),
             controlNumber: sharedControlNumber,
-            sheetTab: getSheetTabName(sampleType, sampleType === 'RawMats' ? (item.formData as any).type : undefined),
+            sheetTab: getSheetTabName(sampleType, sampleType === 'RawMats' ? (item.formData as any).type : undefined, sampleType === 'ENVI' ? new Date(item.formData.dateSampled) : undefined),
             sampleType,
             isUpdate: false,
             sample: item.sampleName,
@@ -217,7 +217,7 @@ export default function NewSample({ onQueueUpdate }: NewSampleProps) {
       }
 
       const endpoint = sampleType === 'ENVI' ? 'envi' : sampleType === 'AIR' ? 'air' : 'water';
-      const sheetTab = getSheetTabName(sampleType);
+      const sheetTab = getSheetTabName(sampleType, undefined, sampleType === 'ENVI' ? new Date(items[0].formData.dateSampled) : undefined);
       
       const bulkPayloads = items.map(item => {
         const basePayload: Record<string, unknown> = {
@@ -295,7 +295,13 @@ export default function NewSample({ onQueueUpdate }: NewSampleProps) {
     const total = data.selectedSamples.length;
     if (total === 0) return;
 
-    const highestControl = await getHighestControlNumberForSubmission('ENVI', data.dateSampled, isOnline);
+    let highestControl: string | null;
+    try {
+      highestControl = await getHighestControlNumberForSubmission('ENVI', data.dateSampled, isOnline);
+    } catch (error) {
+      showToast('error', 'Control number lookup failed', error instanceof Error ? error.message : 'Please retry.');
+      return;
+    }
     const sharedControlNumber = generateNextControlNumber('ENVI', highestControl, data.dateSampled);
 
     if (isOnline) {

@@ -1,5 +1,21 @@
 import { getSettings } from './auth';
 
+/** Fresh numbering lookup from the selected Google Sheet, bypassing the data mirror. */
+export async function fetchSheetControlNumbers(sheetTab: string): Promise<string[]> {
+  const { spreadsheetId } = getSettings();
+  if (!spreadsheetId) throw new Error('Spreadsheet ID not configured in settings.');
+  const params = new URLSearchParams({ sheetId: spreadsheetId, tab: sheetTab, controlNumbersOnly: 'true' });
+  const response = await fetch(`/api/sheet-data?${params}`, { cache: 'no-store' });
+  if (!response.ok) {
+    throw new Error('Could not verify the latest control number in Google Sheets. Please retry.');
+  }
+  const data = await response.json();
+  if (!Array.isArray(data.controlNumbers) || data.controlNumbers.some((value: unknown) => typeof value !== 'string')) {
+    throw new Error('Invalid control number response from Google Sheets. Please retry.');
+  }
+  return data.controlNumbers;
+}
+
 interface WebhookResponse {
   success: boolean;
   controlNumber?: string;
