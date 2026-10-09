@@ -41,7 +41,7 @@ const fadeUp = {
 };
 
 export default function AirForm({ onSubmit, onBack }: AirFormProps) {
-  const { lists, addName } = usePersonnel();
+  const { lists } = usePersonnel();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [form, setForm] = useState<AirFormData>({
     method: '',
@@ -58,7 +58,6 @@ export default function AirForm({ onSubmit, onBack }: AirFormProps) {
     if (form.samplingPoints.length === 0) return;
     setIsSubmitting(true);
     try {
-      if (form.performedBy) addName('envi', form.performedBy);
       await onSubmit(form);
     } finally {
       setIsSubmitting(false);
@@ -127,7 +126,7 @@ const stagger = {
             <ComboBox
               label="Performed By"
               value={form.performedBy}
-              options={lists.envi}
+              options={lists.air}
               onChange={(v: string) => setForm({ ...form, performedBy: v })}
               required
             />

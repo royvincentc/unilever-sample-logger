@@ -11,6 +11,7 @@ import LoginPage from './components/auth/LoginPage';
 import { ToastProvider } from './components/ui/Toast';
 import { useTheme } from './hooks/useTheme';
 import { useAuth } from './hooks/useAuth';
+import { startPersonnelSync } from './hooks/usePersonnel';
 import { getQueueItems } from './utils/db';
 import Dashboard from './pages/Dashboard';
 import NewSample from './pages/NewSample';
@@ -138,6 +139,10 @@ export default function App() {
   const { authenticated, login, pinLogin, googleLogin, logout } = useAuth();
   const [queueCount, setQueueCount] = useState(0);
   const [firebaseReady, setFirebaseReady] = useState(false);
+
+  useEffect(() => {
+    if (authenticated && firebaseReady) return startPersonnelSync();
+  }, [authenticated, firebaseReady]);
 
   const refreshQueueCount = useCallback(async () => {
     const items = await getQueueItems();

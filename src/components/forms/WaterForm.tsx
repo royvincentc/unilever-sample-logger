@@ -25,7 +25,7 @@ const fadeUp = {
 };
 
 export default function WaterForm({ onSubmit, onBack }: WaterFormProps) {
-  const { lists, addNameRaw, addName } = usePersonnel();
+  const { lists } = usePersonnel();
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState<WaterFormData>({
     dateSampled: new Date().toISOString().split('T')[0],
@@ -42,8 +42,6 @@ export default function WaterForm({ onSubmit, onBack }: WaterFormProps) {
     e.preventDefault();
     setLoading(true);
     try {
-      if (form.sampledBy) addNameRaw('waterSampler', form.sampledBy);
-      if (form.analyzedBy) addName('waterAnalyst', form.analyzedBy);
       await onSubmit(form);
     } finally {
       setLoading(false);
