@@ -21,9 +21,18 @@ function columnName(index: number): string {
 export async function readPersonnel(sheets: sheets_v4.Sheets, spreadsheetId: string, year: string) {
   const lists: Record<string, string[]> = {};
   const rangeCache = new Map<string, Promise<string[]>>();
+  // Typed table dropdowns are stored on the column, not on individual cells.
+  const metadata = await sheets.spreadsheets.get({
+    spreadsheetId,
+    fields: 'sheets(properties(title),tables(range,columnProperties(columnIndex,dataValidationRule)))',
+  });
   const tabs = [...new Set(Object.values(PERSONNEL_FIELDS).map(field => field.tab))];
   for (const tab of tabs) {
-    const title = `${tab} ${year}`;
+    const expectedTitle = `${tab} ${year}`;
+    const sheetMetadata = metadata.data.sheets?.find(sheet =>
+      sheet.properties?.title?.trim().toUpperCase() === expectedTitle.toUpperCase()
+    );
+    const title = sheetMetadata?.properties?.title ?? expectedTitle;
     const quotedTitle = `'${title.replace(/'/g, "''")}'`;
     const headers = await sheets.spreadsheets.values.get({ spreadsheetId, range: `${quotedTitle}!A1:AZ10` });
     const rows = headers.data.values ?? [];
@@ -44,7 +53,17 @@ export async function readPersonnel(sheets: sheets_v4.Sheets, spreadsheetId: str
       const { key, column } = columns[i];
       const columnIndex = [...column].reduce((n, char) => n * 26 + char.charCodeAt(0) - 64, 0) - 1;
       const names: string[] = [];
+      const tableRules = (sheetMetadata?.tables ?? []).flatMap(table =>
+        (table.columnProperties ?? []).filter(property =>
+          (table.range?.startColumnIndex ?? 0) + (property.columnIndex ?? 0) === columnIndex
+        ).flatMap(property => property.dataValidationRule?.condition ? [property.dataValidationRule.condition] : [])
+      ).filter(rule => rule.type === 'ONE_OF_LIST');
+      for (const rule of tableRules) {
+        names.push(...(rule.values ?? []).map(value => value.userEnteredValue ?? ''));
+      }
       for (const sheet of grid.data.sheets ?? []) {
+        // Table definitions take precedence over obsolete per-cell rules.
+        if (tableRules.length) break;
         for (const data of sheet.data ?? []) {
           if ((data.startColumn ?? 0) !== columnIndex) continue;
           // Prefer the last configured row, including blank future entry rows.

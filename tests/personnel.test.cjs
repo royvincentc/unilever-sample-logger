@@ -18,31 +18,49 @@ function load(file, dependencies = {}, globals = {}) {
 }
 const api = load('api/_personnel.ts');
 
-function sheetFixture({ range = false, missing = false } = {}) {
+function sheetFixture({ range = false, missing = false, tables = false, tableOffset = 0 } = {}) {
   const sourceReads = [];
+  const gridReads = [];
   const headers = {
-    SWAB: ['SWABBED BY', 'ANALYZED BY'], WATER: ['SAMPLED BY', 'ANALYZED BY'],
-    AIR: ['PERFORMED BY'], 'RM,FG,SFG': ['RECEIVED BY', 'ANALYZED BY'],
+    SWAB: { G: 'SWABBED BY', I: 'ANALYZED BY' }, WATER: { G: 'SAMPLED BY', I: 'ANALYZED BY' },
+    AIR: { F: 'PERFORMED BY' }, 'RM,FG,SFG': { K: 'RECEIVED BY', M: 'ANALYZED BY' },
   };
   const sheets = { spreadsheets: {
     values: { get: async ({ range: ref }) => {
       if (ref.endsWith('A1:AZ10')) {
-        const tab = ref.slice(1, ref.indexOf(' 2026'));
-        return { data: { values: [['Title'], headers[tab]] } };
+        const tab = ref.slice(1, ref.indexOf(' 2026')).toUpperCase();
+        const row = [];
+        for (const [column, header] of Object.entries(headers[tab])) row[column.charCodeAt(0) - 65] = header;
+        return { data: { values: [['Title'], row] } };
       }
       sourceReads.push(ref);
       return { data: { values: [['PF4: J. Santos'], ['NEW'], ['NEW'], ['']] } };
     } },
-    get: async ({ ranges }) => ({ data: { sheets: [{ data: ranges.map((ref, i) => ({
-      startColumn: i,
+    get: async ({ ranges, fields }) => {
+      if (!ranges) {
+        assert.ok(fields.includes('tables('), 'must request table dropdown metadata');
+        return { data: { sheets: Object.entries(headers).map(([tab, columns]) => ({
+          properties: { title: `${tab === 'AIR' ? 'Air' : tab} 2026` },
+          tables: tables ? [{ range: { startColumnIndex: tableOffset }, columnProperties: Object.entries(columns).map(([column, header]) => ({
+            columnIndex: column.charCodeAt(0) - 65 - tableOffset,
+            dataValidationRule: { condition: { type: 'ONE_OF_LIST', values: [
+              { userEnteredValue: ` ${header} current ` }, { userEnteredValue: `${header} current` }, { userEnteredValue: 'JUEN/ALBESA' },
+            ] } },
+          })) }] : [],
+        })) } };
+      }
+      gridReads.push(...ranges);
+      if (missing) return { data: { sheets: [] } };
+      return { data: { sheets: [{ data: ranges.map((ref) => ({
+      startColumn: ref.split('!')[1].charCodeAt(0) - 65,
       rowData: [{ values: [{ dataValidation: { condition: { type: 'ONE_OF_LIST', values: [{ userEnteredValue: 'REMOVED' }] } } }] },
         { values: [{ dataValidation: missing ? undefined : { condition: range ? {
           type: 'ONE_OF_RANGE', values: [{ userEnteredValue: "='Names'!$A$2:$A" }],
         } : { type: 'ONE_OF_LIST', values: [{ userEnteredValue: ` ${ref} ` }, { userEnteredValue: ` ${ref} ` }, { userEnteredValue: '' }] } } }] }],
-    })) }] } }),
+    })) }] } };
+    },
   } };
-  if (missing) sheets.spreadsheets.get = async () => ({ data: { sheets: [] } });
-  return { sheets, sourceReads };
+  return { sheets, sourceReads, gridReads };
 }
 
 test('reads seven distinct dropdowns and excludes removed historical names', async () => {
@@ -51,8 +69,24 @@ test('reads seven distinct dropdowns and excludes removed historical names', asy
   assert.equal(Object.keys(lists).length, 7);
   assert.equal(lists.envi.length, 1);
   assert.notEqual(lists.envi[0], lists.enviAnalyst[0]);
-  assert.ok(lists.air[0].includes('AIR 2026'));
+  assert.ok(lists.air[0].includes('Air 2026'));
   assert.ok(lists.rawAnalyst[0].includes('RM,FG,SFG 2026'));
+  assert.ok(!Object.values(lists).flat().includes('REMOVED'));
+});
+
+test('reads table dropdowns at the supplied columns even without cell validations', async () => {
+  const { sheets, gridReads } = sheetFixture({ tables: true, missing: true });
+  const lists = await api.readPersonnel(sheets, 'sheet', '2026');
+  assert.deepEqual(Array.from(lists.envi), ['SWABBED BY current', 'JUEN/ALBESA']);
+  assert.deepEqual(Array.from(lists.enviAnalyst), ['ANALYZED BY current', 'JUEN/ALBESA']);
+  assert.deepEqual(gridReads, ["'SWAB 2026'!G:G", "'SWAB 2026'!I:I", "'WATER 2026'!G:G", "'WATER 2026'!I:I", "'Air 2026'!F:F", "'RM,FG,SFG 2026'!K:K", "'RM,FG,SFG 2026'!M:M"]);
+  assert.equal(Object.keys(lists).length, 7);
+});
+
+test('table column indices are relative to the table and override old cell dropdowns', async () => {
+  const { sheets } = sheetFixture({ tables: true, tableOffset: 2 });
+  const lists = await api.readPersonnel(sheets, 'sheet', '2026');
+  assert.deepEqual(Array.from(lists.rawReceiver), ['RECEIVED BY current', 'JUEN/ALBESA']);
   assert.ok(!Object.values(lists).flat().includes('REMOVED'));
 });
 
