@@ -188,6 +188,7 @@ export function saveSettings(settings: Partial<typeof DEFAULT_SETTINGS>): void {
   const updated = { ...current, ...settings };
   updated.spreadsheetId = resolveSpreadsheetId(updated.spreadsheetId);
   localStorage.setItem(SETTINGS_KEY, JSON.stringify(updated));
+  if (typeof window !== 'undefined') window.dispatchEvent(new Event('personnel-settings-changed'));
 }
 
 // Cloud-synced sheet preference
@@ -205,6 +206,7 @@ export async function saveSheetPreference(spreadsheetId: string): Promise<void> 
   const current = getSettings();
   current.spreadsheetId = spreadsheetId;
   localStorage.setItem('sample_logger_settings', JSON.stringify(current));
+  if (typeof window !== 'undefined') window.dispatchEvent(new Event('personnel-settings-changed'));
 }
 
 export function listenToSheetPreference(callback: (spreadsheetId: string) => void) {
@@ -219,6 +221,7 @@ export function listenToSheetPreference(callback: (spreadsheetId: string) => voi
         if (current.spreadsheetId !== spreadsheetId) {
           current.spreadsheetId = spreadsheetId;
           localStorage.setItem('sample_logger_settings', JSON.stringify(current));
+          if (typeof window !== 'undefined') window.dispatchEvent(new Event('personnel-settings-changed'));
           callback(spreadsheetId);
         }
       }

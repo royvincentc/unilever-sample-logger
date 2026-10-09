@@ -1,4 +1,5 @@
 import PageIntro from '../components/ui/PageIntro';
+import PersonnelSync from '../components/ui/PersonnelSync';
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -364,6 +365,7 @@ export default function NewSample({ onQueueUpdate }: NewSampleProps) {
       <Header theme={theme} onSetTheme={setTheme} title="New Sample" />
       <div className="lab-page-content flex-1 w-full max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-24">
         <PageIntro title="Log a new sample" description="Choose a sample type. Your existing lab fields and submission workflow are ready." kind="envi" />
+        <PersonnelSync />
         <AnimatePresence mode="wait">
           {!selectedType ? (
             <motion.div

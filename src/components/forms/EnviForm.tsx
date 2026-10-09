@@ -28,7 +28,7 @@ const fadeUp = {
 };
 
 export default function EnviForm({ onSubmit, onBack }: EnviFormProps) {
-  const { lists, addName } = usePersonnel();
+  const { lists } = usePersonnel();
   const [loading, setLoading] = useState(false);
   const [customOtherInput, setCustomOtherInput] = useState('');
   const [customOtherSamples, setCustomOtherSamples] = useState<string[]>([]);
@@ -116,8 +116,6 @@ export default function EnviForm({ onSubmit, onBack }: EnviFormProps) {
     if (form.selectedSamples.length === 0) return;
     setLoading(true);
     try {
-      if (form.swabbedBy) addName('envi', form.swabbedBy);
-      if (form.analyzedBy) addName('envi', form.analyzedBy);
       await onSubmit(form);
     } finally {
       setLoading(false);
@@ -246,7 +244,7 @@ export default function EnviForm({ onSubmit, onBack }: EnviFormProps) {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <ComboBox label="Swabbed By" value={form.swabbedBy} options={lists.envi} onChange={(v) => setForm({ ...form, swabbedBy: v })} required />
             <DatePicker label="Date Analyzed" value={form.dateAnalyzed} onChange={(v) => setForm({ ...form, dateAnalyzed: v })} />
-            <ComboBox label="Analyzed By" value={form.analyzedBy} options={lists.envi} onChange={(v) => setForm({ ...form, analyzedBy: v })} />
+            <ComboBox label="Analyzed By" value={form.analyzedBy} options={lists.enviAnalyst} onChange={(v) => setForm({ ...form, analyzedBy: v })} />
             <Dropdown label="Status" value={form.status} options={STATUS_OPTIONS} onChange={(v) => setForm({ ...form, status: v as any })} />
           </div>
           <div className="space-y-1.5">

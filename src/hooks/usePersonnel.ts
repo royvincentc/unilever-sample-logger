@@ -1,186 +1,118 @@
-/**
- * usePersonnel — persisted personnel list manager.
- *
- * Three lists are stored independently in localStorage:
- *   ENVI_PERSONNEL      → "Swabbed By / Analyzed By" for ENVI & RawMats
- *   WATER_SAMPLERS      → "Sampled By" for WATER (includes PF4 sub-names)
- *   WATER_ANALYSTS      → "Analyzed By" for WATER (same as ENVI_PERSONNEL by default)
- *
- * Any component can call getPersonnel() / getWaterSamplers() to get the
- * current list without subscribing to React state — useful for static
- * data files. The hook version is used in the Settings editor.
- */
+import { useEffect, useSyncExternalStore } from 'react';
+import { getSettings } from '../utils/auth';
+import { PERSONNEL, PERSONNEL_WITH_MARK, WATER_SAMPLER_OPTIONS } from '../data/personnelData';
 
-import { useState, useCallback, useEffect } from 'react';
-import { db as firestore } from '../utils/firebase';
-import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
+export const PERSONNEL_SYNC_INTERVAL = 4 * 60 * 60 * 1000;
+const DEFAULTS = {
+  envi: [...PERSONNEL], enviAnalyst: [...PERSONNEL],
+  waterSampler: [...WATER_SAMPLER_OPTIONS], waterAnalyst: [...PERSONNEL],
+  air: [...PERSONNEL], rawReceiver: [...PERSONNEL_WITH_MARK], rawAnalyst: [...PERSONNEL],
+};
+export type PersonnelListKey = keyof typeof DEFAULTS;
+export type PersonnelState = Record<PersonnelListKey, string[]>;
+const keys = Object.keys(DEFAULTS) as PersonnelListKey[];
+const listeners = new Set<() => void>();
+let source = '';
+let state = { lists: DEFAULTS as PersonnelState, syncedAt: 0, syncing: false, error: '', autoSync: true };
+let inFlight: Promise<void> | null = null;
+let inFlightSource = '';
+let attemptedAt = 0;
 
-const STORAGE_KEYS = {
-  envi:         'personnel_envi',
-  waterSampler: 'personnel_water_sampler',
-  waterAnalyst: 'personnel_water_analyst',
-} as const;
+function readStorage(key: string) {
+  try { return JSON.parse(localStorage.getItem(key) ?? 'null'); } catch { return null; }
+}
+function validLists(value: unknown): value is PersonnelState {
+  return !!value && typeof value === 'object' && keys.every(key => {
+    const list = (value as PersonnelState)[key];
+    return Array.isArray(list) && list.length > 0 && list.every(name => typeof name === 'string' && name.trim());
+  });
+}
+function publish(patch: Partial<typeof state>) {
+  state = { ...state, ...patch };
+  listeners.forEach(listener => listener());
+}
+function currentSource() {
+  return `${getSettings().spreadsheetId}:${new Date().getFullYear()}`;
+}
+function ensureSource() {
+  const next = currentSource();
+  if (next === source) return;
+  source = next;
+  attemptedAt = 0;
+  const cached = readStorage(`personnel_sheet:${source}`);
+  publish({ lists: validLists(cached?.lists) ? cached.lists : DEFAULTS, syncedAt: validLists(cached?.lists) ? cached.syncedAt ?? 0 : 0, error: '' });
+}
 
-// ── Default values (mirrors personnelData.ts) ────────────────────────────────
-
-const DEFAULT_ENVI_PERSONNEL = [
-  'CODINERA', 'SUMALPONG', 'WAGAS', 'ALBESA', 'CAWIT', 'EDISAN',
-  'BARANGAN', 'CANOY', 'GOLORAN', 'VILLAVER', 'PF4', 'JUEN-PATA',
-  'CODINERA / VILLAVER', 'CODINERA / CANOY',
-];
-
-const DEFAULT_WATER_SAMPLERS = [
-  'WAGAS', 'CODINERA', 'PF4',
-  'PF4: R. Olasiman', 'PF4: Darren Teofilo', 'PF4: Melvin V.',
-  'PF4: R. Alcalde', 'PF4: Branne Abatayo', 'PF4: Ritche',
-  'PF4: A. Delgado', 'PF4: R. Gabumpa', 'PF4: JP Lanurias', 'PF4: M. Valle',
-];
-
-const DEFAULT_WATER_ANALYSTS = [...DEFAULT_ENVI_PERSONNEL];
-
-// ── Storage helpers ───────────────────────────────────────────────────────────
-
-function loadLocal(key: string, fallback: string[]): string[] {
-  try {
-    const raw = localStorage.getItem(key);
-    if (!raw) return [...fallback];
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) && parsed.length > 0 ? parsed : [...fallback];
-  } catch {
-    return [...fallback];
+export async function syncPersonnel(): Promise<void> {
+  if (inFlight) {
+    const previousSource = inFlightSource;
+    await inFlight;
+    if (previousSource !== currentSource()) return syncPersonnel();
+    return;
   }
+  ensureSource();
+  const requestSource = source;
+  inFlightSource = requestSource;
+  const [sheetId, year] = requestSource.split(':');
+  attemptedAt = Date.now();
+  publish({ syncing: true, error: '' });
+  inFlight = (async () => {
+    try {
+      const response = await fetch(`/api/personnel?${new URLSearchParams({ sheetId, year })}`, { cache: 'no-store' });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Personnel sync failed.');
+      if (!validLists(data.lists)) throw new Error('Incomplete personnel dropdowns. Cached names were kept.');
+      if (requestSource !== currentSource()) return;
+      const syncedAt = Date.now();
+      try { localStorage.setItem(`personnel_sheet:${requestSource}`, JSON.stringify({ lists: data.lists, syncedAt })); } catch {}
+      publish({ lists: data.lists, syncedAt, error: '' });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unable to sync personnel.';
+      if (requestSource === currentSource()) publish({ error: message });
+      throw error;
+    } finally {
+      inFlight = null;
+      publish({ syncing: false });
+    }
+  })();
+  return inFlight;
 }
 
-function saveLocal(key: string, list: string[]) {
-  try { localStorage.setItem(key, JSON.stringify(list)); } catch {}
-}
-
-const FIREBASE_DOC = 'app_config/personnel_lists';
-
-async function saveFirebase(lists: PersonnelState) {
-  try {
-    const docRef = doc(firestore, 'app_config', 'personnel_lists');
-    await setDoc(docRef, lists, { merge: true });
-  } catch (e) {
-    console.warn('Could not sync personnel to Firestore:', e);
-  }
-}
-
-// ── Public getters (for non-React contexts like personnelData.ts) ─────────────
-
-export function getEnviPersonnel():    string[] { return loadLocal(STORAGE_KEYS.envi,         DEFAULT_ENVI_PERSONNEL); }
-export function getWaterSamplers():    string[] { return loadLocal(STORAGE_KEYS.waterSampler,  DEFAULT_WATER_SAMPLERS); }
-export function getWaterAnalysts():    string[] { return loadLocal(STORAGE_KEYS.waterAnalyst,  DEFAULT_WATER_ANALYSTS); }
-
-// ── React hook ────────────────────────────────────────────────────────────────
-
-export type PersonnelListKey = 'envi' | 'waterSampler' | 'waterAnalyst';
-
-export interface PersonnelState {
-  envi:         string[];
-  waterSampler: string[];
-  waterAnalyst: string[];
+// A shared scheduler checks the timestamp after browser suspension and reconnects.
+export function startPersonnelSync() {
+  const check = () => {
+    ensureSource();
+    if (state.autoSync && navigator.onLine && Date.now() - state.syncedAt >= PERSONNEL_SYNC_INTERVAL && Date.now() - attemptedAt >= 5 * 60 * 1000) {
+      void syncPersonnel().catch(() => {});
+    }
+  };
+  publish({ autoSync: readStorage('personnel_auto_sync') !== false });
+  check();
+  const timer = window.setInterval(check, 60 * 1000);
+  window.addEventListener('online', check);
+  window.addEventListener('focus', check);
+  window.addEventListener('storage', check);
+  window.addEventListener('personnel-settings-changed', check);
+  return () => {
+    window.clearInterval(timer);
+    window.removeEventListener('online', check);
+    window.removeEventListener('focus', check);
+    window.removeEventListener('storage', check);
+    window.removeEventListener('personnel-settings-changed', check);
+  };
 }
 
 export function usePersonnel() {
-  const [lists, setLists] = useState<PersonnelState>(() => ({
-    envi:         loadLocal(STORAGE_KEYS.envi,         DEFAULT_ENVI_PERSONNEL),
-    waterSampler: loadLocal(STORAGE_KEYS.waterSampler, DEFAULT_WATER_SAMPLERS),
-    waterAnalyst: loadLocal(STORAGE_KEYS.waterAnalyst, DEFAULT_WATER_ANALYSTS),
-  }));
-
-  useEffect(() => {
-    const docRef = doc(firestore, 'app_config', 'personnel_lists');
-    
-    // First read
-    getDoc(docRef).then((snapshot) => {
-      if (snapshot.exists()) {
-        const data = snapshot.data() as PersonnelState;
-        if (data.envi && data.waterSampler && data.waterAnalyst) {
-          setLists(data);
-          saveLocal(STORAGE_KEYS.envi, data.envi);
-          saveLocal(STORAGE_KEYS.waterSampler, data.waterSampler);
-          saveLocal(STORAGE_KEYS.waterAnalyst, data.waterAnalyst);
-        }
-      }
-    }).catch(console.warn);
-
-    // Subscribe to changes
-    const unsubscribe = onSnapshot(docRef, (snapshot) => {
-      if (snapshot.exists()) {
-        const data = snapshot.data() as PersonnelState;
-        if (data.envi && data.waterSampler && data.waterAnalyst) {
-          setLists(data);
-          saveLocal(STORAGE_KEYS.envi, data.envi);
-          saveLocal(STORAGE_KEYS.waterSampler, data.waterSampler);
-          saveLocal(STORAGE_KEYS.waterAnalyst, data.waterAnalyst);
-        }
-      }
-    });
-
-    return () => unsubscribe();
-  }, []);
-
-  const updateList = useCallback((key: PersonnelListKey, updater: (prev: string[]) => string[]) => {
-    setLists(prev => {
-      const next = updater(prev[key]);
-      saveLocal(STORAGE_KEYS[key], next);
-      
-      const newLists = { ...prev, [key]: next };
-      saveFirebase(newLists);
-      
-      return newLists;
-    });
-  }, []);
-
-  const addName = useCallback((key: PersonnelListKey, name: string) => {
-    const trimmed = name.trim().toUpperCase();
-    if (!trimmed) return;
-    updateList(key, prev => prev.includes(trimmed) ? prev : [...prev, trimmed]);
-  }, [updateList]);
-
-  const addNameRaw = useCallback((key: PersonnelListKey, name: string) => {
-    const trimmed = name.trim();
-    if (!trimmed) return;
-    updateList(key, prev => prev.includes(trimmed) ? prev : [...prev, trimmed]);
-  }, [updateList]);
-
-  const removeName = useCallback((key: PersonnelListKey, name: string) => {
-    updateList(key, prev => prev.filter(n => n !== name));
-  }, [updateList]);
-
-  const moveUp = useCallback((key: PersonnelListKey, index: number) => {
-    if (index === 0) return;
-    updateList(key, prev => {
-      const next = [...prev];
-      [next[index - 1], next[index]] = [next[index], next[index - 1]];
-      return next;
-    });
-  }, [updateList]);
-
-  const moveDown = useCallback((key: PersonnelListKey, index: number) => {
-    updateList(key, prev => {
-      if (index >= prev.length - 1) return prev;
-      const next = [...prev];
-      [next[index], next[index + 1]] = [next[index + 1], next[index]];
-      return next;
-    });
-  }, [updateList]);
-
-  const resetToDefault = useCallback((key: PersonnelListKey) => {
-    const defaults: Record<PersonnelListKey, string[]> = {
-      envi:         DEFAULT_ENVI_PERSONNEL,
-      waterSampler: DEFAULT_WATER_SAMPLERS,
-      waterAnalyst: DEFAULT_WATER_ANALYSTS,
-    };
-    
-    setLists(prev => {
-      const newLists = { ...prev, [key]: [...defaults[key]] };
-      saveLocal(STORAGE_KEYS[key], newLists[key]);
-      saveFirebase(newLists);
-      return newLists;
-    });
-  }, []);
-
-  return { lists, addName, addNameRaw, removeName, moveUp, moveDown, resetToDefault };
+  const snapshot = useSyncExternalStore(listener => { listeners.add(listener); return () => { listeners.delete(listener); }; }, () => state);
+  useEffect(ensureSource, []);
+  const setAutoSync = (enabled: boolean) => {
+    try { localStorage.setItem('personnel_auto_sync', JSON.stringify(enabled)); } catch {}
+    publish({ autoSync: enabled });
+    if (enabled && navigator.onLine && Date.now() - state.syncedAt >= PERSONNEL_SYNC_INTERVAL) void syncPersonnel().catch(() => {});
+  };
+  return { ...snapshot, syncPersonnel, setAutoSync };
 }
+
+export function getEnviPersonnel() { return state.lists.envi; }
+export function getWaterSamplers() { return state.lists.waterSampler; }
+export function getWaterAnalysts() { return state.lists.waterAnalyst; }
