@@ -1,12 +1,10 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { auth } from '../utils/firebase';
 import { endpoint, request, RequestError, workspaceId } from '../utils/collaboration/client';
 import { readSession, writeSession, sessionKey } from '../utils/collaboration/outbox';
 import { applyOperation } from '../utils/collaboration/protocol';
 import type { Resource, Operation, Conflict, Presence } from '../types/collaboration';
-import { collaborationRealtime } from '../utils/supabase';
 
-export function useCollaboration(resourceId: string, canEdit: boolean) {
+export function useCollaboration(resourceId: string, canEdit: boolean, userId: string) {
   const [resource,setResource]=useState<Resource>(),[pending,setPending]=useState(0),[conflicts,setConflicts]=useState<Conflict[]>([]),[error,setError]=useState(''),[connected,setConnected]=useState(false),[presence,setPresence]=useState<Presence[]>([]),[saved,setSaved]=useState(false);
   const state=useRef<{snapshot?:Resource; pending:Operation[]; conflicts:Conflict[]}>({pending:[],conflicts:[]});
   const displayed=useRef<Resource | undefined>(undefined);
@@ -55,17 +53,12 @@ export function useCollaboration(resourceId: string, canEdit: boolean) {
   },[resourceId,canEdit,paint,persist]);
   useEffect(()=>{
     mounted.current=true; let canceled=false;
-    const uid=auth.currentUser?.uid;
-    if(uid) { key.current=sessionKey(uid,workspaceId(),resourceId); readSession(key.current).then(stored=>{if(!canceled){state.current=stored;paint();void sync();}}).catch(e=>setError(e.message)); }
+    key.current=sessionKey(userId,workspaceId(),resourceId);
+    readSession(key.current).then(stored=>{if(!canceled){state.current=stored;paint();void sync();}}).catch(e=>setError(e.message));
     const timer=setInterval(()=>void sync(),1500); const reconnect=()=>void sync(); window.addEventListener('online',reconnect);
     return()=>{canceled=true;mounted.current=false;clearInterval(timer);window.removeEventListener('online',reconnect);};
-  },[resourceId,paint,sync]);
+  },[resourceId,userId,paint,sync]);
   useEffect(()=>{if(!saved)return;const timer=setTimeout(()=>setSaved(false),1000);return()=>clearTimeout(timer);},[saved]);
-  useEffect(()=>{
-    const realtime=collaborationRealtime;if(!realtime)return;
-    const channel=realtime.channel(`resource:${resourceId}`).on('postgres_changes',{event:'UPDATE',schema:'public',table:'collab_resources',filter:`id=eq.${resourceId}`},()=>void sync()).subscribe();
-    return()=>{void realtime.removeChannel(channel);};
-  },[resourceId,sync]);
   const submit=useCallback(async(type:string,payload:Record<string,any>)=>{
     if(!canEdit || !state.current.snapshot) return;
     const op:Operation={id:crypto.randomUUID(),resourceId,generation:state.current.snapshot.generation,type,payload,createdAt:new Date().toISOString()};

@@ -3,6 +3,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 // Only this file is a deployed function. Underscore modules remain private
 // implementation details; each handler retains its own authorization checks.
 const routes = {
+  'collaboration-auth': () => import('./_collaborationGoogleAuthHandler.js'),
   collaboration: () => import('./_collaborationHandler.js'),
   workspace: () => import('./_workspaceHandler.js'),
   'drive-settings': () => import('./_driveSettingsHandler.js'),

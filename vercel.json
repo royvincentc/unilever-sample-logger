@@ -1,6 +1,8 @@
 {
   "crons": [{ "path": "/api/drive-worker", "schedule": "0 0 * * *" }],
   "rewrites": [
+    { "source": "/api/collaboration-auth/callback", "destination": "/api/shared?__route=collaboration-auth&action=callback" },
+    { "source": "/api/collaboration-auth", "destination": "/api/shared?__route=collaboration-auth" },
     { "source": "/api/collaboration", "destination": "/api/shared?__route=collaboration" },
     { "source": "/api/workspace", "destination": "/api/shared?__route=workspace" },
     { "source": "/api/drive-settings", "destination": "/api/shared?__route=drive-settings" },

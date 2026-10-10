@@ -15,7 +15,6 @@
     ]
   },
   "include": [
-    "api/shared.ts",
-    "tools/collaboration/provision-members.ts"
+    "api/shared.ts"
   ]
 }

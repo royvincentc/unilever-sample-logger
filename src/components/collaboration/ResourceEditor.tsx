@@ -4,14 +4,14 @@ import { ArrowLeft,Trash2,Save,RotateCcw } from 'lucide-react';
 import { useCollaboration } from '../../hooks/useCollaboration';
 import { canonical,download,readableBoard,boardCsv } from '../../utils/collaboration/export';
 import type { Workspace,Conflict } from '../../types/collaboration';
-import { endpoint,request,workspaceId } from '../../utils/collaboration/client';
+import { beginGoogleSignIn,endpoint,request,workspaceId } from '../../utils/collaboration/client';
 import SaveStatus from './SaveStatus';
 import ConflictReview from './ConflictReview';
 import KanbanBoard from '../kanban/KanbanBoard';
 import { useDialogFocus } from '../../hooks/useDialogFocus';
 const ExcalidrawEditor=lazy(()=>import('../whiteboard/ExcalidrawEditor'));
 export default function ResourceEditor({id,kind,workspace}:{id:string;kind:'board'|'drawing';workspace:Workspace}) {
-  const editable=workspace.role!=='viewer',collab=useCollaboration(id,editable),r=collab.resource,[rename,setRename]=useState(false),[name,setName]=useState(''),[confirmDelete,setConfirmDelete]=useState(false),[driveError,setDriveError]=useState(''),preview=useRef<Blob | undefined>(undefined),dialog=useRef<HTMLDivElement>(null),navigate=useNavigate();
+  const editable=workspace.role!=='viewer',collab=useCollaboration(id,editable,workspace.uid),r=collab.resource,[rename,setRename]=useState(false),[name,setName]=useState(''),[confirmDelete,setConfirmDelete]=useState(false),[driveError,setDriveError]=useState(''),preview=useRef<Blob | undefined>(undefined),dialog=useRef<HTMLDivElement>(null),navigate=useNavigate();
   useDialogFocus(dialog,confirmDelete,()=>setConfirmDelete(false));
   const savePreview=useCallback((blob:Blob)=>{
     if(!editable||blob.size>700000)return;
@@ -22,7 +22,7 @@ export default function ResourceEditor({id,kind,workspace}:{id:string;kind:'boar
   if(r.kind!==kind)return <p role="alert">This resource is a different type.</p>;
   return <div className="collab-resource-editor"><div className="collab-toolbar"><div><Link to={kind==='board'?'/kanban':'/whiteboard'} className="collab-back"><ArrowLeft size={16}/>All {kind==='board'?'boards':'drawings'}</Link>{rename?<form onSubmit={e=>{e.preventDefault();void collab.submit('resource.rename',{name,baseName:r.name});setRename(false);}}><input aria-label="Resource name" value={name} onChange={e=>setName(e.target.value)} maxLength={200}/><button>Save name</button><button type="button" onClick={()=>setRename(false)}>Cancel</button></form>:<h1>{r.name}</h1>}</div><div className="collab-actions">{editable&&!r.deleted_at&&<><button onClick={()=>{setName(r.name);setRename(true);}}>Rename</button><button aria-label="Delete resource" onClick={()=>setConfirmDelete(true)}><Trash2 size={16}/></button><button onClick={async()=>{try{const result=await request(`/api/drive-checkpoints?workspace=${workspaceId()}`,{resourceId:r.id,workspaceId:workspaceId()});setDriveError(result.message||'Checkpoint queued.');}catch(e){setDriveError((e as Error).message);}}}><Save size={16}/>Save to Drive</button></>}{kind==='board'&&<><button onClick={()=>download(`${r.name}.json`,JSON.stringify(canonical(r)))}>JSON</button><button onClick={()=>download(`${r.name}.html`,readableBoard(r),'text/html')}>Readable export</button><button onClick={()=>download(`${r.name}.csv`,boardCsv(r),'text/csv')}>CSV</button></>}</div></div>
     <SaveStatus connected={collab.connected} pending={collab.pending} revision={collab.acknowledgedRevision} driveRevision={r.drive_revision} driveStatus={r.drive_status} saved={collab.saved}/>
-    {collab.error&&<p className="collab-error" role="alert">{collab.error}<button onClick={()=>void collab.retry()}>Retry pending edits</button></p>}{driveError&&<p role="status">{driveError}</p>}
+    {collab.error&&<p className="collab-error" role="alert">{collab.error}<button onClick={()=>void collab.retry()}>Retry pending edits</button>{collab.error.includes('Sign in with Google')&&<button onClick={()=>beginGoogleSignIn()}>Sign in with Google</button>}</p>}{driveError&&<p role="status">{driveError}</p>}
     <ConflictReview conflicts={collab.conflicts} dismiss={id=>void collab.dismiss(id)} reapply={c=>void reapply(c)}/>
     {r.deleted_at?<section className="collab-empty"><h2>This resource is in trash</h2>{editable&&<button onClick={()=>void collab.submit('resource.restore',{})}><RotateCcw size={16}/>Restore resource</button>}</section>:kind==='board'?<KanbanBoard resource={r} editable={editable} submit={collab.submit}/>:<Suspense fallback={<p role="status">Loading the drawing editor…</p>}><ExcalidrawEditor resource={r} editable={editable} submit={collab.submit} presence={collab.presence} updateCursor={collab.updateCursor} onPreview={savePreview}/></Suspense>}
     <p className="collab-participants">{collab.presence.length?`Here with you: ${[...new Set(collab.presence.map(p=>p.name))].join(', ')}`:'You are the only active participant.'}</p>
