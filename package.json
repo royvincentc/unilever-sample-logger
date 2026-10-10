@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "dev:api": "vercel dev",
-    "build": "tsc && vite build",
+    "build": "node tools/check-vercel-functions.cjs && tsc && vite build",
     "preview": "vite preview",
     "predev": "node tools/collaboration/editor-assets.cjs",
     "prebuild": "node tools/collaboration/editor-assets.cjs",

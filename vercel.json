@@ -1,6 +1,11 @@
 {
   "crons": [{ "path": "/api/drive-worker", "schedule": "0 0 * * *" }],
   "rewrites": [
+    { "source": "/api/collaboration", "destination": "/api/shared?__route=collaboration" },
+    { "source": "/api/workspace", "destination": "/api/shared?__route=workspace" },
+    { "source": "/api/drive-settings", "destination": "/api/shared?__route=drive-settings" },
+    { "source": "/api/drive-checkpoints", "destination": "/api/shared?__route=drive-checkpoints" },
+    { "source": "/api/drive-worker", "destination": "/api/shared?__route=drive-worker" },
     {
       "source": "/api/(.*)",
       "destination": "/api/$1"

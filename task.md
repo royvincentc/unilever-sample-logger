@@ -3,6 +3,13 @@
 Updated: 2026-10-10 (Asia/Taipei).
 Status: **Local implementation and verification complete; cloud activation and live verification pending operator configuration.**
 
+## Deployment-limit correction
+
+- User supplied Vercel production failure for `0cf663d`: 14 functions exceeded the Hobby limit of 12.
+- Consolidated the five new public endpoints behind `api/shared.ts`; underscore implementation modules do not become deployed functions.
+- Existing URLs, query/body handling, per-handler authorization and the cron URL remain intact. Result: **10/12 functions**.
+- Added routing, unknown-route and real unauthenticated-handler regression tests plus a build-time function-budget guard. **41 tests, API typecheck and production build passed**; the build reports 10/12. Git-triggered production deployment is checked separately through Vercel status.
+
 ## Delivered
 
 - [x] Read attached request; inspect repository/auth/storage/hosting/design.
