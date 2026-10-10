@@ -3,12 +3,14 @@ import { readFile } from 'node:fs/promises';
 import { initializeApp,cert } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { createClient } from '@supabase/supabase-js';
+import { firebaseIdentityConfig } from '../../api/_firebaseIdentityConfig';
 // An explicit roster file avoids placing identities/secrets in shell history.
 const path=process.argv[2];
-if(!path || !process.env.FIREBASE_ADMIN_CREDENTIALS || !process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) throw new Error('Provide a roster JSON file and server credentials.');
+if(!path || !process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) throw new Error('Provide a roster JSON file and server credentials.');
 const roster=JSON.parse(await readFile(path,'utf8'));
 if(!roster.workspaceId || !roster.name || !Array.isArray(roster.members) || !roster.members.some((m:any)=>m.role==='admin')) throw new Error('A workspace and explicit administrator are required.');
-const app=initializeApp({credential:cert(JSON.parse(process.env.FIREBASE_ADMIN_CREDENTIALS))});
+const identityConfig=firebaseIdentityConfig(process.env);
+const app=initializeApp({credential:cert(identityConfig.credentials),projectId:identityConfig.projectId});
 const db=createClient(process.env.SUPABASE_URL,process.env.SUPABASE_SERVICE_ROLE_KEY);
 for(const m of roster.members) {
   if(!['admin','editor','viewer'].includes(m.role) || typeof m.uid!=='string') throw new Error('Invalid member.');

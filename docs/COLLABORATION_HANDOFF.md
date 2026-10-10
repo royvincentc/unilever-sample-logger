@@ -1,6 +1,12 @@
 # Shared Kanban and Excalidraw handoff
 
-Implemented locally on 2026-10-10 after approval (`proceed`). No deployment, live migration, Drive write, or sharing change was made. Cloud activation and the live verification checklist below remain outstanding because no server credentials, explicit member roster, or writable Drive destination were supplied.
+Implemented on 2026-10-10 after approval (`proceed`) and pushed/deployed after GitHub authorization. Production builds now succeed. Workspace activation and the live collaboration checklist below remain outstanding; deployment readiness alone does not activate identity, memberships, the database or Drive.
+
+### Production access diagnosis (2026-10-10)
+
+The reported Gmail failure displayed a server 503: identity was not configured. Vercel had existing Supabase and Google credentials but no Firebase Admin/project or workspace variables. The connected `UL Micro Database` project had no `collab_*` tables; its relationship to the sensitive Vercel Supabase URL could not be independently confirmed. No migration or automatic membership grant was made. Vercel sensitive Google credentials cannot be read back through the connector.
+
+Identity now accepts the existing Google service-account credential only when it belongs to the pinned client project `unilever-qc`; revoked-token checks remain enabled and the account still needs Firebase Auth permissions. A dedicated Firebase credential takes precedence. The server project defaults to the pinned client project and rejects a conflicting project setting. Missing workspace configuration is reported before querying membership. Setup/service failures appear as setup failures with a retry action; Google popup errors are visible, and membership denial has an explicit access retry. An approved administrator/member roster and secure cloud setup are still required. Tests cover missing/malformed/cross-project credentials and mobile setup/membership retry recovery.
 
 ## Delivered behavior
 
