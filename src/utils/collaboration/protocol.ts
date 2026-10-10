@@ -67,8 +67,14 @@ export function applyOperation(resource: Resource, op: Operation): Resource {
         // Whole-element conflicts must be reviewed, rather than undoing somebody else's work.
         if ((current?.version ?? 0) !== change.baseVersion) throw new OperationError('A drawing element changed concurrently. Your draft was retained.');
         if (current?.isDeleted && !e.isDeleted && !change.restore) throw new OperationError('A deleted element requires an explicit current-version restore.');
-        if (current && e.version <= current.version) throw new OperationError('Stale drawing version.');
-        existing.set(e.id, e);
+        // The baseVersion check above is the concurrency guard. Excalidraw's
+        // element version is client metadata and can lag even when the client
+        // is based on the current server element; make accepted edits monotonic
+        // instead of turning those valid edits into stale-version conflicts.
+        const accepted = current && e.version <= current.version
+          ? { ...e, version: current.version + 1 }
+          : e;
+        existing.set(e.id, accepted);
       }
       data.elements = [...existing.values()];
       for (const e of data.elements) if (!e.isDeleted && e.type === 'image' && !data.files[String(e.fileId)]) throw new OperationError('Image upload must be committed with its element.', 400);
