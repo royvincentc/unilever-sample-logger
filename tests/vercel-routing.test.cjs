@@ -4,6 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 const ts = require('typescript');
+const { spawnSync } = require('node:child_process');
 const { entrypoints } = require('../tools/check-vercel-functions.cjs');
 const config = require('../vercel.json');
 const root = path.join(__dirname, '..');
@@ -56,4 +57,22 @@ test('gateway rejects absent, duplicate and inherited route names before loading
     await gateway({})({ query: { __route: route } }, { setHeader() {}, status(value) { status = value; return this; }, json(body) { assert.equal(body.error, 'Unknown collaboration endpoint.'); } });
     assert.equal(status, 404);
   }
+});
+
+test('Firebase and JWKS verification work without CommonJS require-of-ESM support', () => {
+  const result = spawnSync(process.execPath, ['--no-experimental-require-module', '-e', `
+    require('firebase-admin/auth');
+    const assert = require('node:assert/strict');
+    const crypto = require('node:crypto');
+    const jwks = require('jwks-rsa');
+    const { publicKey, privateKey } = crypto.generateKeyPairSync('rsa', { modulusLength: 2048 });
+    const jwk = { ...publicKey.export({ format: 'jwk' }), kid: 'fixture', alg: 'RS256', use: 'sig' };
+    const client = jwks({ jwksUri: 'https://fixture.invalid/unused', getKeysInterceptor: async () => [jwk] });
+    client.getSigningKey('fixture').then(key => {
+      const body = Buffer.from('local cryptographic verification');
+      const signature = crypto.sign('RSA-SHA256', body, privateKey);
+      assert.ok(crypto.verify('RSA-SHA256', body, key.getPublicKey(), signature));
+    }).catch(error => { console.error(error); process.exitCode = 1; });
+  `], { cwd: root, encoding: 'utf8', timeout: 20000 });
+  assert.equal(result.status, 0, result.stderr || result.error?.message);
 });

@@ -58,5 +58,10 @@
     "react-dom": "^19.2.6",
     "react-router-dom": "^7.15.0",
     "yjs": "13.6.33"
+  },
+  "overrides": {
+    "jwks-rsa": {
+      "jose": "5.10.0"
+    }
   }
 }

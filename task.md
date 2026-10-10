@@ -9,6 +9,8 @@ Status: **Local implementation and verification complete; cloud activation and l
 - Consolidated the five new public endpoints behind `api/shared.ts`; underscore implementation modules do not become deployed functions.
 - Existing URLs, query/body handling, per-handler authorization and the cron URL remain intact. Result: **10/12 functions**.
 - Added routing, unknown-route and real unauthenticated-handler regression tests plus a build-time function-budget guard. **41 tests, API typecheck and production build passed**; the build reports 10/12. Git-triggered production deployment is checked separately through Vercel status.
+- Vercel accepted `91a7540` as READY, clearing the count failure. Its live API smoke check exposed Firebase/JWKS `ERR_REQUIRE_ESM`; added the targeted dual CJS/ESM JOSE override and a module-load/RSA verification regression before completing production verification.
+- The compatibility correction passes **42 tests**, API typecheck and production build; only `jwks-rsa` uses the JOSE 5.10.0 override. Production API smoke status is verified separately after Git deployment.
 
 ## Delivered
 
