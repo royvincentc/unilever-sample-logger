@@ -5,7 +5,14 @@ import { supabase } from './_supabase.js';
 
 const SESSION_COOKIE = 'collab_session';
 const SESSION_MAX_AGE = 8 * 60 * 60;
-export class HttpError extends Error { constructor(public status: number, message: string) { super(message); } }
+export class HttpError extends Error {
+  readonly status: number;
+
+  constructor(status: number, message: string) {
+    super(message);
+    this.status = status;
+  }
+}
 type CollaborationUser = { uid: string; email: string; name: string };
 type SessionPayload = CollaborationUser & { exp: number };
 
