@@ -1,0 +1,4 @@
+{
+  "compilerOptions": { "target":"es2023", "module":"esnext", "moduleResolution":"bundler", "strict":true, "skipLibCheck":true, "noEmit":true, "types":["node"], "lib":["es2023","dom"] },
+  "include":["api/_collaborationAuth.ts","api/collaboration.ts","api/workspace.ts","api/_drive.ts","api/drive-settings.ts","api/drive-checkpoints.ts","api/drive-worker.ts","tools/collaboration/provision-members.ts"]
+}

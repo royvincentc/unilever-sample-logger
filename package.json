@@ -7,9 +7,20 @@
     "dev": "vite",
     "dev:api": "vercel dev",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "predev": "node tools/collaboration/editor-assets.cjs",
+    "prebuild": "node tools/collaboration/editor-assets.cjs",
+    "test": "node --test tests/*.test.cjs && tsx --test tests/collaboration*.test.ts",
+    "typecheck:api": "tsc -p tsconfig.collaboration-api.json",
+    "test:e2e": "playwright test",
+    "dev:collaboration-preview": "vite --config tools/collaboration/preview.config.ts",
+    "predev:collaboration-preview": "node tools/collaboration/editor-assets.cjs",
+    "pretest:e2e": "node tools/collaboration/editor-assets.cjs"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.13.0",
+    "@electric-sql/pglite": "0.5.8",
+    "@playwright/test": "1.64.0",
     "@tailwindcss/vite": "^4.2.4",
     "@types/file-saver": "^2.0.7",
     "@types/node": "^26.2.0",
@@ -17,18 +28,25 @@
     "@types/react-big-calendar": "^1.16.3",
     "@types/react-dom": "^19.2.3",
     "@vercel/node": "^7.0.0",
+    "supabase": "2.120.0",
     "tailwindcss": "^4.2.4",
+    "tsx": "4.23.15",
     "typescript": "~6.0.2",
     "vite": "^8.0.10"
   },
   "dependencies": {
+    "@dnd-kit/core": "6.3.1",
+    "@dnd-kit/sortable": "10.0.0",
+    "@excalidraw/excalidraw": "0.18.1",
     "@supabase/supabase-js": "^2.112.3",
+    "@tanstack/react-virtual": "3.14.14",
     "@vitejs/plugin-react": "^6.0.1",
     "date-fns": "^4.4.0",
     "docxtemplater": "^3.69.3",
     "dotenv": "^17.4.2",
     "file-saver": "^2.0.5",
     "firebase": "^12.13.0",
+    "firebase-admin": "14.5.0",
     "framer-motion": "^12.38.0",
     "googleapis": "^174.0.1",
     "html-docx-js": "^0.3.1",
@@ -38,6 +56,7 @@
     "react": "^19.2.6",
     "react-big-calendar": "^1.20.0",
     "react-dom": "^19.2.6",
-    "react-router-dom": "^7.15.0"
+    "react-router-dom": "^7.15.0",
+    "yjs": "13.6.33"
   }
 }

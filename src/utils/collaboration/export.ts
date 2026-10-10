@@ -1,0 +1,9 @@
+import type { Resource } from '../../types/collaboration';
+export function download(name:string,content:string|Blob,type='application/json') { const url=URL.createObjectURL(typeof content==='string'?new Blob([content],{type}):content);const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000); }
+export function canonical(resource:Resource) {
+  if(resource.kind==='drawing')return {type:'excalidraw',version:2,source:'UL Sample Logger',elements:resource.data.elements,appState:{viewBackgroundColor:'#ffffff'},files:resource.data.files,collaboration:{schemaVersion:1,resourceId:resource.id,generation:resource.generation,revision:resource.revision,deletedAt:resource.deleted_at}};
+  return {type:'sample-logger-kanban',schemaVersion:1,resource};
+}
+const escape=(s:string)=>s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]!));
+export function readableBoard(resource:Resource) {return `<!doctype html><html lang="en"><meta charset="utf-8"><title>${escape(resource.name)}</title><style>body{font:16px system-ui;max-width:900px;margin:40px auto;padding:24px}article{padding:16px;background:#fff5cf;margin:12px 0}p{white-space:pre-wrap}</style><h1>${escape(resource.name)}</h1>${resource.data.columns.filter(c=>!c.deletedAt).map(c=>`<section><h2>${escape(c.title)}</h2>${resource.data.notes.filter(n=>n.columnId===c.id&&!n.deletedAt).map(n=>`<article><h3>${escape(n.title)}</h3><p>${escape(n.body)}</p></article>`).join('')}</section>`).join('')}</html>`;}
+export function boardCsv(resource:Resource) {const cell=(s:string)=>`"${s.replace(/^[=+@\-\t\r]/,"'$&").replace(/"/g,'""')}"`;return ['Column,Title,Body,Color',...resource.data.notes.filter(n=>!n.deletedAt).map(n=>[resource.data.columns.find(c=>c.id===n.columnId)?.title||'',n.title,n.body,n.color].map(cell).join(','))].join('\r\n');}

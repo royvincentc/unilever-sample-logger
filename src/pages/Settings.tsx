@@ -1,4 +1,5 @@
 import PageIntro from '../components/ui/PageIntro';
+import DriveDestination from '../components/settings/DriveDestination';
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
@@ -64,6 +65,7 @@ export default function Settings({ onLogout }: { onLogout?: () => void }) {
       <Header theme={theme} onSetTheme={setTheme} title="Settings" />
       <div className="lab-page-content px-4 lg:px-8 max-w-3xl mx-auto py-6 space-y-6">
         <PageIntro title="Workspace settings" description="Manage appearance, personnel, connectivity, and protected administrative tools." kind="molecule" />
+        <DriveDestination />
         
         {/* Header with Lock Status */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">

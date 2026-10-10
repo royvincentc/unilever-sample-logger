@@ -23,6 +23,8 @@ import Settings from './pages/Settings';
 import LiveSheetView from './pages/LiveSheetView';
 import Logbook from './pages/Logbook';
 import Calendar from './pages/Calendar';
+import Kanban from './pages/Kanban';
+import Whiteboard from './pages/Whiteboard';
 
 function PageTransition({ children }: { children: React.ReactNode }) {
   const reduced = useReducedMotion();
@@ -92,6 +94,8 @@ function AppContent({
                     <Route path="results" element={<PageTransition><Results /></PageTransition>} />
                     <Route path="settings" element={<PageTransition><Settings onLogout={logout} /></PageTransition>} />
                     <Route path="calendar" element={<PageTransition><Calendar /></PageTransition>} />
+                    <Route path="kanban/:id?" element={<PageTransition><Kanban /></PageTransition>} />
+                    <Route path="whiteboard/:id?" element={<PageTransition><Whiteboard /></PageTransition>} />
                     <Route path="*" element={<Navigate to="/" replace />} />
                   </Routes>
                 </AnimatePresence>

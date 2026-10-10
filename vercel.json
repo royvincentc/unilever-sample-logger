@@ -1,4 +1,5 @@
 {
+  "crons": [{ "path": "/api/drive-worker", "schedule": "0 0 * * *" }],
   "rewrites": [
     {
       "source": "/api/(.*)",

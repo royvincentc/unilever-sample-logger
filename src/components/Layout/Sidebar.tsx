@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { LayoutDashboard, PlusCircle, Clock, ListTodo, Settings, LogOut, FlaskConical, FileText, FileSpreadsheet, BookOpen, CalendarDays, ChevronLeft, ChevronRight, X, ShieldCheck } from 'lucide-react';
 const groups = [
   { label: 'WORKSPACE', items: [{to:'/',icon:LayoutDashboard,label:'Dashboard'},{to:'/new',icon:PlusCircle,label:'New sample'},{to:'/queue',icon:ListTodo,label:'Offline queue'}] },
+  { label: 'COLLABORATION', items: [{to:'/kanban',icon:ListTodo,label:'Shared boards'},{to:'/whiteboard',icon:FileText,label:'Whiteboard'}] },
   { label: 'LAB OPERATIONS', items: [{to:'/history',icon:Clock,label:'History'},{to:'/incubation',icon:FlaskConical,label:'Incubations'},{to:'/calendar',icon:CalendarDays,label:'Calendar'}] },
   { label: 'RECORDS & REPORTS', items: [{to:'/live',icon:FileSpreadsheet,label:'Live sheet'},{to:'/logbook',icon:BookOpen,label:'Logbook'},{to:'/results',icon:FileText,label:'Reports'},{to:'/settings',icon:Settings,label:'Settings'}] },
 ];

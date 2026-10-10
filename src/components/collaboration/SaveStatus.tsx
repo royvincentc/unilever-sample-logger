@@ -1,0 +1,3 @@
+export default function SaveStatus({connected,pending,revision,driveRevision,driveStatus,saved}:{connected:boolean;pending:number;revision?:number;driveRevision?:number;driveStatus?:string;saved?:boolean}) {
+  return <div className={`collab-status ${saved?'local-saved':''}`} role="status" aria-live="polite"><span>{connected?'Live connection':'Reconnecting'}</span><span>{pending?`${pending} pending`:'No pending changes'}</span><span>Backend: {revision?`revision ${revision}`:'waiting'}</span><span>Drive: {driveStatus==='saved'?`revision ${driveRevision}`:driveStatus||'not configured'}</span></div>;
+}

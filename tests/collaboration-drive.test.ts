@@ -1,0 +1,9 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { immutableUpload } from '../api/_drive';
+const options={id:'reserved',folder:'folder',name:'checkpoint.json',mime:'application/json',content:Buffer.from('{"revision":2}'),properties:{checkpoint:'job'}};
+function fake(meta:any,content:Buffer){let creates=0;return {client:{files:{get:async(args:any)=>{if(args.alt)return {data:content};if(!meta)throw Object.assign(new Error('missing'),{code:404});return {data:meta};},create:async()=>{creates++;return {data:{id:'reserved',version:'1'}};}}} as any,get creates(){return creates;}};}
+test('Drive duplicate upload verifies existing content without overwriting',async()=>{const mock=fake({parents:['folder'],appProperties:{checkpoint:'job'}},options.content);await immutableUpload({...options,client:mock.client});assert.equal(mock.creates,0);});
+test('Drive modified, moved or trashed checkpoints are never overwritten',async()=>{for(const meta of [{parents:['folder'],appProperties:{checkpoint:'job'}},{parents:['other'],appProperties:{checkpoint:'job'}},{parents:['folder'],trashed:true,appProperties:{checkpoint:'job'}}]){const mock=fake(meta,Buffer.from('external edit'));await assert.rejects(immutableUpload({...options,client:mock.client}),/modified|moved|deleted/);assert.equal(mock.creates,0);}});
+test('Drive uncertain missing upload is retained rather than recreated',async()=>{const mock=fake(null,options.content);await assert.rejects(immutableUpload({...options,allowCreate:false,client:mock.client}),/automatic recreation is disabled/);assert.equal(mock.creates,0);});
+test('Drive new checkpoint is verified by downloading its content',async()=>{const mock=fake(null,options.content);await immutableUpload({...options,client:mock.client});assert.equal(mock.creates,1);const corrupt=fake(null,Buffer.from('different'));await assert.rejects(immutableUpload({...options,client:corrupt.client}),/verification failed/);});

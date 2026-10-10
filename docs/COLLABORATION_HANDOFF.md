@@ -1,0 +1,74 @@
+# Shared Kanban and Excalidraw handoff
+
+Implemented locally on 2026-10-10 after approval (`proceed`). No deployment, live migration, Drive write, or sharing change was made. Cloud activation and the live verification checklist below remain outstanding because no server credentials, explicit member roster, or writable Drive destination were supplied.
+
+## Delivered behavior
+
+The sidebar opens Shared boards (`/kanban`) and Shared drawings (`/whiteboard`). Every member of the configured QC workspace sees its resources. Admins and editors create, rename, import, edit and delete; viewers read/export and pan/zoom drawings. Resource trash is recoverable. Collaboration requires verified Firebase Google sign-in and an active database membership; legacy password/PIN flags and anonymous sessions grant no collaboration access.
+
+Kanban has editable titles, colors and bodies, synchronized card/sidebar body editing with Yjs, draggable full headers, keyboard dragging and explicit Earlier/Later/Column controls. Columns can be created, renamed, reordered, and deleted by moving or trashing their notes. Deleted notes can be restored. Metadata conflicts retain the rejected operation for review instead of silently replacing another user's changes. Small-screen columns scroll horizontally with a named column selector.
+
+The official Excalidraw editor is loaded on demand, with local official fonts. Elements, deletion tombstones and inline image files persist together. Camera, zoom and selection stay local. Remote scene updates use the editor's non-history capture mode; identical echoes are skipped and active pointer/text composition interactions defer reconciliation. Same-element concurrent writes are retained as conflicts. Canvas fullscreen keeps the mounted editor and history, isolates background controls and restores focus. Fit drawing uses padding for toolbars. Canonical .excalidraw and PNG/SVG exports are available; importing creates a new resource.
+
+Separate status fields describe connection, queued edits, acknowledged backend revision and Drive checkpoint state. A local outbox survives reload and reconnect under the same Google UID/workspace/resource. Keep the same browser profile when recovering a pending draft; clearing site data removes that local copy.
+
+## Architecture and bounds
+
+- Vercel HTTP endpoints verify Firebase ID tokens (including revocation), Google provider and verified email, then look up the current workspace role. All content mutations go through the server; direct browser database mutations and RPC execution are revoked.
+- Supabase PostgreSQL stores one versioned JSON aggregate per resource. A transaction rechecks/locks membership, locks the resource and compares revisions. The API retries revision contention up to five times. Immutable operation receipts record actor/hash/acknowledgment metadata, so retrying a lost response cannot apply the operation twice. Replayed requests receive the latest resource plus their original acknowledgment.
+- Yjs merges note-body updates regardless of arrival order. Titles/colors use field versions. Resource and note generations plus tombstones reject stale resurrection. Structural moves/deletes are atomic. Drawing changes require current element versions and explicit restoration.
+- Optional Firebase-authenticated, RLS-filtered Postgres Changes notifications trigger HTTP catch-up. HTTP synchronization and server-authorized presence also poll every 1.5 seconds; presence expires after 12 seconds. This is slower cursor feedback than a dedicated low-latency transport. No public or unauthenticated broadcast room is used.
+- Drawing assets are **bounded inline private data**, not a separate object-storage implementation. The resource limit is 3 MB; supported files are PNG, JPEG, WebP and GIF, at most 100 files. Imports allow at most 10,000 elements/notes and 100 board columns, subject to the total limit. Larger resources must be split. Do not increase limits without adding private object storage, upload authorization and load tests.
+- Board DOM virtualization, offscreen-column windowing, lazy text models, stable measured refs and unchanged snapshot/text caching bound rendered work. Drawing changes debounce 250ms; cursors publish at the polling interval. Preview generation waits for idle and is bounded to 768px. Previews over 700KB are omitted, leaving the drawing checkpoint waiting for a usable preview rather than claiming it is complete.
+
+These aggregate, inline-asset and polling choices are explicit deviations from the plan's normalized tables/private-storage/private-room possibilities. They provide a bounded implementation on the existing function hosting model. They do not establish a large-document or high-frequency collaboration SLA.
+
+## Cloud setup (operator action required)
+
+1. Use an approved staging Supabase project and Firebase Google project. The existing Firebase client is `unilever-qc`. The migration's JWT issuer policies also pin that project; if using a different project, change the client and both SQL issuer checks together before applying anything. Do not grant anonymous or authenticated write access.
+2. Review and apply `supabase/migrations/20261010025516_collaboration_foundation.sql` through the normal migration process. The checked-in CLI config is local scaffolding; no linked project was changed here. Enable `collab_resources` in the `supabase_realtime` publication. Configure Supabase Firebase third-party Auth for the same project and test tokens carrying `role: authenticated`.
+3. Set server-only `FIREBASE_PROJECT_ID`, `FIREBASE_ADMIN_CREDENTIALS`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `COLLABORATION_WORKSPACE_ID`, and `CRON_SECRET`. See `.env.example`. Never put admin credentials, service-role keys, refresh tokens or the cron secret into `VITE_` variables.
+4. Set public `VITE_COLLABORATION_WORKSPACE_ID`, `VITE_SUPABASE_URL`, and `VITE_SUPABASE_PUBLISHABLE_KEY`. HTTP fallback still works if optional Realtime settings are absent; server configuration and membership remain mandatory.
+5. Create a private roster file with the exact approved identities, for example:
+
+   ```json
+   {"workspaceId":"APPROVED-UUID","name":"QC microbiology","members":[{"uid":"APPROVED-FIREBASE-UID","role":"admin"}]}
+   ```
+
+   Run `npx tsx tools/collaboration/provision-members.ts <private-roster-path>` in an environment with server credentials. It checks verified Google users, upserts only those memberships and preserves existing custom claims while adding the Supabase role claim. It does not infer users from display names or automatically enroll Google accounts. Refresh Google tokens afterwards. To revoke workspace access, set that membership's `active=false`; recheck HTTP and Realtime denial with the affected session still open. Revoke Firebase refresh tokens as appropriate for identity/session revocation.
+6. Enable the Drive API. Either reuse server `GCP_CREDENTIALS_JSON`/`GOOGLE_CREDENTIALS` with an already authorized **Shared Drive** folder, or configure all three server OAuth values for **My Drive** (`DRIVE_OAUTH_CLIENT_ID`, `DRIVE_OAUTH_CLIENT_SECRET`, `DRIVE_OAUTH_REFRESH_TOKEN`). Service accounts need Shared Drive storage; a Sheets-only scope is insufficient. An application admin enters the dedicated folder ID in Settings; the server validates type, trash status and ability to add children.
+7. Confirm hosting cron/function capabilities. The checked-in cron runs daily at 00:00 UTC (08:00 Taipei), and handles at most three due jobs per invocation. Manual Save to Drive runs a bounded worker immediately. This baseline is not a frequent automatic-backup SLA; increase worker frequency/capacity only after confirming the hosting plan and queue load.
+
+For real local API testing run the existing Vercel development workflow (`npm run dev:api`) with approved staging configuration; Vite proxies `/api` to port 3000. The isolated preview below is not a cloud substitute.
+
+## Drive safety and recovery
+
+Drive is a checkpoint/export destination, while PostgreSQL is authoritative live state. Application roles and Drive ACLs are independent: exported copies may be readable by people outside the workspace if the folder already allows that. This implementation never changes Drive sharing. Drive previews are read-only artifacts; interactive editing occurs in the app.
+
+Each checkpoint has a durable revision/snapshot, lease/fence, reserved file IDs and content hash. Unclaimed debounce jobs without reserved IDs coalesce; failed/in-flight/uncertain jobs remain retained. Canonical JSON/.excalidraw and readable HTML/PNG use immutable files. A retry verifies existing content instead of overwriting. Saved is reported only after downloading and verifying content. A drawing job waits for its idle preview before writing. Canonical files include their required inline images.
+
+Use Settings to inspect failures and retry retained jobs by ID. Open a drawing and let it synchronize/idle before retrying a preview-dependent save. Externally changed, moved, trashed or missing uncertain uploads become conflicts. After a file ID was reserved, a missing upload is conservatively treated as possibly deleted; automatic recreation is disabled. This can require manual review even if an upload failed before creating a file. Do not reset reserved IDs to force a retry without reviewing the destination.
+
+Saved checkpoints can be downloaded or recovered as **new** resources through Settings. Recovery rechecks folder/trash status and the stored SHA-256 hash, then runs the same canonical import validation. For an externally modified checkpoint, review/download it directly in Drive and explicitly import an inspected copy. No overwrite or silent re-creation is used to resolve a conflict. Resource trash restoration increments generation, so old pending operations cannot revive prior content.
+
+## Local verification
+
+`npm test`: 23 existing tests and 14 collaboration tests pass. Coverage includes Yjs arrival-order convergence, metadata conflicts, generations/tombstones, occupied-column deletion, drawing version conflicts, asset validation, exports, SQL membership/CAS/receipts, debounce coalescing, worker leases, direct viewer SQL/RPC rejection and revoked membership reads. Mock Drive tests verify unchanged retries, modified/moved/trashed refusal, uncertain missing-file refusal and download verification. PGlite and mock Drive tests are not live service verification.
+
+Chrome browser coverage passes: inline/sidebar synchronization, header pointer/keyboard dragging, move/delete/Undo, two editors plus viewer, rejected viewer HTTP mutation in the isolated fixture, reload, persisted offline retry, official editor separate-element undo/redo and same-element style preservation, remote deletion undo, pointer reconciliation deferral, stable fullscreen mount/Exit/Escape/focus restoration, viewer controls, canonical image import persistence, and actual canonical/PNG/SVG download contents. The fixture uses the real protocol/UI but substitutes identities and in-memory HTTP storage; it does not verify production Firebase signatures or hosted Realtime.
+
+`npm run typecheck:api` and `npm run build` pass. Build retains large-chunk warnings from the existing app and editor dependencies. The official editor is lazy-loaded. Local official fonts are prepared by predev/prebuild; production must retain those copied public assets.
+
+`npm run dev:collaboration-preview` starts the isolated fixture on `127.0.0.1:5191`; `/kanban`, `/whiteboard`, `?role=editor2` and `?role=viewer` exercise separate profiles. Fixture auth and `/spike` are only in the dedicated preview config, not production routes. `npm run test:e2e` uses installed Chrome. The actual app was also started on port 5174 and rendered its existing `/login` boundary from `/kanban`; authenticated production data was unavailable.
+
+Screenshots cover 1440x900, 390x844, narrow 320px dark, and the browser-tool measured 1036x578 viewport. The physical user device is unknown. Axe found no serious/critical violations in the tested board state. The one-time design detector returned no findings. The independent reviewer returned **ship** for the six supplied screenshot/source states; its scope excludes independent live/animated behavior verification. See `design/validation/collaboration-design-review.md` and `collaboration-design-documentation.md`. Incumbent design files were preserved. A separate direction brief was not persisted; the documentation records this gap.
+
+## Performance and remaining verification
+
+Raw profile conditions/results are in `design/validation/collaboration-profile.json` and the heavier simultaneous-column run in `collaboration-profile-stress.json`. Windows 10.0.26300, Core Ultra 5 125U, 16.6GB RAM, Chrome 154.0.8037.98, headless, 1440x900, no throttling. Boards contain 100/1,000/5,000 notes across 3/10 columns with 107-character text and Yjs state (~45KB/451KB/2.26MB). Drawings contain 100/1,000/5,000 simple shapes (~43KB/435KB/2.19MB), without images. Long-task lists include startup/reconciliation, not just steady scrolling.
+
+Single-column scrolling mounted 29–45 notes and measured p95 18.3–18.7ms across these boards. The simultaneous-column stress run mounted 39–65 notes and measured p95 35.4–53ms, with up to six recorded long tasks. Earlier ten-column runs mounted 100–130 notes; horizontal windowing reduced that work substantially. Idle drawing frames after reconciliation measured p95 18.3–18.6ms. These are bounded synthetic samples, not physical mobile, active gesture, production network or universal smoothness guarantees. Active drawing/drag frame profiling with real image-heavy documents and cloud sessions remains unverified.
+
+Compatible audit fixes removed the initial critical advisory. The final recorded audit still has **31 advisories: 21 high, 8 moderate, 2 low**. Direct affected packages include Excalidraw, Firebase, Vercel Node tooling and legacy html-docx-js; npm's suggested fixes include breaking downgrades, not safe compatible upgrades. Do not treat the dependency tree as security-cleared. Review reachable advisory paths and upstream compatible releases before production rollout. No forced breaking downgrade was applied.
+
+Before cloud rollout, verify real editor/editor/viewer Google accounts, forged/expired/revoked token rejection, direct client asset/RPC writes, membership revocation during an open Realtime session, notification delivery, multiple backend instances and ambiguous-response replay. Exercise native IME on the actual device (synthetic/ordinary text checks are insufficient). Test real Drive canonical+image+preview saving, refresh/retry, external modification/move/delete protection, worker lease expiry and recovery in the approved dedicated test folder. No live result is claimed for those checks.

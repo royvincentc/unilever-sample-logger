@@ -1,0 +1,255 @@
+{
+  "conditions": {
+    "platform": "win32",
+    "osRelease": "10.0.26300",
+    "cpu": "Intel(R) Core(TM) Ultra 5 125U",
+    "cpuCount": 14,
+    "totalMemory": 16605564928,
+    "browser": "154.0.8037.98",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "headless": true,
+    "throttling": "none",
+    "data": "synthetic; boards contain 107-character bodies and shared Yjs seed state; drawings contain rectangles/ellipses without images",
+    "limitations": "Single-column scroll/render sample; drawing samples are idle after reconciliation. Load/reconciliation long tasks included; no claim about physical mobile devices, all-user hardware, production latency, or active drawing/drag gesture frame timing."
+  },
+  "results": [
+    {
+      "kind": "board",
+      "count": 100,
+      "columns": 3,
+      "dataset": {
+        "bytes": 45296,
+        "notes": 100
+      },
+      "loadMs": 621,
+      "frames": 138,
+      "p50": 17.700000000000045,
+      "p95": 18.5,
+      "over16_7": 137,
+      "over33_3": 1,
+      "longTasks": [
+        {
+          "start": 332.29999999701977,
+          "duration": 160
+        },
+        {
+          "start": 617.7999999970198,
+          "duration": 54
+        }
+      ],
+      "heapBytes": 70350270,
+      "renderedNotes": 29,
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/154.0.0.0 Safari/537.36"
+    },
+    {
+      "kind": "board",
+      "count": 100,
+      "columns": 10,
+      "dataset": {
+        "bytes": 45717,
+        "notes": 100
+      },
+      "loadMs": 338,
+      "frames": 136,
+      "p50": 17.800000000000068,
+      "p95": 18.300000000000182,
+      "over16_7": 135,
+      "over33_3": 2,
+      "longTasks": [
+        {
+          "start": 151.90000000596046,
+          "duration": 97
+        },
+        {
+          "start": 333.20000000298023,
+          "duration": 79
+        },
+        {
+          "start": 429.1000000089407,
+          "duration": 107
+        },
+        {
+          "start": 546.1000000089407,
+          "duration": 53
+        }
+      ],
+      "heapBytes": 85232990,
+      "renderedNotes": 42,
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/154.0.0.0 Safari/537.36"
+    },
+    {
+      "kind": "board",
+      "count": 1000,
+      "columns": 3,
+      "dataset": {
+        "bytes": 450972,
+        "notes": 1000
+      },
+      "loadMs": 257,
+      "frames": 116,
+      "p50": 17.899999999999977,
+      "p95": 18.699999999999932,
+      "over16_7": 114,
+      "over33_3": 3,
+      "longTasks": [
+        {
+          "start": 76.5,
+          "duration": 63
+        },
+        {
+          "start": 263.8999999910593,
+          "duration": 131
+        }
+      ],
+      "heapBytes": 91251029,
+      "renderedNotes": 29,
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/154.0.0.0 Safari/537.36"
+    },
+    {
+      "kind": "board",
+      "count": 1000,
+      "columns": 10,
+      "dataset": {
+        "bytes": 451393,
+        "notes": 1000
+      },
+      "loadMs": 219,
+      "frames": 143,
+      "p50": 17.899999999999977,
+      "p95": 18.5,
+      "over16_7": 142,
+      "over33_3": 0,
+      "longTasks": [],
+      "heapBytes": 118408063,
+      "renderedNotes": 45,
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/154.0.0.0 Safari/537.36"
+    },
+    {
+      "kind": "board",
+      "count": 5000,
+      "columns": 3,
+      "dataset": {
+        "bytes": 2261972,
+        "notes": 5000
+      },
+      "loadMs": 205,
+      "frames": 139,
+      "p50": 17.700000000000045,
+      "p95": 18.5,
+      "over16_7": 137,
+      "over33_3": 1,
+      "longTasks": [
+        {
+          "start": 210.79999999701977,
+          "duration": 66
+        },
+        {
+          "start": 339.19999998807907,
+          "duration": 69
+        }
+      ],
+      "heapBytes": 115903101,
+      "renderedNotes": 29,
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/154.0.0.0 Safari/537.36"
+    },
+    {
+      "kind": "board",
+      "count": 5000,
+      "columns": 10,
+      "dataset": {
+        "bytes": 2262393,
+        "notes": 5000
+      },
+      "loadMs": 181,
+      "frames": 140,
+      "p50": 17.799999999999955,
+      "p95": 18.600000000000023,
+      "over16_7": 139,
+      "over33_3": 2,
+      "longTasks": [
+        {
+          "start": 268.90000000596046,
+          "duration": 62
+        }
+      ],
+      "heapBytes": 129876307,
+      "renderedNotes": 45,
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/154.0.0.0 Safari/537.36"
+    },
+    {
+      "kind": "drawing",
+      "count": 100,
+      "bytes": 43196,
+      "reconcileMs": 102,
+      "frames": 141,
+      "p50": 17.90000000000009,
+      "p95": 18.59999999999991,
+      "over16_7": 140,
+      "over33_3": 0,
+      "longTasks": [
+        {
+          "start": 79,
+          "duration": 52
+        },
+        {
+          "start": 182.70000000298023,
+          "duration": 147
+        }
+      ],
+      "heapBytes": 126577673,
+      "renderedNotes": 0,
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/154.0.0.0 Safari/537.36"
+    },
+    {
+      "kind": "drawing",
+      "count": 1000,
+      "bytes": 435332,
+      "reconcileMs": 83,
+      "frames": 141,
+      "p50": 17.90000000000009,
+      "p95": 18.59999999999991,
+      "over16_7": 140,
+      "over33_3": 0,
+      "longTasks": [
+        {
+          "start": 135.70000000298023,
+          "duration": 53
+        },
+        {
+          "start": 224,
+          "duration": 61
+        }
+      ],
+      "heapBytes": 137397422,
+      "renderedNotes": 0,
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/154.0.0.0 Safari/537.36"
+    },
+    {
+      "kind": "drawing",
+      "count": 5000,
+      "bytes": 2186757,
+      "reconcileMs": 134,
+      "frames": 138,
+      "p50": 17.799999999999727,
+      "p95": 18.300000000000182,
+      "over16_7": 138,
+      "over33_3": 2,
+      "longTasks": [
+        {
+          "start": 136,
+          "duration": 51
+        },
+        {
+          "start": 237.59999999403954,
+          "duration": 99
+        }
+      ],
+      "heapBytes": 89242793,
+      "renderedNotes": 0,
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/154.0.0.0 Safari/537.36"
+    }
+  ]
+}
