@@ -83,7 +83,7 @@ export function generateShiftSummary(
   const hour = new Date(now.getTime() + OFFSET).getUTCHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
   const [year, month, day] = date.split('-');
-  const lines = [`${greeting}!`, '', `${month}/${day}/${year}`, `${shift} shift (${shift === 'AM' ? '6:00 AM - 6:00 PM' : '6:00 PM - 6:00 AM next day'})`, ''];
+  const lines = [`${greeting}!`, '', `${month}/${day}/${year}`, ''];
   const warnings: string[] = [];
   const sections: { title: string; activities: Activity[] }[] = [];
   let count = 0;
@@ -91,6 +91,7 @@ export function generateShiftSummary(
     const title = type === 'RawMats' ? 'RM,FG,SFG' : type === 'WATER' ? 'Water' : 'ENVI';
     const activities: Activity[] = [];
     const swabGroups = new Set<string>();
+    const materialGroups = new Map<string, { activity: Activity; name: string; source: string }[]>();
     let invalid = 0;
     for (const raw of rows[type] || []) {
       const row = Object.fromEntries(Object.entries(raw).map(([key, value]) => [normalize(key), value]));
@@ -130,14 +131,30 @@ export function generateShiftSummary(
       const displayName = type === 'ENVI' ? swabEquipment(name) : type === 'RawMats'
         ? name.replace(/^Surf\s+Liquid\s+Detergent\b/i, 'SLD').replace(/^Surf\s+Fabric\s+Conditioner\b/i, 'SFC')
         : name;
-      const label = `${displayName || cell(row, 'CONTROL #', 'CONTROL NUMBER') || 'Unnamed sample'}${batch ? ` : ${batch}` : ''} @ ${time}${notes ? ` (${notes})` : ''}`;
+      const sampleName = displayName || cell(row, 'CONTROL #', 'CONTROL NUMBER') || 'Unnamed sample';
+      const label = `${sampleName}${batch ? ` : ${batch}` : ''} @ ${time}${notes ? ` (${notes})` : ''}`;
       count++;
       if (type === 'ENVI') {
         const group = JSON.stringify([label, person.toUpperCase(), timestamp]);
         if (swabGroups.has(group)) continue;
         swabGroups.add(group);
       }
-      activities.push({ label, person, timestamp, handover });
+      const activity = { label, person, timestamp, handover };
+      activities.push(activity);
+      if (type === 'RawMats') {
+        const key = JSON.stringify([normalize(sampleName), normalize(batch)]);
+        const source = cell(row, 'SOURCE')
+          .replace(/^MX\s+Sampling\s+Port\s+(\d+)$/i, 'MX-SP$1')
+          .replace(/^Storage\s+Tank\s+(\d+)$/i, 'ST$1');
+        if (!materialGroups.has(key)) materialGroups.set(key, []);
+        materialGroups.get(key)!.push({ activity, name: sampleName, source });
+      }
+    }
+    for (const group of materialGroups.values()) {
+      if (group.length < 2) continue;
+      for (const { activity, name, source } of group) {
+        if (source) activity.label = `${name} (${source})${activity.label.slice(name.length)}`;
+      }
     }
     if (invalid) warnings.push(`${title}: ${invalid} row(s) excluded because the activity date/time is missing or invalid.`);
     sections.push({ title, activities });
