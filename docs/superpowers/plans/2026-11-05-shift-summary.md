@@ -56,8 +56,10 @@ history are unsuitable because their data may be stale or omit personnel.
 
 ## Verification
 
-- Formatter: 12 tests passed, including analyst attribution, swab compression,
+- Formatter: 13 tests passed, including analyst attribution, swab compression,
   all-category automatic incoming/outgoing handovers and New Year boundaries.
+  Notes without endorsement keywords are retained and prevent distinct
+  instructions from being collapsed together.
 - API and existing control-number regression: 15 tests passed. API tests use
   the real shift-window and message-splitting helpers.
 - Browser: 4 tests passed at 1440px/390px, including focus trapping/restoration,

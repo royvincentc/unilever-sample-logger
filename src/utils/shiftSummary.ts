@@ -120,7 +120,7 @@ export function generateShiftSummary(
       const time = `${hours % 12 || 12}:${String(minutes).padStart(2, '0')} ${hours < 12 ? 'AM' : 'PM'}`;
       const endorsedTo = cell(row, 'ENDORSED TO', 'ENDORSED', 'ENDORSE');
       const remarks = cell(row, 'REMARKS', 'COMMENTS', 'NOTES');
-      const endorsement = [endorsedTo ? `Endorsed to ${endorsedTo}` : '', /\bendors/i.test(remarks) ? remarks : ''].filter(Boolean).join('; ');
+      const endorsement = [endorsedTo ? `Endorsed to ${endorsedTo}` : '', remarks].filter(Boolean).join('; ');
       const target = endorsement.match(/\bendorse(?:d)?\s+to\s+(?:the\s+)?(day\s*shift|night\s*shift|AM\s*shift|PM\s*shift)\b/i)?.[1].replace(/\s/g, '').toUpperCase();
       const explicitHandover = shift === 'AM' ? target === 'NIGHTSHIFT' || target === 'PMSHIFT' : target === 'DAYSHIFT' || target === 'AMSHIFT';
       const handover = !incoming && (timestamp >= end.getTime() - handoverPeriod || explicitHandover);

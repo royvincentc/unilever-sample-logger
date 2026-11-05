@@ -191,6 +191,20 @@ test('incoming endorsements keep the recorded recipient and handover instruction
   assert.doesNotMatch(incoming.text, /Endorse to Night Shift\n/);
 });
 
+test('automatic handovers preserve notes without endorsement keywords and keep distinct instructions', () => {
+  const rows = { ENVI: ['Hold pending retest', 'Continue incubation'].map(REMARKS => ({
+    SAMPLE: 'LEEPACK BODY', 'DATE SWABBED': '11/04/2026', 'TIME SWABBED': '4:12 PM',
+    'ANALYZED BY': 'ROY', REMARKS,
+  })) };
+  for (const shift of ['AM', 'PM'] as const) {
+    const report = generateShiftSummary(rows, '2026-11-04', shift);
+    assert.equal(report.count, 2);
+    assert.equal(report.text.match(/Leepack @ 4:12 PM/g)?.length, 2);
+    assert.match(report.text, /Hold pending retest/);
+    assert.match(report.text, /Continue incubation/);
+  }
+});
+
 test('empty shifts are explicit and splitting preserves all content and Unicode', () => {
   const report = generateShiftSummary({}, '2026-10-28', 'AM');
   assert.equal(report.count, 0);
