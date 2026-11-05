@@ -141,7 +141,7 @@ export function generateShiftSummary(
       const explicitHandover = shift === 'AM' ? target === 'NIGHTSHIFT' || target === 'PMSHIFT' : target === 'DAYSHIFT' || target === 'AMSHIFT';
       const handover = !incoming && (timestamp >= end.getTime() - handoverPeriod || explicitHandover);
       const notes = [endorsement, incoming ? `Endorsed by ${shift === 'AM' ? 'Night Shift' : 'Dayshift'}` : ''].filter(Boolean).join('; ');
-      const displayName = type === 'ENVI' ? (handover ? handoverEquipment(name) : swabEquipment(name)) : type === 'RawMats'
+      const displayName = type === 'ENVI' ? (handover || incoming ? handoverEquipment(name) : swabEquipment(name)) : type === 'RawMats'
         ? name.replace(/^Surf\s+Liquid\s+Detergent\b/i, 'SLD').replace(/^Surf\s+Fabric\s+Conditioner\b/i, 'SFC')
         : name;
       const sampleName = displayName || cell(row, 'CONTROL #', 'CONTROL NUMBER') || 'Unnamed sample';
@@ -153,7 +153,7 @@ export function generateShiftSummary(
         swabGroups.add(group);
       }
       const activity = { label, person, timestamp, handover };
-      if (type === 'ENVI' && handover) {
+      if (type === 'ENVI' && (handover || incoming)) {
         const key = JSON.stringify([timestamp, person.toUpperCase(), notes]);
         const group = swabHandovers.get(key);
         if (group) {
