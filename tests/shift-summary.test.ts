@@ -28,7 +28,7 @@ test('AM includes 06:00 but excludes 18:00 and groups by the requested personnel
       { ' date received ': '10/28/2026', ' time received ': '06:32', sample: 'SFC BF', 'MIXING BATCH #': '2810261A2', 'ANALYZED BY': ' - ', 'RECEIVED BY': 'DCN' },
     ],
   }, '2026-10-28', 'AM', new Date('2026-10-28T18:00:00+08:00'));
-  assert.match(report.text, /^Good evening!\n\n10\/28\/2026/);
+  assert.match(report.text, /^Good evening!\n\n10\/28\/2026\n\nENVI\n/);
   assert.match(report.text, /ENVI\nST3 @ 6:00 AM\n\u2014 ROY \u2014/);
   assert.match(report.text, /QCL Chlorine Water @ 10:09 AM\n\u2014 DCN \u2014/);
   assert.match(report.text, /RM,FG,SFG/);
@@ -167,6 +167,35 @@ test('material names abbreviate product families and separate batches without me
   assert.match(report.text, /Other product : OTHER-1 @ 9:26 AM/);
   assert.match(report.text, /SFC - Luxe Perfume : LP01-051126 @ 3:00 AM \(Hold pending retest; Endorsed by Night Shift\)/);
   assert.match(report.text, /Water\nSurf Liquid Detergent rinse @ 10:00 AM/);
+});
+
+test('repeated material names and batches show their sources across analysts and endorsements', () => {
+  const material = (source: string, batch = 'CB01-051126', time = '6:39 AM', analyst = 'CODINERA') => ({
+    SAMPLE: 'Surf Liquid Detergent - Cherry Blossom', SOURCE: source, 'BATCH #': batch,
+    'DATE RECEIVED/SAMPLED': '11/05/2026', TIME: time, 'ANALYZED BY': analyst,
+  });
+  const report = generateShiftSummary({ RawMats: [
+    material('MX Sampling Port 1'),
+    material('Storage Tank 4', 'CB01-051126', '7:08 AM'),
+    material('MX Sampling Port 2', 'CB02-051126'),
+    material('Storage Tank 3', 'CB02-051126', '3:05 AM', 'ROY'),
+    material('IBC TANK', 'CB02-051126', '3:15 PM'),
+    material('', 'CB02-051126', '10:00 AM'),
+    material('Storage Tank 2', 'UNIQUE'),
+    material('Storage Tank 1', 'UNIQUE', '6:00 PM'),
+    material('Storage Tank 1', 'UNIQUE', 'invalid'),
+    { ...material('Storage Tank 1', 'UNIQUE'), SAMPLE: 'Surf Fabric Conditioner - Cherry Blossom' },
+  ] }, '2026-11-05', 'AM');
+  assert.equal(report.count, 8);
+  assert.match(report.text, /SLD - Cherry Blossom \(MX-SP1\) : CB01-051126 @ 6:39 AM/);
+  assert.match(report.text, /SLD - Cherry Blossom \(ST4\) : CB01-051126 @ 7:08 AM/);
+  assert.match(report.text, /SLD - Cherry Blossom \(MX-SP2\) : CB02-051126 @ 6:39 AM/);
+  assert.match(report.text, /SLD - Cherry Blossom \(ST3\) : CB02-051126 @ 3:05 AM \(Endorsed by Night Shift\)/);
+  assert.match(report.text, /SLD - Cherry Blossom \(IBC TANK\) : CB02-051126 @ 3:15 PM/);
+  assert.match(report.text, /SLD - Cherry Blossom : CB02-051126 @ 10:00 AM/);
+  assert.match(report.text, /SLD - Cherry Blossom : UNIQUE @ 6:39 AM/);
+  assert.match(report.text, /SFC - Cherry Blossom : UNIQUE @ 6:39 AM/);
+  assert.doesNotMatch(report.text, /\(\)|\(ST2\)|\(ST1\)/);
 });
 
 test('ENVI without an analyst stays unspecified rather than using the swabber', () => {
