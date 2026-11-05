@@ -135,13 +135,8 @@ test('Akash swab points compress by machine while preserving times, analysts and
     const report = generateShiftSummary(rows, shift === 'AM' ? '2026-11-05' : '2026-11-04', shift);
     const received = shift === 'AM' ? ' (Endorsed by Night Shift)' : '';
     assert.equal(report.count, 8);
-    assert.equal(report.text.split('\n').filter(line => line === `Akash 1 @ 3:05 AM${received}`).length, shift === 'AM' ? 2 : 1);
-    if (shift === 'AM') {
-      assert.match(report.text, /Akash 2 @ 3:05 AM/);
-      assert.match(report.text, /Akash 11 @ 3:05 AM/);
-    } else {
-      assert.match(report.text, /Akash 1, Akash 2, Akash 11 @ 3:05 AM/);
-    }
+    assert.equal(report.text.split('\n').filter(line => line === `Akash 1 @ 3:05 AM${received}`).length, 1);
+    assert.ok(report.text.includes(`Akash 1, Akash 2, Akash 11 @ 3:05 AM${received}`));
     assert.match(report.text, /Akash 1 @ 3:15 AM/);
     assert.match(report.text, /Hold pending retest/);
     assert.doesNotMatch(report.text, /HOPPER|NOZZLE/);
@@ -306,8 +301,36 @@ test('outgoing ENVI compresses equipment and omits missing analysts without losi
     assert.doesNotMatch(report.text, /Unspecified|SWABBER|HOPPER|Inner Dome|BALL|Filter/);
     const incoming = generateShiftSummary(rows, '2026-11-05', shift === 'AM' ? 'PM' : 'AM');
     assert.equal(incoming.count, names.length);
-    assert.match(incoming.text, /Endorsed by/);
+    const source = shift === 'AM' ? 'Dayshift' : 'Night Shift';
+    assert.ok(incoming.text.includes(`SP1, PM1, PM2, PM3, PM4, MX01 @ ${time} (Endorsed by ${source})\n\u2014 Unspecified \u2014`));
+    const assigned = generateShiftSummary({
+      ENVI: rows.ENVI.map(row => ({ ...row, 'ANALYZED BY': 'Roy' })),
+    }, '2026-11-05', shift === 'AM' ? 'PM' : 'AM');
+    assert.equal(assigned.count, names.length);
+    assert.ok(assigned.text.includes(`SP1, PM1, PM2, PM3, PM4, MX01 @ ${time} (Endorsed by ${source})\n\u2014 Roy \u2014`));
   }
+});
+
+test('received ENVI groups machine points while preserving different times, analysts and notes', () => {
+  const swab = (SAMPLE: string, time = '5:30 PM', analyst = 'Roy', remarks = '') => ({
+    SAMPLE, 'DATE SWABBED': '11/05/2026', 'TIME SWABBED': time, 'ANALYZED BY': analyst, REMARKS: remarks,
+  });
+  const report = generateShiftSummary({ ENVI: [
+    swab('Side Pot 1 - Inner Dome'), swab('Side Pot 1 - Outer Dome'),
+    swab('Side Pot 1 - Body'), swab('Side Pot 1 - Stirrer'),
+    swab('Side Pot 2 - Body'), swab('Premixing tank 1 - Body'),
+    swab('Premixing tank 2 - Body', '5:31 PM'),
+    swab('Premixing tank 3 - Body', '5:30 PM', 'CANOY'),
+    swab('Premixing tank 4 - Body', '5:30 PM', 'Roy', 'Hold pending retest'),
+    swab('Main Mixing Tank 1 Filter - Top', '5:30 PM', 'Roy', 'Continue incubation'),
+  ] }, '2026-11-05', 'PM');
+  assert.equal(report.count, 10);
+  assert.match(report.text, /SP1, SP2, PM1 @ 5:30 PM \(Endorsed by Dayshift\)/);
+  assert.match(report.text, /PM2 @ 5:31 PM \(Endorsed by Dayshift\)\n\u2014 Roy \u2014/);
+  assert.match(report.text, /PM3 @ 5:30 PM \(Endorsed by Dayshift\)\n\u2014 CANOY \u2014/);
+  assert.match(report.text, /PM4 @ 5:30 PM \(Hold pending retest; Endorsed by Dayshift\)/);
+  assert.match(report.text, /MX01 @ 5:30 PM \(Continue incubation; Endorsed by Dayshift\)/);
+  assert.doesNotMatch(report.text, /Inner Dome|Outer Dome|Stirrer|Filter|Endorse to Night Shift/);
 });
 
 test('outgoing compression keeps different times, analysts and instructions separate', () => {
