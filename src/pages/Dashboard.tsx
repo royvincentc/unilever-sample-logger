@@ -5,6 +5,7 @@ import { ArrowUpRight, Plus, RefreshCw, Clock, UploadCloud, History, FileText, C
 import Header from '../components/Layout/Header';
 import NotificationPopup from '../components/ui/NotificationPopup';
 import PatchNotesModal from '../components/ui/PatchNotesModal';
+import ShiftSummaryModal from '../components/ui/ShiftSummaryModal';
 import ScienceGraphic from '../components/ui/ScienceGraphic';
 import { auth } from '../utils/firebase';
 import { getHistory, listenToHistory } from '../utils/db';
@@ -91,6 +92,7 @@ export default function Dashboard({ theme, onSetTheme, queueCount }: DashboardPr
             <div className="lab-hero-actions">
               <Link to="/new" className="lab-button primary"><Plus size={18} />New sample</Link>
               <button type="button" onClick={handleSync} disabled={syncing || !online} className="lab-button secondary" aria-busy={syncing}><RefreshCw size={16} className={syncing ? 'animate-spin' : ''} />{syncing ? 'Syncing records…' : 'Sync records'}</button>
+              <ShiftSummaryModal />
             </div>
           </div>
           <ScienceGraphic animated kind={syncing ? 'sync' : 'molecule'} className="lab-hero-art" />

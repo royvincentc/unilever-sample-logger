@@ -10,7 +10,7 @@
     "preview": "vite preview",
     "predev": "node tools/collaboration/editor-assets.cjs",
     "prebuild": "node tools/collaboration/editor-assets.cjs",
-    "test": "node --test tests/*.test.cjs && tsx --test tests/collaboration*.test.ts",
+    "test": "node --test tests/*.test.cjs && tsx --test tests/collaboration*.test.ts tests/shift-summary.test.ts",
     "typecheck:api": "tsc -p tsconfig.collaboration-api.json",
     "test:e2e": "playwright test",
     "dev:collaboration-preview": "vite --config tools/collaboration/preview.config.ts",
