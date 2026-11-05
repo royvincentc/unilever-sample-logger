@@ -32,8 +32,8 @@ test('AM includes 06:00 but excludes 18:00 and groups by the requested personnel
   assert.match(report.text, /ENVI\nST3 @ 6:00 AM\n\u2014 ROY \u2014/);
   assert.match(report.text, /QCL Chlorine Water @ 10:09 AM\n\u2014 DCN \u2014/);
   assert.match(report.text, /RM,FG,SFG/);
-  assert.match(report.text, /SLD CB 2810261A1 @ 6:38 AM\n\u2014 ROY \u2014/);
-  assert.match(report.text, /SFC BF 2810261A2 @ 6:32 AM\n\u2014 DCN \u2014/);
+  assert.match(report.text, /SLD CB : 2810261A1 @ 6:38 AM\n\u2014 ROY \u2014/);
+  assert.match(report.text, /SFC BF : 2810261A2 @ 6:32 AM\n\u2014 DCN \u2014/);
   assert.doesNotMatch(report.text, /Too early|Next shift|OTHER/);
   assert.equal(report.count, 5);
   assert.deepEqual(report.warnings, []);
@@ -119,6 +119,54 @@ test('ENVI compresses equipment points only at the same time, analyst and endors
   assert.match(report.text, /Endorse to Night Shift; repeat test/);
   assert.match(report.text, /Endorse to Night Shift; check nozzle/);
   assert.equal(report.text.split('\n').filter(line => line === 'LEEPACK BODY @ 7:05 AM').length, 2);
+});
+
+test('Akash swab points compress by machine while preserving times, analysts and handover notes', () => {
+  const swab = (SAMPLE: string, time = '3:05 AM', analyst = 'CODINERA', remarks = '') => ({
+    SAMPLE, 'DATE SWABBED': '11/05/2026', 'TIME SWABBED': time, 'ANALYZED BY': analyst, REMARKS: remarks,
+  });
+  const rows = { ENVI: [
+    swab('AKASH 1 HOPPER COVER OUTER DOME'), swab('AKASH 1 HOPPER BODY'),
+    swab('akash 1 nozzle 6'), swab('AKASH 2 NOZZLE 1'), swab('AKASH 11 NOZZLE 1'),
+    swab('AKASH 1 NOZZLE 1', '3:15 AM'),
+    swab('AKASH 1 NOZZLE 2', '3:05 AM', 'ROY'),
+    swab('AKASH 1 NOZZLE 3', '3:05 AM', 'CODINERA', 'Hold pending retest'),
+  ] };
+  for (const shift of ['AM', 'PM'] as const) {
+    const report = generateShiftSummary(rows, shift === 'AM' ? '2026-11-05' : '2026-11-04', shift);
+    const received = shift === 'AM' ? ' (Endorsed by Night Shift)' : '';
+    assert.equal(report.count, 8);
+    assert.equal(report.text.split('\n').filter(line => line === `Akash 1 @ 3:05 AM${received}`).length, 2);
+    assert.match(report.text, /Akash 2 @ 3:05 AM/);
+    assert.match(report.text, /Akash 11 @ 3:05 AM/);
+    assert.match(report.text, /Akash 1 @ 3:15 AM/);
+    assert.match(report.text, /Hold pending retest/);
+    assert.doesNotMatch(report.text, /HOPPER|NOZZLE/);
+  }
+});
+
+test('material names abbreviate product families and separate batches without merging samples', () => {
+  const material = (SAMPLE: string, batch = '', time = '9:26 AM') => ({
+    SAMPLE, 'BATCH #': batch, 'DATE RECEIVED/SAMPLED': '11/05/2026', TIME: time, 'ANALYZED BY': 'CODINERA',
+  });
+  const report = generateShiftSummary({ RawMats: [
+    material('Surf Liquid Detergent - Cherry Blossom', 'CB02-051126'),
+    material('Surf Liquid Detergent - Cherry Blossom', 'CB02-051126', '9:48 AM'),
+    material('surf fabric conditioner - Blossom Fresh', '0511261A1 I 06:18'),
+    material('Surf Liquid Detergent - Rose Fresh'),
+    material('Other product', 'OTHER-1'),
+    { ...material('Surf Fabric Conditioner - Luxe Perfume', 'LP01-051126', '3:00 AM'), REMARKS: 'Hold pending retest' },
+  ], WATER: [{
+    'WATER SOURCE': 'Surf Liquid Detergent rinse', 'DATE SAMPLED': '11/05/2026', TIME: '10:00 AM', 'ANALYZED BY': 'CODINERA',
+  }] }, '2026-11-05', 'AM');
+  assert.equal(report.count, 7);
+  assert.match(report.text, /SLD - Cherry Blossom : CB02-051126 @ 9:26 AM/);
+  assert.match(report.text, /SLD - Cherry Blossom : CB02-051126 @ 9:48 AM/);
+  assert.match(report.text, /SFC - Blossom Fresh : 0511261A1 I 06:18 @ 9:26 AM/);
+  assert.match(report.text, /SLD - Rose Fresh @ 9:26 AM/);
+  assert.match(report.text, /Other product : OTHER-1 @ 9:26 AM/);
+  assert.match(report.text, /SFC - Luxe Perfume : LP01-051126 @ 3:00 AM \(Hold pending retest; Endorsed by Night Shift\)/);
+  assert.match(report.text, /Water\nSurf Liquid Detergent rinse @ 10:00 AM/);
 });
 
 test('ENVI without an analyst stays unspecified rather than using the swabber', () => {

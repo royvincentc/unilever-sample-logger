@@ -50,6 +50,8 @@ function sheetTime(value: string): number | null {
 
 function swabEquipment(name: string): string {
   if (/^LEEPACK\b/i.test(name)) return 'Leepack';
+  const akash = name.match(/^AKASH\s+(\d+)\b/i);
+  if (akash) return `Akash ${akash[1]}`;
   const tank = name.match(/^(?:STORAGE\s+TANK\s*|ST\s*)(\d+)\b/i);
   return tank ? `ST${tank[1]}` : name;
 }
@@ -125,8 +127,10 @@ export function generateShiftSummary(
       const explicitHandover = shift === 'AM' ? target === 'NIGHTSHIFT' || target === 'PMSHIFT' : target === 'DAYSHIFT' || target === 'AMSHIFT';
       const handover = !incoming && (timestamp >= end.getTime() - handoverPeriod || explicitHandover);
       const notes = [endorsement, incoming ? `Endorsed by ${shift === 'AM' ? 'Night Shift' : 'Dayshift'}` : ''].filter(Boolean).join('; ');
-      const displayName = type === 'ENVI' ? swabEquipment(name) : name;
-      const label = `${displayName || cell(row, 'CONTROL #', 'CONTROL NUMBER') || 'Unnamed sample'}${batch ? ` ${batch}` : ''} @ ${time}${notes ? ` (${notes})` : ''}`;
+      const displayName = type === 'ENVI' ? swabEquipment(name) : type === 'RawMats'
+        ? name.replace(/^Surf\s+Liquid\s+Detergent\b/i, 'SLD').replace(/^Surf\s+Fabric\s+Conditioner\b/i, 'SFC')
+        : name;
+      const label = `${displayName || cell(row, 'CONTROL #', 'CONTROL NUMBER') || 'Unnamed sample'}${batch ? ` : ${batch}` : ''} @ ${time}${notes ? ` (${notes})` : ''}`;
       count++;
       if (type === 'ENVI') {
         const group = JSON.stringify([label, person.toUpperCase(), timestamp]);
