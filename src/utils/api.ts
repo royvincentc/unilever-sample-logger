@@ -1,4 +1,61 @@
 import { getSettings } from './auth';
+import type { Shift, ShiftRows } from './shiftSummary';
+
+/** Fetch every summary tab directly; an incomplete read must never become a report. */
+export async function fetchShiftSummaryRows(date: string, shift: Shift): Promise<ShiftRows> {
+  const { spreadsheetId } = getSettings();
+  if (!spreadsheetId) throw new Error('Spreadsheet ID not configured in settings.');
+  const { getShiftWindow } = await import('./shiftSummary');
+  const { start, end } = getShiftWindow(date, shift);
+  const taipeiYear = (time: number) => new Date(time + 8 * 3600000).getUTCFullYear();
+  const years = [...new Set([taipeiYear(start.getTime()), taipeiYear(end.getTime() - 1)])];
+  const types = ['ENVI', 'WATER', 'RawMats'] as const;
+  const tabs = await Promise.all(types.flatMap(type => years.map(async year => {
+    // The mapper uses local getFullYear, so pass a local date with the Taipei year.
+    const tab = getSheetTabName(type, undefined, new Date(year, 0, 1));
+    const params = new URLSearchParams({ sheetId: spreadsheetId, tab });
+    try {
+      const response = await fetch(`/api/sheet-data?${params}`, { method: 'GET', cache: 'no-store' });
+      if (!response.ok) throw new Error();
+      const rows: unknown = await response.json();
+      if (!Array.isArray(rows) || rows.some(row => row === null || typeof row !== 'object' || Array.isArray(row))) {
+        throw new Error();
+      }
+      return { type, rows: rows as Record<string, unknown>[] };
+    } catch {
+      throw new Error(`Could not read valid shift summary rows from tab "${tab}".`);
+    }
+  })));
+  const result: ShiftRows = {};
+  for (const { type, rows } of tabs) {
+    result[type] = (result[type] ?? []).concat(rows);
+  }
+  return result;
+}
+
+/** Send in order without retries, keeping partial delivery visible to the caller. */
+export async function sendShiftSummaryToTelegram(text: string): Promise<void> {
+  if (!text.trim()) throw new Error('Shift summary text cannot be blank.');
+  const { splitTelegramText } = await import('./shiftSummary');
+  let sent = 0;
+  for (const chunk of splitTelegramText(text)) {
+    try {
+      const response = await fetch('/api/telegram', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: chunk }),
+      });
+      if (!response.ok || (await response.json())?.success !== true) throw new Error();
+      sent++;
+    } catch {
+      throw new Error(
+        `Telegram shift summary failed: ${sent} messages already sent. ` +
+        'The failed message may also have been delivered if its acknowledgment was lost. ' +
+        'Check Telegram before retrying the report.'
+      );
+    }
+  }
+}
 
 /** Fresh numbering lookup from the selected Google Sheet, bypassing the data mirror. */
 export async function fetchSheetControlNumbers(sheetTab: string): Promise<string[]> {
