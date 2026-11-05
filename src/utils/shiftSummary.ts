@@ -56,6 +56,15 @@ function swabEquipment(name: string): string {
   return tank ? `ST${tank[1]}` : name;
 }
 
+function handoverEquipment(name: string): string {
+  const sidePot = name.match(/^(?:SIDE\s+POT\s*|SP\s*0*)(\d+)\b/i);
+  if (sidePot) return `SP${sidePot[1]}`;
+  const premix = name.match(/^(?:PREMIXING\s+TANK\s*|PM\s*0*)(\d+)\b/i);
+  if (premix) return `PM${premix[1]}`;
+  const mixing = name.match(/^(?:MAIN\s+MIXING\s+TANK\s*|MX\s*)(\d+)\b/i);
+  return mixing ? `MX${mixing[1].padStart(2, '0')}` : swabEquipment(name);
+}
+
 interface Activity {
   label: string;
   person: string;
@@ -70,7 +79,10 @@ function groupedLines(activities: Activity[]): string[] {
     if (!people.has(key)) people.set(key, { name: activity.person, labels: [] });
     people.get(key)!.labels.push(activity.label);
   }
-  return [...people.values()].flatMap(({ name, labels }) => [...labels, `\u2014 ${name} \u2014`, '']);
+  const outgoing = activities.every(activity => activity.handover);
+  return [...people.values()].flatMap(({ name, labels }) => [
+    ...labels, ...(outgoing && name === 'Unspecified' ? [] : [`\u2014 ${name} \u2014`]), '',
+  ]);
 }
 
 export function generateShiftSummary(
@@ -91,6 +103,7 @@ export function generateShiftSummary(
     const title = type === 'RawMats' ? 'RM,FG,SFG' : type === 'WATER' ? 'Water' : 'ENVI';
     const activities: Activity[] = [];
     const swabGroups = new Set<string>();
+    const swabHandovers = new Map<string, { activity: Activity; names: Set<string> }>();
     const materialGroups = new Map<string, { activity: Activity; name: string; source: string }[]>();
     let invalid = 0;
     for (const raw of rows[type] || []) {
@@ -128,7 +141,7 @@ export function generateShiftSummary(
       const explicitHandover = shift === 'AM' ? target === 'NIGHTSHIFT' || target === 'PMSHIFT' : target === 'DAYSHIFT' || target === 'AMSHIFT';
       const handover = !incoming && (timestamp >= end.getTime() - handoverPeriod || explicitHandover);
       const notes = [endorsement, incoming ? `Endorsed by ${shift === 'AM' ? 'Night Shift' : 'Dayshift'}` : ''].filter(Boolean).join('; ');
-      const displayName = type === 'ENVI' ? swabEquipment(name) : type === 'RawMats'
+      const displayName = type === 'ENVI' ? (handover ? handoverEquipment(name) : swabEquipment(name)) : type === 'RawMats'
         ? name.replace(/^Surf\s+Liquid\s+Detergent\b/i, 'SLD').replace(/^Surf\s+Fabric\s+Conditioner\b/i, 'SFC')
         : name;
       const sampleName = displayName || cell(row, 'CONTROL #', 'CONTROL NUMBER') || 'Unnamed sample';
@@ -140,6 +153,16 @@ export function generateShiftSummary(
         swabGroups.add(group);
       }
       const activity = { label, person, timestamp, handover };
+      if (type === 'ENVI' && handover) {
+        const key = JSON.stringify([timestamp, person.toUpperCase(), notes]);
+        const group = swabHandovers.get(key);
+        if (group) {
+          group.names.add(sampleName);
+          group.activity.label = `${[...group.names].join(', ')}${label.slice(sampleName.length)}`;
+          continue;
+        }
+        swabHandovers.set(key, { activity, names: new Set([sampleName]) });
+      }
       activities.push(activity);
       if (type === 'RawMats') {
         const key = JSON.stringify([normalize(sampleName), normalize(batch)]);
@@ -164,7 +187,7 @@ export function generateShiftSummary(
     if (completed.length) lines.push(title, ...groupedLines(completed));
   }
   if (sections.some(section => section.activities.some(activity => activity.handover))) {
-    lines.push(`Endorse to ${shift === 'AM' ? 'Night Shift' : 'Dayshift'}`);
+    lines.push(`Endorse to ${shift === 'AM' ? 'Night Shift' : 'Dayshift'}`, '');
     for (const { title, activities } of sections) {
       const handovers = activities.filter(activity => activity.handover);
       if (handovers.length) lines.push(title, ...groupedLines(handovers));
