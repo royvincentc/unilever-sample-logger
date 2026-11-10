@@ -109,7 +109,7 @@ test('ENVI compresses equipment points only at the same time, analyst and endors
   ] }, '2026-11-04', 'AM');
   assert.equal(report.count, 14);
   const envi = report.text.split('RM,FG,SFG')[0];
-  assert.equal(envi.split('\n').filter(line => line === 'Leepack @ 7:05 AM').length, 2);
+  assert.equal(envi.split('\n').filter(line => line.startsWith('Leepack') && line.includes('@ 7:05 AM')).length, 2);
   assert.equal(report.text.split('\n').filter(line => line === 'ST3, ST2 @ 4:12 PM').length, 1);
   assert.match(envi, /Leepack @ 8:05 AM/);
   assert.match(envi, /Leepack @ 7:05 AM\n\u2014 ROY \u2014/);
@@ -350,7 +350,7 @@ test('outgoing compression keeps different times, analysts and instructions sepa
     SAMPLE: 'SLD', 'DATE RECEIVED/SAMPLED': '11/05/2026', TIME: '5:30 PM',
   }] }, '2026-11-05', 'AM');
   const [normal, outgoing] = report.text.split('Endorse to Night Shift\n');
-  assert.match(normal, /Side Pot 1 - Outer Dome @ 7:00 AM\n\u2014 Unspecified \u2014/);
+  assert.match(normal, /SP1 @ 7:00 AM\n\u2014 Unspecified \u2014/);
   assert.match(outgoing, /SP1, PM1 @ 5:30 PM/);
   assert.match(outgoing, /PM2 @ 5:31 PM/);
   assert.match(outgoing, /PM3 @ 5:30 PM\n\u2014 ROY \u2014/);
@@ -360,6 +360,78 @@ test('outgoing compression keeps different times, analysts and instructions sepa
   assert.match(outgoing, /RM,FG,SFG\nSLD @ 5:30 PM/);
   assert.doesNotMatch(outgoing, /Unspecified/);
   assert.equal(report.count, 9);
+});
+
+test('regular ENVI compresses partial equipment families and name variants within each control', () => {
+  const names = [
+    'Side Pot 1 - Inner Dome', 'side-pot 01 - modified swabpoint', 'SP1 Stirrer',
+    'SidePot2 - Body', 'Premixing tank 1 - Inner Dome', 'PM1 BALL',
+    'PM1 T-SHAPE CONNECTING METAL', 'PM1 IN FLEXIBLE HOSE', 'PM1 OUT FLEXIBLE HOSE', 'PMI - Outer Dome',
+    'pre mixing tank 2 Pump Filter - Top', 'PM02 Bottom',
+    'Premix Tank 3 - Body', 'Premixing tank 4 - Stirrer',
+    'Main Mixing Tank 1 - Sampling Port 1', 'MX-01 Filter - Bottom',
+    'Storage Tank 1 - Inner Dome', 'Storage Tank 2- Outer Dome',
+    'ST03 Body', 'storage tank 4 - Body',
+    'AKASH1 HOPPER BODY', 'akash 01 nozzle 6', 'AKASH 2 NOZZLE 1',
+    'LEEPACK DOME', 'Leepack Hose 4', 'LEEPAK COH 1',
+  ];
+  for (const shift of ['AM', 'PM'] as const) {
+    const time = shift === 'AM' ? '10:00 AM' : '8:15 PM';
+    const report = generateShiftSummary({ ENVI: names.map(SAMPLE => ({
+      SAMPLE, 'CONTROL #': 'PRIVATE-CONTROL', 'DATE SWABBED': '11/10/2026',
+      'TIME SWABBED': time, 'ANALYZED BY': 'GOLORAN',
+    })) }, '2026-11-10', shift);
+    assert.ok(report.text.includes(`ENVI\nSP1, SP2, PM1, PM2, PM3, PM4, MX01, ST1, ST2, ST3, ST4, Akash 1, Akash 2, Leepack @ ${time}\n\u2014 GOLORAN \u2014`));
+    assert.equal(report.text.match(/ @ /g)?.length, 1);
+    assert.equal(report.count, names.length);
+    assert.deepEqual(report.warnings, []);
+    assert.doesNotMatch(report.text, /PRIVATE-CONTROL|Inner Dome|Hose|COH/);
+  }
+});
+
+test('ENVI keeps controls separate even at identical times and never prints control identifiers', () => {
+  const swab = (SAMPLE: string, control: string, time = '10:00 AM', person = 'ROY', remarks = '') => ({
+    SAMPLE, 'CONTROL #': control, 'DATE SWABBED': '11/10/2026',
+    'TIME SWABBED': time, 'ANALYZED BY': person, REMARKS: remarks,
+  });
+  const report = generateShiftSummary({ ENVI: [
+    swab('Side Pot 1 - Body', 'SECRET-1'), swab('SP1 Inner Dome', 'secret-1'),
+    swab('PM1 BALL', 'SECRET-1'),
+    swab('Side Pot 1 - Body', 'SECRET-2'), swab('SP1 Stirrer', 'SECRET-2'),
+    swab('SP1 Body', 'SECRET-1', '10:15 AM'),
+    swab('SP1 Body', 'SECRET-1', '10:00 AM', 'CANOY'),
+    swab('SP1 Body', 'SECRET-1', '10:00 AM', 'ROY', 'Hold pending retest'),
+    swab('', 'SECRET-3'),
+  ] }, '2026-11-10', 'AM');
+  assert.match(report.text, /SP1, PM1 @ 10:00 AM\nSP1 @ 10:00 AM/);
+  assert.match(report.text, /SP1 @ 10:15 AM/);
+  assert.match(report.text, /SP1 @ 10:00 AM\n\u2014 CANOY \u2014/);
+  assert.match(report.text, /SP1 @ 10:00 AM \(Hold pending retest\)/);
+  assert.match(report.text, /Unnamed sample @ 10:00 AM/);
+  assert.doesNotMatch(report.text, /SECRET/i);
+  assert.equal(report.count, 9);
+});
+
+test('ENVI control aliases and handovers preserve separate collections and unrecognized names', () => {
+  const swab = (SAMPLE: string, control: string) => ({
+    SAMPLE, 'DATE SWABBED': '11/10/2026', 'TIME SWABBED': '5:30 PM', 'ANALYZED BY': 'ROY',
+    'CONTROL NUMBER': control,
+  });
+  const rows = { ENVI: [
+    swab('SP1 Body', 'PRIVATE-1'),
+    { ...swab('SP1 Stirrer', ''), 'control no.': 'PRIVATE-1' },
+    { ...swab('SP1 Body', ''), 'CONTROL NO': 'PRIVATE-2' },
+    { ...swab('Unrecognized machine - modified swabpoint', ''), CONTROL: 'PRIVATE-2' },
+    swab('SP1 Body', ''),
+  ] };
+  for (const shift of ['AM', 'PM'] as const) {
+    const report = generateShiftSummary(rows, '2026-11-10', shift);
+    assert.equal(report.text.match(/ @ 5:30 PM/g)?.length, 3);
+    assert.match(report.text, /SP1, Unrecognized machine - modified swabpoint @ 5:30 PM/);
+    assert.doesNotMatch(report.text, /PRIVATE/);
+    assert.deepEqual(report.warnings, []);
+    assert.equal(report.count, 5);
+  }
 });
 
 test('empty shifts are explicit and splitting preserves all content and Unicode', () => {

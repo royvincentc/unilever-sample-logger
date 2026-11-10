@@ -49,20 +49,19 @@ function sheetTime(value: string): number | null {
 }
 
 function swabEquipment(name: string): string {
-  if (/^LEEPACK\b/i.test(name)) return 'Leepack';
-  const akash = name.match(/^AKASH\s+(\d+)\b/i);
+  const equipment = name.replace(/[-_]/g, ' ').replace(/\s+/g, ' ').trim().replace(/^PMI\b/i, 'PM1');
+  if (/^(?:LEEPACK|LEEPAK|LEEPAC|LEPACK)\b/i.test(equipment)) return 'Leepack';
+  const akash = equipment.match(/^AKASH\s*0*(\d+)\b/i);
   if (akash) return `Akash ${akash[1]}`;
-  const tank = name.match(/^(?:STORAGE\s+TANK\s*|ST\s*)(\d+)\b/i);
-  return tank ? `ST${tank[1]}` : name;
-}
-
-function handoverEquipment(name: string): string {
-  const sidePot = name.match(/^(?:SIDE\s+POT\s*|SP\s*0*)(\d+)\b/i);
+  const tank = equipment.match(/^(?:STORAGE\s*TANK\s*|ST\s*)0*(\d+)\b/i);
+  if (tank) return `ST${tank[1]}`;
+  const sidePot = equipment.match(/^(?:SIDE\s*POT\s*|SP\s*)0*(\d+)\b/i);
   if (sidePot) return `SP${sidePot[1]}`;
-  const premix = name.match(/^(?:PREMIXING\s+TANK\s*|PM\s*0*)(\d+)\b/i);
+  const premix = equipment.match(/^(?:PRE\s*MIX(?:ING)?\s*(?:TANK\s*)?|PM\s*)0*(\d+)\b/i);
   if (premix) return `PM${premix[1]}`;
-  const mixing = name.match(/^(?:MAIN\s+MIXING\s+TANK\s*|MX\s*)(\d+)\b/i);
-  return mixing ? `MX${mixing[1].padStart(2, '0')}` : swabEquipment(name);
+  const mixing = equipment.match(/^(?:MAIN\s*MIXING\s*TANK\s*|MX\s*)0*(\d+)\b/i);
+  // shortcut: unfamiliar equipment stays verbatim; add aliases when a new family is confirmed.
+  return mixing ? `MX${mixing[1].padStart(2, '0')}` : name;
 }
 
 interface Activity {
@@ -102,8 +101,7 @@ export function generateShiftSummary(
   for (const type of ['ENVI', 'WATER', 'RawMats'] as const) {
     const title = type === 'RawMats' ? 'RM,FG,SFG' : type === 'WATER' ? 'Water' : 'ENVI';
     const activities: Activity[] = [];
-    const swabGroups = new Set<string>();
-    const swabHandovers = new Map<string, { activity: Activity; names: Set<string> }>();
+    const swabGroups = new Map<string, { activity: Activity; names: Map<string, string> }>();
     const materialGroups = new Map<string, { activity: Activity; name: string; source: string }[]>();
     let invalid = 0;
     for (const raw of rows[type] || []) {
@@ -141,27 +139,23 @@ export function generateShiftSummary(
       const explicitHandover = shift === 'AM' ? target === 'NIGHTSHIFT' || target === 'PMSHIFT' : target === 'DAYSHIFT' || target === 'AMSHIFT';
       const handover = !incoming && (timestamp >= end.getTime() - handoverPeriod || explicitHandover);
       const notes = [endorsement, incoming ? `Endorsed by ${shift === 'AM' ? 'Night Shift' : 'Dayshift'}` : ''].filter(Boolean).join('; ');
-      const displayName = type === 'ENVI' ? (handover || incoming ? handoverEquipment(name) : swabEquipment(name)) : type === 'RawMats'
+      const displayName = type === 'ENVI' ? swabEquipment(name) : type === 'RawMats'
         ? name.replace(/^Surf\s+Liquid\s+Detergent\b/i, 'SLD').replace(/^Surf\s+Fabric\s+Conditioner\b/i, 'SFC')
         : name;
-      const sampleName = displayName || cell(row, 'CONTROL #', 'CONTROL NUMBER') || 'Unnamed sample';
+      const sampleName = displayName || (type === 'ENVI' ? '' : cell(row, 'CONTROL #', 'CONTROL NUMBER')) || 'Unnamed sample';
       const label = `${sampleName}${batch ? ` : ${batch}` : ''} @ ${time}${notes ? ` (${notes})` : ''}`;
       count++;
-      if (type === 'ENVI') {
-        const group = JSON.stringify([label, person.toUpperCase(), timestamp]);
-        if (swabGroups.has(group)) continue;
-        swabGroups.add(group);
-      }
       const activity = { label, person, timestamp, handover };
-      if (type === 'ENVI' && (handover || incoming)) {
-        const key = JSON.stringify([timestamp, person.toUpperCase(), notes]);
-        const group = swabHandovers.get(key);
+      if (type === 'ENVI') {
+        const control = cell(row, 'CONTROL #', 'CONTROL NUMBER', 'CONTROL NO.', 'CONTROL NO', 'CONTROL');
+        const key = JSON.stringify([normalize(control), timestamp, person.toUpperCase(), notes, handover]);
+        const group = swabGroups.get(key);
         if (group) {
-          group.names.add(sampleName);
-          group.activity.label = `${[...group.names].join(', ')}${label.slice(sampleName.length)}`;
+          group.names.set(normalize(sampleName), sampleName);
+          group.activity.label = `${[...group.names.values()].join(', ')}${label.slice(sampleName.length)}`;
           continue;
         }
-        swabHandovers.set(key, { activity, names: new Set([sampleName]) });
+        swabGroups.set(key, { activity, names: new Map([[normalize(sampleName), sampleName]]) });
       }
       activities.push(activity);
       if (type === 'RawMats') {
