@@ -14,14 +14,14 @@ test('shift windows use Taipei time, exclusive ends, and overnight year rollover
   assert.deepEqual(getDefaultShift(new Date('2026-11-05T06:00:00+08:00')), { date: '2026-11-05', shift: 'AM' });
 });
 
-test('AM includes 06:00 but excludes 18:00 and groups by the requested personnel', () => {
+test('AM includes 06:00 but excludes assigned 18:00 activity and groups by the requested personnel', () => {
   const report = generateShiftSummary({
     ENVI: [{ 'DATE SWABBED': '10/28/2026', 'TIME SWABBED': '6:00 AM', SAMPLE: 'ST3', 'ANALYZED BY': 'ROY', 'SWABBED BY': 'OTHER' }],
     WATER: [
       { 'DATE SAMPLED': '2026-10-28', 'TIME SAMPLED': '02:59', 'WATER SOURCE': 'Too early', 'ANALYZED BY': 'DCN', 'SAMPLED BY': 'SAMPLER' },
       { 'DATE SAMPLED': '2026-10-28', 'TIME SAMPLED': '10:09\u202fAM', 'WATER SOURCE': 'QCL Chlorine Water', 'ANALYZED BY': 'DCN', 'SAMPLED BY': 'SAMPLER' },
       { 'DATE SAMPLED': '2026-10-28', 'TIME SAMPLED': '11:00', 'WATER SOURCE': 'Chlorine Tank 2', 'ANALYZED BY': 'AFC', 'SAMPLED BY': 'SAMPLER' },
-      { 'DATE SAMPLED': '2026-10-28', 'TIME SAMPLED': '18:00', 'WATER SOURCE': 'Next shift' },
+      { 'DATE SAMPLED': '2026-10-28', 'TIME SAMPLED': '18:00', 'WATER SOURCE': 'Next shift', 'ANALYZED BY': 'ROY' },
     ],
     RawMats: [
       { 'DATE RECEIVED/SAMPLED': '10/28/2026', TIME: '06:38', SAMPLE: 'SLD CB', 'BATCH #': '2810261A1', 'ANALYZED BY': 'ROY', 'RECEIVED BY': 'OTHER' },
@@ -44,7 +44,7 @@ test('PM includes next-day early morning activity, midnight, and handover instru
     { 'DATE SAMPLED': '12/31/2026', 'TIME SAMPLED': '18:00', 'WATER SOURCE': 'Start', 'ANALYZED BY': 'AFC', 'SAMPLED BY': 'SAMPLER', STATUS: 'ON GOING' },
     { 'DATE SAMPLED': '1/1/2027', 'TIME SAMPLED': '12:00 AM', 'WATER SOURCE': 'Midnight', 'ANALYZED BY': 'AFC', 'SAMPLED BY': 'SAMPLER' },
     { 'DATE SAMPLED': '1/1/2027', 'TIME SAMPLED': '5:59 AM', 'WATER SOURCE': 'Handover', 'ANALYZED BY': 'AFC', 'SAMPLED BY': 'SAMPLER', REMARKS: 'Endorse to Dayshift' },
-    { 'DATE SAMPLED': '1/1/2027', 'TIME SAMPLED': '06:00', 'WATER SOURCE': 'Excluded' },
+    { 'DATE SAMPLED': '1/1/2027', 'TIME SAMPLED': '06:00', 'WATER SOURCE': 'Excluded', 'ANALYZED BY': 'AFC' },
   ];
   const report = generateShiftSummary({ WATER: rows }, '2026-12-31', 'PM');
   assert.equal(report.count, 3);
@@ -444,3 +444,40 @@ test('empty shifts are explicit and splitting preserves all content and Unicode'
   assert.equal(chunks.join(''), text);
   assert.ok(chunks.every(chunk => chunk.length <= 4000 && !/[\uD800-\uDBFF]$/.test(chunk)));
 });
+
+for (const shift of ['AM', 'PM'] as const) {
+  test(`${shift} includes only unassigned overtime through preview time within the following shift`, () => {
+    const cutoff = shift === 'AM' ? '2026-12-31T18:00:00' : '2027-01-01T06:00:00';
+    const preview = shift === 'AM' ? '2027-01-01T00:30:00' : '2027-01-01T08:00:00';
+    const nextShiftEnd = shift === 'AM' ? '2027-01-01T06:00:00' : '2027-01-01T18:00:00';
+    const rows = Object.fromEntries(['ENVI', 'WATER', 'RawMats'].map(type => [type, [
+      ['At cutoff', cutoff, '', ''],
+      ['At preview', preview, ' - ', ' n/a '],
+      ['Assigned analyst', cutoff, 'ROY', ''],
+      ['Assigned performer', cutoff, '', 'DCN'],
+      ['Future sample', `${preview.slice(0, 10)}T${shift === 'AM' ? '00:31' : '08:01'}:00`, '', ''],
+      ['Following shift end', nextShiftEnd, '', ''],
+      ['Later day', '2027-01-02T08:00:00', '', ''],
+    ].map(([SAMPLE, time, analyst, performer]) => ({
+      SAMPLE, 'WATER SOURCE': SAMPLE, DATE: time.slice(0, 10), TIME: time.slice(11),
+      ' analyzed by ': analyst, ' performed by ': performer, 'RECEIVED BY': 'RECEIVER',
+      REMARKS: 'Hold pending retest',
+    }))]));
+    const report = generateShiftSummary(rows, '2026-12-31', shift, new Date(`${preview}+08:00`));
+    assert.equal(report.count, 6);
+    const destination = shift === 'AM' ? 'Night Shift' : 'Dayshift';
+    assert.match(report.text, new RegExp(`Endorse to ${destination}\\n\\nENVI`));
+    assert.equal(report.text.match(/At cutoff @/g)?.length, 3);
+    assert.equal(report.text.match(/At preview @/g)?.length, 3);
+    assert.equal(report.text.match(/Hold pending retest/g)?.length, 6);
+    assert.doesNotMatch(report.text, /Assigned|Future sample|Following shift end|Later day|Endorsed by/);
+    assert.deepEqual(report.warnings, []);
+
+    const historical = generateShiftSummary(rows, '2026-12-31', shift, new Date('2027-01-03T12:00:00+08:00'));
+    assert.equal(historical.count, 9);
+    assert.doesNotMatch(historical.text, /Following shift end|Later day|Assigned/);
+    const beforeCutoff = generateShiftSummary(rows, '2026-12-31', shift,
+      new Date(new Date(`${cutoff}+08:00`).getTime() - 1));
+    assert.equal(beforeCutoff.count, 0);
+  });
+}

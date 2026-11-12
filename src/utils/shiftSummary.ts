@@ -90,7 +90,8 @@ export function generateShiftSummary(
   const { start, end } = getShiftWindow(date, shift);
   const handoverPeriod = 3 * 60 * 60 * 1000;
   const incomingStart = start.getTime() - handoverPeriod;
-  const firstDay = labDate(new Date(incomingStart)), lastDay = labDate(new Date(end.getTime() - 1));
+  const overtimeEnd = Math.min(now.getTime(), start.getTime() + DAY - 1);
+  const firstDay = labDate(new Date(incomingStart)), lastDay = labDate(new Date(Math.max(end.getTime() - 1, overtimeEnd)));
   const hour = new Date(now.getTime() + OFFSET).getUTCHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
   const [year, month, day] = date.split('-');
@@ -122,7 +123,9 @@ export function generateShiftSummary(
       const seconds = sheetTime(timeValue);
       if (seconds === null) { invalid++; continue; }
       const timestamp = new Date(`${parsedDate}T00:00:00+08:00`).getTime() + seconds * 1000;
-      if (timestamp < incomingStart || timestamp >= end.getTime()) continue;
+      if (timestamp < incomingStart) continue;
+      if (timestamp >= end.getTime()
+        && (timestamp > overtimeEnd || cell(row, 'ANALYZED BY', 'PERFORMED BY'))) continue;
       const incoming = timestamp < start.getTime();
       const name = type === 'WATER'
         ? cell(row, 'WATER SOURCE', 'SAMPLING POINT', 'SAMPLE', 'SAMPLE NAME')

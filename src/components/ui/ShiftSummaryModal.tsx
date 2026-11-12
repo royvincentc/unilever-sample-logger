@@ -41,8 +41,9 @@ export default function ShiftSummaryModal() {
     setSent(false);
     setAttempted(false);
     try {
-      const rows = await fetchShiftSummaryRows(selection.date, selection.shift);
-      setReport(generateShiftSummary(rows, selection.date, selection.shift));
+      const now = new Date();
+      const rows = await fetchShiftSummaryRows(selection.date, selection.shift, now);
+      setReport(generateShiftSummary(rows, selection.date, selection.shift, now));
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : 'Could not load the shift. Please try again.');
     } finally {
@@ -98,7 +99,7 @@ export default function ShiftSummaryModal() {
                   options={[{ value: 'AM', label: 'AM shift (6 AM - 6 PM)' }, { value: 'PM', label: 'PM shift (6 PM - 6 AM)' }]} />
               </div>
             </fieldset>
-            <p className="text-sm text-[var(--text-secondary)]">Times are in Philippine time (UTC+8). PM shift includes the following morning, before 6 AM. Samples from the last 3 hours are endorsed to the next shift and also included in that shift's summary.</p>
+            <p className="text-sm text-[var(--text-secondary)]">Times are in Philippine time (UTC+8). PM shift includes the following morning, before 6 AM. Samples from the last 3 hours are endorsed to the next shift and also included in that shift's summary. Overtime samples with neither ANALYZED BY nor PERFORMED BY filled are also endorsed through preview time, within the following shift.</p>
             <Button variant="secondary" onClick={preview} disabled={!!busy || !online || !selection.date} loading={busy === 'loading'}>
               {report || attempted ? 'Regenerate preview' : 'Generate preview'}
             </Button>

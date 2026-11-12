@@ -2,13 +2,14 @@ import { getSettings } from './auth';
 import type { Shift, ShiftRows } from './shiftSummary';
 
 /** Fetch every summary tab directly; an incomplete read must never become a report. */
-export async function fetchShiftSummaryRows(date: string, shift: Shift): Promise<ShiftRows> {
+export async function fetchShiftSummaryRows(date: string, shift: Shift, now = new Date()): Promise<ShiftRows> {
   const { spreadsheetId } = getSettings();
   if (!spreadsheetId) throw new Error('Spreadsheet ID not configured in settings.');
   const { getShiftWindow } = await import('./shiftSummary');
   const { start, end } = getShiftWindow(date, shift);
+  const overtimeEnd = Math.min(now.getTime(), start.getTime() + 24 * 3600000 - 1);
   const taipeiYear = (time: number) => new Date(time + 8 * 3600000).getUTCFullYear();
-  const years = [...new Set([taipeiYear(start.getTime()), taipeiYear(end.getTime() - 1)])];
+  const years = [...new Set([taipeiYear(start.getTime()), taipeiYear(Math.max(end.getTime() - 1, overtimeEnd))])];
   const types = ['ENVI', 'WATER', 'RawMats'] as const;
   const tabs = await Promise.all(types.flatMap(type => years.map(async year => {
     // The mapper uses local getFullYear, so pass a local date with the Taipei year.

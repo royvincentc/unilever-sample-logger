@@ -104,6 +104,24 @@ test('missing spreadsheet settings rejects before any request', async () => {
   await assert.rejects(api.fetchShiftSummaryRows('2026-11-05', 'AM'), /Spreadsheet ID/);
 });
 
+test('AM overtime reads next-year tabs only when preview reaches that year', async () => {
+  for (const [now, years] of [
+    ['2026-12-31T20:00:00+08:00', ['2026']],
+    ['2027-01-01T00:00:00+08:00', ['2026', '2027']],
+    ['2028-01-01T08:00:00+08:00', ['2026', '2027']],
+  ]) {
+    const tabs = [];
+    const api = apiWith(async url => {
+      const tab = new URL(url, 'https://example.test').searchParams.get('tab');
+      tabs.push(tab);
+      return { ok: true, json: async () => [{ tab }] };
+    });
+    const result = await api.fetchShiftSummaryRows('2026-12-31', 'AM', new Date(now));
+    assert.deepEqual(tabs, ['SWAB', 'WATER', 'RM,FG,SFG'].flatMap(prefix => years.map(year => `${prefix} ${year}`)));
+    assert.deepEqual(Array.from(result.WATER, row => row.tab), years.map(year => `WATER ${year}`));
+  }
+});
+
 test('any failed or malformed tab rejects the entire report without leaking details', async () => {
   for (const response of [
     { ok: false },
