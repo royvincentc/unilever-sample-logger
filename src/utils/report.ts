@@ -88,16 +88,14 @@ export async function generateDocxReport(data: any, analyzedBy: string, tab: str
         return resultStr;
       };
 
-      const rawApc = data['(C) Aerobic Plate Count'] || data['(A) Aerobic Plate Count'] || data['Aerobic Plate Count'] || data['TVC (count)'] || raw[28] || raw[25] || raw[27] || '';
-      const apcResultStr = formatResult(apcSpec, String(rawApc));
+      const apcResultStr = String(data['(C) Aerobic Plate Count'] ?? raw[27] ?? '');
 
-      const rawMy = data['(C) Yeast and Molds'] || data['(A) Yeast and Molds'] || data['Yeast and Molds'] || data['Molds & Yeast'] || raw[30] || raw[27] || raw[29] || '';
-      const myResultStr = formatResult(mySpec, String(rawMy));
+      const myResultStr = String(data['(C) Yeast and Molds'] ?? raw[29] ?? '');
       
       const gnResultStr = String(data['(C) Gram- Negative'] || data['(A) Gram- Negative'] || raw[29] || raw[26] || raw[28] || '');
 
-      const apcRemarks = apcResultStr ? ((apcResultStr.includes('<300') || apcResultStr === apcSpec || apcResultStr.startsWith('<')) ? 'Passed' : 'Failed') : '';
-      const myRemarks = myResultStr ? ((myResultStr.includes('<100') || myResultStr === mySpec || myResultStr.startsWith('<')) ? 'Passed' : 'Failed') : '';
+      const apcRemarks = apcResultStr ? ((apcResultStr.includes('<300') || formatResult(apcSpec, apcResultStr) === apcSpec || apcResultStr.startsWith('<')) ? 'Passed' : 'Failed') : '';
+      const myRemarks = myResultStr ? ((myResultStr.includes('<100') || formatResult(mySpec, myResultStr) === mySpec || myResultStr.startsWith('<')) ? 'Passed' : 'Failed') : '';
       
       // GN_Remarks logic: "Passed" if value is <100, <100 cfu/g, numeric <= 100, or 'No Growth'.
       let gnRemarks = '';

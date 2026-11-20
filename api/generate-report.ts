@@ -355,11 +355,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }));
     } else if (type === 'RawMats') {
       const apcSpec = getVal(matchedRows[0], ['(S) Aerobic Plate Count', 'SPECIFICATION', 'SPECIFICATIONS']) || '<300 cfu/g';
-      const apcResult = getVal(matchedRows[0], ['(C) Aerobic Plate Count', '(A) Aerobic Plate Count', 'RESULT', 'RESULTS']);
+      const apcResult = getVal(matchedRows[0], ['(C) Aerobic Plate Count']);
       const gnSpec = getVal(matchedRows[0], ['(S) Gram- Negative']) || 'No Growth';
       const gnResult = getVal(matchedRows[0], ['(C) Gram- Negative', '(A) Gram- Negative']);
       const mySpec = getVal(matchedRows[0], ['(S) Yeast and Molds']) || '<100 cfu/g';
-      const myResult = getVal(matchedRows[0], ['(C) Yeast and Molds', '(A) Yeast and Molds']);
+      const myResult = getVal(matchedRows[0], ['(C) Yeast and Molds']);
 
       tableData = [
         {
