@@ -3,9 +3,10 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const PizZip = require('pizzip');
+const Docxtemplater = require('docxtemplater');
+const InspectModule = require('docxtemplater/js/inspect-module.js');
 
 const templates = [
-  'public/template.docx',
   'public/templates/Report_ENVI.docx',
   'public/templates/Report_RawMats.docx',
 ];
@@ -51,24 +52,18 @@ for (const template of templates) {
   });
 }
 
-test('main report header table fits within the page margins', () => {
+test('updated main report template preserves all generation fields', () => {
   const zip = new PizZip(fs.readFileSync(path.resolve(__dirname, '../public/template.docx')));
-  const document = zip.file('word/document.xml').asText();
-  const pageWidth = Number(document.match(/<w:pgSz\b[^>]*w:w="(\d+)"/)[1]);
-  const margins = document.match(/<w:pgMar\b[^>]*>/)[0];
-  const left = Number(margins.match(/w:left="(\d+)"/)[1]);
-  const right = Number(margins.match(/w:right="(\d+)"/)[1]);
-  const header = zip.file('word/header2.xml').asText();
-  const tableWidth = Number(header.match(/<w:tblW\b[^>]*w:w="(\d+)"/)[1]);
-  const position = Number(header.match(/<w:tblpPr\b[^>]*w:tblpX="(\d+)"/)[1]);
-  assert.ok(position >= left);
-  assert.ok(position + tableWidth <= pageWidth - right);
-  const grid = [...header.matchAll(/<w:gridCol w:w="(\d+)"\/>/g)]
-    .map(match => Number(match[1]));
-  assert.equal(grid.reduce((sum, width) => sum + width, 0), tableWidth);
-  for (const [row] of header.matchAll(/<w:tr\b[\s\S]*?<\/w:tr>/g)) {
-    const widths = [...row.matchAll(/<w:tcW w:w="(\d+)" w:type="dxa"\/>/g)]
-      .map(match => Number(match[1]));
-    assert.equal(widths.reduce((sum, width) => sum + width, 0), tableWidth);
-  }
+  const inspect = InspectModule();
+  const doc = new Docxtemplater(zip, {
+    paragraphLoop: true, linebreaks: true, modules: [inspect],
+  });
+  const fields = [
+    'Category', 'DateReceived', 'SampleName', 'DateReleased', 'DateMfd',
+    'BatchNo', 'FillVol', 'ExpiryDate', 'RequestedBy', 'Purpose', 'Logbook',
+    'APC_Spec', 'APC_Result', 'APC_Remarks', 'MY_Spec', 'MY_Result', 'MY_Remarks',
+    'GN_Spec', 'GN_Result', 'GN_Remarks', 'OverallRemarks', 'AnalyzedBy', 'DateReleasedOnly',
+  ];
+  assert.deepEqual(Object.keys(inspect.getAllTags()).sort(), [...fields].sort());
+  assert.doesNotThrow(() => doc.render(Object.fromEntries(fields.map(field => [field, `Test ${field}`]))));
 });

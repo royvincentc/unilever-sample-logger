@@ -1,5 +1,11 @@
 {
   "crons": [{ "path": "/api/drive-worker", "schedule": "0 0 * * *" }],
+  "headers": [
+    {
+      "source": "/template.docx",
+      "headers": [{ "key": "Cache-Control", "value": "no-store" }]
+    }
+  ],
   "rewrites": [
     { "source": "/api/collaboration-auth/callback", "destination": "/api/shared?__route=collaboration-auth&action=callback" },
     { "source": "/api/collaboration-auth", "destination": "/api/shared?__route=collaboration-auth" },
