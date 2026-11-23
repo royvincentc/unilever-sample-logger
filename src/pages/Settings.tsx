@@ -183,7 +183,7 @@ export default function Settings({ onLogout }: { onLogout?: () => void }) {
           <details className="glass rounded-2xl p-5 space-y-4">
             <summary className="cursor-pointer font-semibold text-[var(--text-primary)]">Google Sheets payload</summary>
             <p className="text-sm text-[var(--text-secondary)]">
-              Payload overrides apply to this browser and spreadsheet. The control number and sample identity columns are protected.
+              Edit what the Sample Logger sends to this spreadsheet. Saved mappings apply in this browser.
             </p>
             {isLocked ? (
               <Button size="sm" variant="secondary" onClick={() => setShowPasswordPrompt(true)}>Unlock settings</Button>

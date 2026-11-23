@@ -150,6 +150,14 @@ const loggerItem = {
   sample: 'Akash 1 Nozzle 1', remarks: 'revieew', spreadsheetId: 'practice', sheetTab: 'SWAB 2026',
 };
 
+test('the payload editor identifies automatic sources and unmapped columns', () => {
+  const headers = ['CONTROL #', 'SAMPLE DESCRIPTION', 'DATE SAMPLED', 'BATCH #', 'CUC #', 'QA NOTES', 'PROGRAM'];
+  const columns = payloadMapping.describeAutomaticColumns('RawMats', headers);
+  assert.deepEqual(headers.map(header => columns[header]), [
+    'controlNumber', 'sample', 'dateSampled', 'batchNo', 'cucNo', 'remarks', undefined,
+  ]);
+});
+
 test('sheet payload overrides move, omit, and correct fields in single and bulk submissions', async () => {
   const sheets = mockSheetsSubmit();
   assert.equal((await sheets.submit({ ...loggerItem, sheetOverrides: overrides })).status, 200);

@@ -3,7 +3,7 @@ import type { SampleType } from '../../types';
 import { getSettings, saveSettings } from '../../utils/auth';
 import { fetchSheetSchema } from '../../utils/api';
 import { getSheetTabName } from '../../utils/sheetMapping';
-import { isIdentityColumn, SHEET_PAYLOAD_FIELDS, sheetColumnLetter, validateSheetOverrides } from '../../utils/sheetPayload';
+import { describeAutomaticColumns, isIdentityColumn, SHEET_PAYLOAD_FIELDS, sheetColumnLetter, validateSheetOverrides } from '../../utils/sheetPayload';
 import type { SheetColumnOverride } from '../../utils/sheetPayload';
 import Button from '../ui/Button';
 import TextInput from '../ui/TextInput';
@@ -11,6 +11,7 @@ import { useToast } from '../ui/Toast';
 
 const types = { ENVI: 'Envi', WATER: 'Water', RawMats: 'Raw materials', AIR: 'Air' };
 const selectClass = 'w-full rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-input)] p-2 text-sm text-[var(--text-primary)]';
+const fieldLabel = (field: string) => field.replace(/([A-Z])/g, ' $1').replace(/^./, first => first.toUpperCase());
 
 export default function SheetPayloadEditor({ spreadsheetId }: { spreadsheetId: string }) {
   const [sampleType, setSampleType] = useState<SampleType>('ENVI');
@@ -21,6 +22,7 @@ export default function SheetPayloadEditor({ spreadsheetId }: { spreadsheetId: s
     getSettings().sheetPayloadOverrides?.[spreadsheetId] ?? {});
   const rules = drafts[sampleType] ?? [];
   const [refresh, setRefresh] = useState(0);
+  const automatic = headers?.length ? describeAutomaticColumns(sampleType, headers) : {};
 
   useEffect(() => {
     let active = true;
@@ -41,8 +43,9 @@ export default function SheetPayloadEditor({ spreadsheetId }: { spreadsheetId: s
     setDrafts(current => ({ ...current, [sampleType]: updated }));
   };
 
-  const updateRule = (index: number, changes: Partial<SheetColumnOverride>) => {
-    setRules(rules.map((rule, position) => position === index ? { ...rule, ...changes } : rule));
+  const updateColumn = (header: string, rule?: Omit<SheetColumnOverride, 'header'>) => {
+    const otherRules = rules.filter(existing => existing.header !== header);
+    setRules(rule ? [...otherRules, { ...rule, header }] : otherRules);
   };
 
   const save = () => {
@@ -70,9 +73,8 @@ export default function SheetPayloadEditor({ spreadsheetId }: { spreadsheetId: s
         </select>
       </label>
       <p className="text-sm text-[var(--text-secondary)]">
-        Headers from {tab}. Choose a destination column and a sample field, fixed text, or Skip column.
-        To move a field, assign it to the new column and skip its original column.
-        Removing an override restores automatic mapping. Save the payload for each sample type you edit.
+        Columns are shown in {tab} order. Choose what each column receives, then save the mapping for this sample type.
+        To move a field, select it in the destination column and choose “Skip column” in its original column.
       </p>
       {headers === null && <p role="status" className="text-sm">Loading sheet columns…</p>}
       {headers?.length === 0 && (
@@ -81,52 +83,66 @@ export default function SheetPayloadEditor({ spreadsheetId }: { spreadsheetId: s
           <Button size="sm" variant="secondary" onClick={() => setRefresh(current => current + 1)}>Retry</Button>
         </div>
       )}
-      {!!headers?.length && rules.map((rule, index) => (
-        <fieldset key={index} className="space-y-2 rounded-xl border border-[var(--border-subtle)] p-3">
-          <legend className="px-1 text-sm font-semibold">{rule.header || 'New column override'}</legend>
-          <div className="grid gap-2 sm:grid-cols-2">
-            <label className="text-sm">
-              Sheet column
-              <select className={selectClass} value={rule.header} onChange={event => updateRule(index, { header: event.target.value })}>
-                <option value="">Choose a column</option>
-                {rule.header && !headers.includes(rule.header) && <option value={rule.header}>{rule.header} (missing)</option>}
-                {headers.map((header, position) => header.trim() && !isIdentityColumn(header) &&
-                  headers.indexOf(header) === headers.lastIndexOf(header) && (
-                  <option key={header} value={header} disabled={rules.some((other, otherIndex) => otherIndex !== index && other.header === header)}>
-                    {sheetColumnLetter(position + 1)} · {header}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="text-sm">
-              Value to send
-              <select className={selectClass} value={rule.source} onChange={event => updateRule(index, { source: event.target.value, match: '', value: '' })}>
-                <option value="skip">Skip column</option>
-                <option value="fixed">Fixed text</option>
-                {SHEET_PAYLOAD_FIELDS[sampleType].map(field => (
-                  <option key={field} value={field}>{field.replace(/([A-Z])/g, ' $1').replace(/^./, first => first.toUpperCase())}</option>
-                ))}
-              </select>
-            </label>
+      {!!headers?.length && (
+        <>
+          {rules.filter(rule => headers.filter(header => header === rule.header).length !== 1 || isIdentityColumn(rule.header))
+            .map(rule => (
+              <div key={rule.header} className="flex flex-wrap items-center gap-2 text-sm">
+                <p>“{rule.header}” is no longer an editable column.</p>
+                <Button size="sm" variant="secondary" onClick={() => updateColumn(rule.header)}>Remove saved mapping</Button>
+              </div>
+            ))}
+          <div className="divide-y divide-[var(--border-subtle)] rounded-xl border border-[var(--border-subtle)] px-3">
+            {headers.map((header, position) => {
+              const column = `${sheetColumnLetter(position + 1)} · ${header.trim() ? header : 'Unnamed column'}`;
+              const rule = rules.find(existing => existing.header === header);
+              const defaultSource = automatic[header];
+              const defaultLabel = defaultSource ? fieldLabel(defaultSource) : 'No value';
+              const source = rule?.source ?? defaultSource;
+              const canCorrect = source && SHEET_PAYLOAD_FIELDS[sampleType].includes(source);
+              const locked = !header.trim() || isIdentityColumn(header) || headers.indexOf(header) !== headers.lastIndexOf(header);
+              return (
+                <div key={position} className="grid gap-2 py-3 text-sm sm:grid-cols-2">
+                  <span className="font-medium">{column}</span>
+                  {locked ? (
+                    <span className="text-[var(--text-secondary)]">
+                      {defaultLabel} {isIdentityColumn(header) ? '· Used to match rows' : '· Requires a unique header'}
+                    </span>
+                  ) : (
+                    <div className="space-y-2">
+                      <select aria-label={`Value sent to ${column}`} className={selectClass} value={rule?.source ?? 'automatic'}
+                        onChange={event => {
+                          const next = event.target.value;
+                          updateColumn(header, next === 'automatic' ? undefined : { source: next, value: '' });
+                        }}>
+                        <option value="automatic">Automatic · {defaultLabel}</option>
+                        <option value="skip">Skip column</option>
+                        <option value="fixed">Fixed text</option>
+                        {SHEET_PAYLOAD_FIELDS[sampleType].map(field => <option key={field} value={field}>{fieldLabel(field)}</option>)}
+                      </select>
+                      {source === 'fixed' && rule && (
+                        <TextInput label="Text to send" value={rule.value} onChange={value => updateColumn(header, { ...rule, value })} />
+                      )}
+                      {canCorrect && (
+                        <details className="space-y-2">
+                          <summary className="cursor-pointer text-[var(--text-secondary)]">
+                            {rule?.match ? `Replace “${rule.match}” with ${rule.value ? `“${rule.value}”` : 'a blank value'}` : 'Correct a spelling or replace text'}
+                          </summary>
+                          <TextInput label="Match this exact text" value={rule?.match ?? ''}
+                            onChange={match => updateColumn(header, { source, match, value: rule?.value ?? '' })} />
+                          <TextInput label="Send this text instead" value={rule?.value ?? ''}
+                            onChange={value => updateColumn(header, { source, match: rule?.match, value })} />
+                        </details>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
-          {rule.source === 'fixed' && <TextInput label="Fixed text" value={rule.value} onChange={value => updateRule(index, { value })} />}
-          {rule.source !== 'fixed' && rule.source !== 'skip' && (
-            <div className="grid gap-2 sm:grid-cols-2">
-              <TextInput label="Correct exact text (optional)" value={rule.match ?? ''} onChange={match => updateRule(index, { match })} />
-              {rule.match && <TextInput label="Replacement text" value={rule.value} onChange={value => updateRule(index, { value })} />}
-            </div>
-          )}
-          <Button size="sm" variant="secondary" onClick={() => setRules(rules.filter((_, position) => position !== index))}>
-            Remove override
-          </Button>
-        </fieldset>
-      ))}
-      <div className="flex flex-wrap gap-2">
-        <Button size="sm" variant="secondary" disabled={!headers?.length} onClick={() => setRules([...rules, { header: '', source: 'skip', value: '' }])}>
-          Add column override
-        </Button>
-        <Button size="sm" disabled={!headers?.length} onClick={save}>Save payload</Button>
-      </div>
+          <Button size="sm" onClick={save}>Save payload</Button>
+        </>
+      )}
     </div>
   );
 }

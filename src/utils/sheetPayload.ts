@@ -17,15 +17,18 @@ export function sheetColumnLetter(position: number): string {
   return label;
 }
 
-const commonFields = ['controlNumber', 'sample', 'dateSampled', 'timeSampled', 'status', 'remarks'];
-const analysisFields = ['dateAnalyzed', 'analyzedBy', 'endorsedTo', 'qty', 'unit'];
+const analysisFields = ['dateAnalyzed', 'analyzedBy', 'status', 'remarks'];
 
 export const SHEET_PAYLOAD_FIELDS = {
-  ENVI: [...commonFields, ...analysisFields, 'swabbedBy', 'category'],
-  WATER: [...commonFields, ...analysisFields, 'waterSource', 'sampledBy'],
-  RawMats: [...commonFields, ...analysisFields, 'type', 'rfaf', 'batchNo', 'mixingBatchNo', 'cucNo',
-    'source', 'receivedBy', 'dateReleased', 'releasedBy', 'repeatedResults'],
-  AIR: [...commonFields, 'method', 'samplingPoint', 'performedBy'],
+  ENVI: ['dateSampled', 'timeSampled', 'swabbedBy', ...analysisFields, 'qty', 'unit',
+    'controlNumber', 'sample', 'category', 'endorsedTo'],
+  WATER: ['dateSampled', 'timeSampled', 'waterSource', 'sampledBy', ...analysisFields, 'qty', 'unit',
+    'controlNumber', 'sample', 'endorsedTo'],
+  RawMats: ['dateSampled', 'timeSampled', 'rfaf', 'batchNo', 'mixingBatchNo', 'cucNo', 'qty', 'unit',
+    'type', 'sample', 'source', 'receivedBy', ...analysisFields, 'controlNumber',
+    'dateReleased', 'releasedBy', 'endorsedTo', 'repeatedResults'],
+  AIR: ['method', 'dateSampled', 'timeSampled', 'performedBy', 'status', 'remarks',
+    'samplingPoint', 'controlNumber', 'sample'],
 } satisfies Record<SampleType, string[]>;
 
 export const SAMPLE_IDENTITY_HEADERS = ['SAMPLE', 'SAMPLE NAME', 'SAMPLE DESCRIPTION', 'WATER SOURCE', 'SAMPLING POINT', 'POINT'];
@@ -204,4 +207,9 @@ export function mapSampleColumns(
     }
   }
   return columns;
+}
+
+export function describeAutomaticColumns(sampleType: SampleType, headers: string[]): Record<string, string | undefined> {
+  const sources = Object.fromEntries(SHEET_PAYLOAD_FIELDS[sampleType].map(field => [field, field]));
+  return mapSampleColumns(sources, headers, []) as Record<string, string | undefined>;
 }
