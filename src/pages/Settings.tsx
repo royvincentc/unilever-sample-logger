@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { Save, Wifi, WifiOff, Trash2, Lock, Unlock, ShieldCheck, LogOut, RefreshCw, AlertTriangle, CheckCircle2, Table2 } from 'lucide-react';
 import PersonnelEditor from '../components/settings/PersonnelEditor';
+import SheetPayloadEditor from '../components/settings/SheetPayloadEditor';
 import Header from '../components/Layout/Header';
 import TextInput from '../components/ui/TextInput';
 import Button from '../components/ui/Button';
@@ -50,8 +51,8 @@ export default function Settings({ onLogout }: { onLogout?: () => void }) {
   };
 
   const handleSave = () => {
-    saveSettings(settings);
-    showToast('success', 'Settings Saved');
+    saveSettings({ spreadsheetId: settings.spreadsheetId });
+    showToast('success', 'Spreadsheet saved');
   };
 
   const handleClearData = async () => {
@@ -174,15 +175,25 @@ export default function Settings({ onLogout }: { onLogout?: () => void }) {
                 </p>
               </div>
             </div>
+            <Button size="sm" icon={<Save className="w-4 h-4" />} disabled={isLocked} onClick={handleSave}>
+              Save spreadsheet
+            </Button>
           </motion.div>
+
+          <details className="glass rounded-2xl p-5 space-y-4">
+            <summary className="cursor-pointer font-semibold text-[var(--text-primary)]">Google Sheets payload</summary>
+            <p className="text-sm text-[var(--text-secondary)]">
+              Payload overrides apply to this browser and spreadsheet. The control number and sample identity columns are protected.
+            </p>
+            {isLocked ? (
+              <Button size="sm" variant="secondary" onClick={() => setShowPasswordPrompt(true)}>Unlock settings</Button>
+            ) : (
+              <SheetPayloadEditor key={settings.spreadsheetId} spreadsheetId={settings.spreadsheetId} />
+            )}
+          </details>
 
           {/* Personnel Editor */}
           <PersonnelEditor />
-
-          {/* Save */}
-          <Button size="lg" icon={<Save className="w-4 h-4" />} onClick={handleSave} className="w-full">
-            Save Settings
-          </Button>
 
           {/* Account Section */}
           <div className="glass rounded-2xl border border-[var(--border-subtle)] overflow-hidden">

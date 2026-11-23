@@ -82,6 +82,7 @@ export const DEFAULT_SETTINGS = {
   theme: 'system' as const,
   authMode: 'password' as const,
   pin: '09062025',
+  sheetPayloadOverrides: {} as import('../utils/sheetPayload').SheetPayloadSettings,
 };
 
 export const SPREADSHEETS = {

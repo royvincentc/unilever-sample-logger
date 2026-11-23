@@ -33,6 +33,11 @@ export const ENVI_CATEGORIES: { id: EnviCategory; label: string; equipmentIds: s
     equipmentIds: ['LEEPACK'],
   },
   {
+    id: 'COP Swabbing',
+    label: 'COP Swabbing',
+    equipmentIds: ['COP_AKASH1', 'COP_AKASH2', 'COP_LEEPACK'],
+  },
+  {
     id: 'MV01',
     label: 'MV01',
     equipmentIds: ['MV01'],
@@ -43,6 +48,10 @@ export const ENVI_CATEGORIES: { id: EnviCategory; label: string; equipmentIds: s
     equipmentIds: [],
   },
 ];
+
+function numberedSwabPoints(label: string, count: number): string[] {
+  return Array.from({ length: count }, (_, index) => `${label} ${index + 1}`);
+}
 
 // ===== ALL EQUIPMENT GROUPS WITH SAMPLES =====
 export const EQUIPMENT_GROUPS: Record<string, EnviEquipmentGroup> = {
@@ -240,6 +249,35 @@ export const EQUIPMENT_GROUPS: Record<string, EnviEquipmentGroup> = {
       'LEEPACK JOINT 2',
       'LEEPACK JOINT 3',
       'LEEPACK JOINT 4',
+    ],
+  },
+  COP_AKASH1: {
+    id: 'COP_AKASH1',
+    label: 'Akash 1',
+    samples: [
+      ...numberedSwabPoints('Akash 1 Nozzle', 6),
+      ...numberedSwabPoints('Akash 1 Flowmeter', 6),
+      ...numberedSwabPoints('Akash 1 Cutoff Hose', 6),
+    ],
+  },
+  COP_AKASH2: {
+    id: 'COP_AKASH2',
+    label: 'Akash 2',
+    samples: [
+      ...numberedSwabPoints('Akash 2 Nozzle', 6),
+      ...numberedSwabPoints('Akash 2 Flowmeter', 6),
+      ...numberedSwabPoints('Akash 2 Cutoff Hose', 6),
+    ],
+  },
+  COP_LEEPACK: {
+    id: 'COP_LEEPACK',
+    label: 'Leepack',
+    samples: [
+      ...numberedSwabPoints('Leepack XXS Nozzle', 6),
+      ...numberedSwabPoints('Leepack Small Nozzle', 6),
+      ...numberedSwabPoints('Leepack Medium Nozzle', 6),
+      ...numberedSwabPoints('Leepack Large Nozzle', 6),
+      ...numberedSwabPoints('Leepack Cutoff Hose', 4),
     ],
   },
 };

@@ -1,96 +1,59 @@
-import { useState, useEffect, useCallback } from 'react';
-import type { SampleType, SheetSchema } from '../types';
-import { fetchSheetSchema } from '../utils/api';
-import { getSheetTabName } from '../utils/sheetMapping';
-import { db as firestore } from '../utils/firebase';
-import { doc, setDoc, getDoc } from 'firebase/firestore';
+import type { SampleType } from '../types/index.js';
 
-const CACHE_TTL_MS = 1000 * 60 * 30; // 30-minute local cache before re-fetching
-
-// Firestore collection that stores the latest schema per sample type.
-// This means ALL devices share the same mapping automatically.
-const SCHEMA_COLLECTION = 'app_config';
-
-function schemaDocId(sampleType: SampleType) {
-  return `schema_${sampleType.toLowerCase()}`;
+export interface SheetColumnOverride {
+  header: string;
+  source: string;
+  value: string;
+  match?: string;
 }
 
-/**
- * Fetches and caches the live column header schema for a given sheet tab.
- *
- * Behaviour:
- * - First read comes from Firestore (shared across all users).
- * - If the cached schema is >30 min old, a fresh fetch is triggered.
- * - A successful fetch is saved back to Firestore.
- * - Falls back gracefully to an empty schema if the endpoint is not configured.
- *
- * @param sampleType - 'ENVI' | 'WATER' | 'RawMats'
- * @param dateStr    - Used to determine the correct sheet tab name (e.g. 'MAY ENVI')
- * @param enabled    - Set to false to skip fetching (e.g. when offline)
- */
-export function useSheetSchema(
-  sampleType: SampleType | null,
-  dateStr: string,
-  enabled = true
-): { schema: SheetSchema | null; loading: boolean; refresh: () => void } {
-  const [schema, setSchema] = useState<SheetSchema | null>(null);
-  const [loading, setLoading] = useState(false);
+export type SheetPayloadSettings = Record<string, Partial<Record<SampleType, SheetColumnOverride[]>>>;
 
-  const fetchAndSave = useCallback(async () => {
-    if (!sampleType || !enabled) return;
+export function sheetColumnLetter(position: number): string {
+  let label = '';
+  for (let column = position; column > 0; column = Math.floor((column - 1) / 26)) {
+    label = String.fromCharCode(65 + (column - 1) % 26) + label;
+  }
+  return label;
+}
 
-    const sheetTab = getSheetTabName(sampleType);
-    setLoading(true);
+const commonFields = ['controlNumber', 'sample', 'dateSampled', 'timeSampled', 'status', 'remarks'];
+const analysisFields = ['dateAnalyzed', 'analyzedBy', 'endorsedTo', 'qty', 'unit'];
 
-    try {
-      // 1. Check Firestore cache first
-      const docRef = doc(firestore, SCHEMA_COLLECTION, schemaDocId(sampleType));
-      const snapshot = await getDoc(docRef);
+export const SHEET_PAYLOAD_FIELDS = {
+  ENVI: [...commonFields, ...analysisFields, 'swabbedBy', 'category'],
+  WATER: [...commonFields, ...analysisFields, 'waterSource', 'sampledBy'],
+  RawMats: [...commonFields, ...analysisFields, 'type', 'rfaf', 'batchNo', 'mixingBatchNo', 'cucNo',
+    'source', 'receivedBy', 'dateReleased', 'releasedBy', 'repeatedResults'],
+  AIR: [...commonFields, 'method', 'samplingPoint', 'performedBy'],
+} satisfies Record<SampleType, string[]>;
 
-      if (snapshot.exists()) {
-        const cached = snapshot.data() as SheetSchema;
-        const age = Date.now() - new Date(cached.fetchedAt).getTime();
-        if (age < CACHE_TTL_MS && cached.sheetTab === sheetTab && cached.headers?.length > 0) {
-          setSchema(cached);
-          setLoading(false);
-          return;
-        }
-      }
+export const SAMPLE_IDENTITY_HEADERS = ['SAMPLE', 'SAMPLE NAME', 'SAMPLE DESCRIPTION', 'WATER SOURCE', 'SAMPLING POINT', 'POINT'];
 
-      // 2. Cache miss or stale — fetch live from n8n
-      const headers = await fetchSheetSchema(sheetTab);
+export function isIdentityColumn(header: string): boolean {
+  const name = header.trim().toUpperCase();
+  return name.includes('CONTROL') || SAMPLE_IDENTITY_HEADERS.includes(name);
+}
 
-      if (headers.length > 0) {
-        const newSchema: SheetSchema = {
-          sampleType,
-          sheetTab,
-          headers,
-          fetchedAt: new Date().toISOString(),
-        };
-        setSchema(newSchema);
-
-        // 3. Persist to Firestore so all devices get the update
-        try {
-          await setDoc(docRef, newSchema);
-        } catch (e) {
-          console.warn('Could not save schema to Firestore:', e);
-        }
-      } else if (snapshot.exists()) {
-        // Fetch returned empty — use stale cache as fallback
-        setSchema(snapshot.data() as SheetSchema);
-      }
-    } catch (e) {
-      console.error('useSheetSchema error:', e);
-    } finally {
-      setLoading(false);
+export function validateSheetOverrides(overrides: unknown, headers: string[], sampleType: SampleType): string | undefined {
+  if (!Array.isArray(overrides) || overrides.length > headers.length || !Object.hasOwn(SHEET_PAYLOAD_FIELDS, sampleType)) {
+    return 'Invalid Google Sheets payload overrides.';
+  }
+  const used = new Set<string>();
+  for (const rule of overrides) {
+    if (!rule || typeof rule.header !== 'string' || !rule.header.trim() || typeof rule.value !== 'string' ||
+        (rule.match !== undefined && typeof rule.match !== 'string') ||
+        !['skip', 'fixed', ...SHEET_PAYLOAD_FIELDS[sampleType]].includes(rule.source)) {
+      return 'Choose a sheet column and value for each override.';
     }
-  }, [sampleType, dateStr, enabled]);
-
-  useEffect(() => {
-    fetchAndSave();
-  }, [fetchAndSave]);
-
-  return { schema, loading, refresh: fetchAndSave };
+    if (headers.filter(header => header === rule.header).length !== 1) {
+      return `Column "${rule.header}" must match one live sheet header.`;
+    }
+    if (isIdentityColumn(rule.header) || used.has(rule.header)) {
+      return `Column "${rule.header}" is protected or already has an override.`;
+    }
+    used.add(rule.header);
+  }
 }
 
 /**
@@ -116,7 +79,7 @@ const FIELD_KEYWORDS: Record<string, string[]> = {
   'repeatedResults':       ['repeated results', 'repeated result', 'repeated'],
   
   // ENVI specific
-  'sample':                ['sample', 'sample name', 'material', 'product'],
+  'sample':                ['sample', 'sample name', 'sample description', 'material', 'product'],
   'category':              ['category'],
   'dateSampled':           ['date received/sampled', 'date received', 'received date', 'date swabbed', 'date sampled', 'swab date', 'date performed', 'date'],
   'timeSampled':           ['time swabbed', 'time sampled', 'swab time', 'time', 'time performed'],
@@ -156,7 +119,7 @@ export function resolveColumn(logicalName: string, headers: string[], claimedKey
   if (match) return match;
 
   // 3. Keyword exact match
-  const keywords = FIELD_KEYWORDS[logicalName] ?? [];
+  const keywords = Object.hasOwn(FIELD_KEYWORDS, logicalName) ? FIELD_KEYWORDS[logicalName] : [];
   for (const kw of keywords) {
     match = headers.find(h => h.trim().toLowerCase() === kw.toLowerCase() && !claimedKeys.has(h));
     if (match) return match;
@@ -194,10 +157,7 @@ export function remapPayloadToLiveColumns(
 ): Record<string, unknown> {
   if (!headers || headers.length === 0) return payload;
 
-  const remapped: Record<string, unknown> = {};
-
-  // Initialise all known sheet columns to empty string
-  headers.forEach(h => { remapped[h] = ''; });
+  const remapped: Record<string, unknown> = Object.create(null);
 
   const claimedLiveKeys = new Set<string>();
   const unmappedKeys: string[] = [];
@@ -227,4 +187,21 @@ export function remapPayloadToLiveColumns(
   }
 
   return remapped;
+}
+
+export function mapSampleColumns(
+  payload: Record<string, unknown>,
+  headers: string[],
+  overrides: SheetColumnOverride[],
+): Record<string, unknown> {
+  const columns = remapPayloadToLiveColumns(payload, headers.filter(header => header.trim()));
+  for (const { header, source, value, match } of overrides) {
+    if (source === 'skip') delete columns[header];
+    else if (source === 'fixed') columns[header] = value ? `'${value}` : '';
+    else {
+      const original = Object.hasOwn(payload, source) ? payload[source] : undefined;
+      columns[header] = match && original === match ? (value ? `'${value}` : '') : original;
+    }
+  }
+  return columns;
 }

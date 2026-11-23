@@ -37,7 +37,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const sheets = await getSheetsClient();
     
-    const range = schemaOnly === 'true' ? `'${tab}'!A1:AZ10` : `'${tab}'!A:AZ`;
+    const range = schemaOnly === 'true' ? `'${tab}'!1:5` : `'${tab}'!A:AZ`;
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: sheetId,
       range, 
@@ -114,6 +114,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }).filter(obj => {
       const rawSampleName = obj['SAMPLE NAME'] || 
         obj['SAMPLE'] || 
+        obj['SAMPLE DESCRIPTION'] ||
         obj['WATER SOURCE'] || 
         obj['SAMPLING POINT'] || 
         obj['POINT'];

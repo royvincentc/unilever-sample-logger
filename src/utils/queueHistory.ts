@@ -1,5 +1,5 @@
 import type { HistoryEntry, QueueItem } from '../types';
-import { resolveColumn } from '../hooks/useSheetSchema';
+import { resolveColumn } from './sheetPayload';
 
 /** Retry payloads may already be keyed by live sheet headers. */
 export function historyFromQueuedSample(item: QueueItem, assignedControlNumber?: string): HistoryEntry {

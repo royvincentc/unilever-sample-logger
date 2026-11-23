@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getSheetsClient } from './_sheets.js';
 import { supabase } from './_supabase.js';
+import { mapSampleColumns, resolveColumn, SAMPLE_IDENTITY_HEADERS, sheetColumnLetter, validateSheetOverrides } from '../src/utils/sheetPayload.js';
 
 /**
  * Vercel Serverless Function to append or update a row in Google Sheets.
@@ -38,7 +39,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     console.log('Payload is bulk?', !!payload.bulk);
     
     const isBulk = payload.bulk === true && Array.isArray(payload.items);
-    const basePayload = isBulk ? payload.items[0] : payload;
+    const items = isBulk ? payload.items : [payload];
+    const basePayload = items[0];
+    if (!basePayload) return res.status(400).json({ error: 'No samples to submit.' });
     
     const { spreadsheetId, sheetTab, controlNumber, isUpdate, sampleType } = basePayload;
 
@@ -61,15 +64,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     let headerRowIndex = rows.findIndex((r: any[]) => r.some(c => typeof c === 'string' && (c.toUpperCase().includes('CONTROL #') || c.toUpperCase().includes('SAMPLE'))));
     if (headerRowIndex === -1) headerRowIndex = 0;
 
-    const headers = rows[headerRowIndex] as string[];
+    const headers = rows[headerRowIndex].map(header => String(header ?? ''));
     if (!headers || headers.length === 0) {
       return res.status(404).json({ error: `Sheet tab '${sheetTab}' has no headers.` });
     }
 
     // 2. Prepare the row arrays matching the header order
-    const items = isBulk ? payload.items : [payload];
-    const rowDataArray = items.map(item => {
-      return headers.map(header => item[header] !== undefined ? String(item[header]) : null);
+    const isSampleLogger = basePayload.sampleLogger === true;
+    const overrides = payload.sheetOverrides ?? [];
+    if (isSampleLogger) {
+      const error = validateSheetOverrides(overrides, headers, sampleType);
+      if (error) return res.status(422).json({ error });
+      if (items.some(item => !item || item.sampleLogger !== true || item.sampleType !== sampleType ||
+          item.sheetTab !== sheetTab || item.spreadsheetId !== spreadsheetId || item.controlNumber !== controlNumber)) {
+        return res.status(400).json({ error: 'Samples in a batch must share a destination and control number.' });
+      }
+    }
+    const mappedItems = items.map(item => {
+      if (!isSampleLogger) return item;
+      const { spreadsheetId, sheetTab, sampleType, isUpdate, sampleLogger, sheetOverrides, selectedSamples,
+        categories, samplingPoints, ...fields } = item;
+      return mapSampleColumns(fields, headers, overrides);
+    });
+    const rowDataArray = mappedItems.map(item => {
+      return headers.map(header => header && Object.hasOwn(item, header) &&
+        item[header] !== undefined ? String(item[header]) : null);
     });
     const rowData = rowDataArray[0]; // for backward compatibility in single mode
 
@@ -82,59 +101,119 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // This allows users to pre-fill Sample Names in the sheet, and the app will fill in the rest.
     
     // 1. Identify Target Control Number and Target Sample Name
-    const targetCleanCtrl = controlNumber.replace(/^RM-?/i, '').toLowerCase().trim();
-    const targetCleanSample = String(
-      payload['SAMPLE NAME'] || 
-      payload['SAMPLE'] || 
-      payload['WATER SOURCE'] || 
-      payload['SAMPLING POINT'] || 
-      payload['POINT'] || 
-      ''
-    ).toLowerCase().trim();
-
-function getColumnLetter(colNumber: number): string {
-  let temp, letter = '';
-  let col = colNumber;
-  while (col > 0) {
-    temp = (col - 1) % 26;
-    letter = String.fromCharCode(temp + 65) + letter;
-    col = Math.floor((col - temp - 1) / 26);
-  }
-  return letter || 'Z';
-}
+    const cleanControl = (value: unknown) => {
+      const cleaned = String(value ?? '').trim().replace(/^RM-?/i, '').toLowerCase();
+      return isSampleLogger && sampleType === 'WATER' ? cleaned.replace(/^w(?=\d)/, '') : cleaned;
+    };
+    const targetCleanCtrl = cleanControl(controlNumber);
+    const target = mappedItems[0];
+    const sampleNameColIndex = headers.findIndex((header, index) =>
+      SAMPLE_IDENTITY_HEADERS.includes(header.trim().toUpperCase()) && (!isSampleLogger || !!rowData[index]));
+    const controlHeader = resolveColumn('controlNumber', headers);
+    const controlColIndex = controlHeader ? headers.indexOf(controlHeader) : -1;
+    const readSample = (row: (string | null)[]) => String(row[sampleNameColIndex === -1 ? 1 : sampleNameColIndex] ?? '').trim();
+    const targetCleanSample = readSample(rowData).toLowerCase();
+    if (isSampleLogger && (sampleNameColIndex === -1 || controlColIndex === -1 ||
+        rowDataArray.some(row => !readSample(row) || !row[controlColIndex]))) {
+      return res.status(422).json({ error: 'The sheet must have a control number and sample column for every submitted row.' });
+    }
 
     // 2. Fetch all rows to scan for a match, or to find the first empty row
+    const endColumn = sheetColumnLetter(headers.length);
     const allRowsResponse = await sheets.spreadsheets.values.get({
       spreadsheetId,
-      range: `'${sheetTab}'!A:Z`,
+      range: `'${sheetTab}'!A:${endColumn}`,
     });
     const allRows = allRowsResponse.data.values || [];
+
+    if (isSampleLogger) {
+      const rowsBySample = new Map<string, number>();
+      const reservedRows: number[] = [];
+      const availableRows: number[] = [];
+      let lastControl = '';
+      for (let index = headerRowIndex + 1; index < allRows.length; index++) {
+        const existing = allRows[index] ?? [];
+        const control = cleanControl(existing[controlColIndex]);
+        if (control) lastControl = control;
+        const sample = readSample(existing).toLowerCase();
+        const emptySample = ['', '-', 'undefined', 'null'].includes(sample);
+        if (!emptySample && lastControl === targetCleanCtrl && !rowsBySample.has(sample)) {
+          rowsBySample.set(sample, index + 1);
+        } else if (emptySample) {
+          if (control === targetCleanCtrl) reservedRows.push(index + 1);
+          else if (!control) availableRows.push(index + 1);
+        }
+      }
+
+      let nextRow = allRows.length + 1;
+      const data = rowDataArray.map(values => {
+        const existingRow = rowsBySample.get(readSample(values).toLowerCase());
+        const row = existingRow ?? reservedRows.shift() ?? availableRows.shift() ?? nextRow++;
+        if (existingRow && !allRows[existingRow - 1]?.[controlColIndex]) values[controlColIndex] = null;
+        return { range: `'${sheetTab}'!A${row}:${endColumn}${row}`, values: [values] };
+      });
+      const write = () => sheets.spreadsheets.values.batchUpdate({
+        spreadsheetId,
+        requestBody: { valueInputOption: 'USER_ENTERED', includeValuesInResponse: true, data },
+      });
+      const written = await write().catch(async (error: unknown) => {
+        if (!(error instanceof Error) || !error.message.includes('exceeds grid limits')) throw error;
+        const workbook = await sheets.spreadsheets.get({
+          spreadsheetId,
+          ranges: [`'${sheetTab}'`],
+          fields: 'sheets(properties(sheetId,title,gridProperties(rowCount)))',
+        });
+        const properties = workbook.data.sheets?.find(sheet => sheet.properties?.title === sheetTab)?.properties;
+        const rowCount = properties?.gridProperties?.rowCount;
+        if (properties?.sheetId == null || rowCount == null || nextRow - 1 <= rowCount) throw error;
+        await sheets.spreadsheets.batchUpdate({
+          spreadsheetId,
+          requestBody: { requests: [{ appendDimension: {
+            sheetId: properties.sheetId, dimension: 'ROWS', length: nextRow - 1 - rowCount,
+          } }] },
+        });
+        return write();
+      });
+
+      if (supabase) {
+        try {
+          const records = rowDataArray.map((values, index) => {
+            const writtenValues = written.data.responses?.[index]?.updatedData?.values?.[0] ?? values;
+            const sheetData = Object.fromEntries(headers.map((header, position) => [header, writtenValues[position] ?? '']));
+            return {
+              control_number: controlNumber,
+              sample_name: readSample(values),
+              sample_type: sampleType,
+              sheet_tab: sheetTab,
+              status: sheetData.STATUS || sheetData.Status || 'ON GOING',
+              sheet_data: sheetData,
+              updated_at: new Date().toISOString(),
+            };
+          });
+          const { error } = await supabase.from('samples').upsert(records, { onConflict: 'control_number,sample_name' });
+          if (error) console.error('Supabase dual-write error:', error);
+        } catch (error) {
+          console.error('Supabase dual-write error:', error);
+        }
+      }
+      return res.status(200).json({ success: true, message: 'Samples saved', controlNumber });
+    }
 
     if (payload._rowIndex && isUpdate) {
       sheetRowNumber = parseInt(payload._rowIndex, 10);
     } else {
       let lastControlNumber = '';
       
-      // Determine which column index holds the Sample Name (usually 1, 2, 3, 4, or 5)
-      let sampleNameColIndex = headers.findIndex(h => {
-        const u = h.toUpperCase();
-        return u === 'SAMPLE' || u === 'SAMPLE NAME' || u === 'WATER SOURCE' || u === 'SAMPLING POINT' || u === 'POINT';
-      });
-      if (sampleNameColIndex === -1) sampleNameColIndex = 1; // Default to B
-      
-      let controlColIndex = headers.findIndex(h => h.toUpperCase().includes('CONTROL #') || h.toUpperCase().includes('CONTROL'));
-      if (controlColIndex === -1) controlColIndex = 0; // Default to A
-
       for (let i = headerRowIndex + 1; i < allRows.length; i++) {
         const r = allRows[i] || [];
         
         // Track last control number for merged cells
-        const rawCtrl = r[controlColIndex] ? String(r[controlColIndex]).trim() : '';
+        const rawCtrl = String(r[controlColIndex === -1 ? 0 : controlColIndex] ?? '').trim();
         if (rawCtrl) {
           lastControlNumber = rawCtrl.replace(/^RM-?/i, '').toLowerCase().trim();
         }
         
-        const rowSample = r[sampleNameColIndex] ? String(r[sampleNameColIndex]).toLowerCase().trim() : '';
+        const rowSample = readSample(r).toLowerCase();
         
         if (targetCleanSample) {
            if (lastControlNumber === targetCleanCtrl && rowSample === targetCleanSample) {
@@ -152,19 +231,18 @@ function getColumnLetter(colNumber: number): string {
 
     if (sheetRowNumber !== -1) {
       // We found the row, UPDATE IT.
-      const endColLetter = getColumnLetter(headers.length);
       const existingRowResponse = await sheets.spreadsheets.values.get({
         spreadsheetId,
-        range: `'${sheetTab}'!A${sheetRowNumber}:${endColLetter}${sheetRowNumber}`
+        range: `'${sheetTab}'!A${sheetRowNumber}:${endColumn}${sheetRowNumber}`
       });
       
       const existingRowData = existingRowResponse.data.values?.[0] || [];
       
       finalRowData = headers.map((header, i) => {
-        if (payload[header] !== undefined) {
-           return String(payload[header]);
+        if (target[header] !== undefined) {
+           return String(target[header]);
         }
-        return existingRowData[i] || ''; // preserve existing
+        return existingRowData[i] || '';
       });
 
       const valuesToWrite = [finalRowData];
@@ -190,20 +268,8 @@ function getColumnLetter(colNumber: number): string {
       // A row is considered empty if its Control Number AND Sample Name are blank.
       let emptyRowIndex = -1;
       
-      let sampleNameColIndex = headers.findIndex(h => {
-        const u = h.toUpperCase();
-        return u === 'SAMPLE' || u === 'SAMPLE NAME' || u === 'WATER SOURCE' || u === 'SAMPLING POINT' || u === 'POINT';
-      });
-      if (sampleNameColIndex === -1) sampleNameColIndex = 1;
-      let controlColIndex = headers.findIndex(h => h.toUpperCase().includes('CONTROL #') || h.toUpperCase().includes('CONTROL'));
-      if (controlColIndex === -1) controlColIndex = 0;
-
       for (let i = headerRowIndex + 1; i < Math.max(allRows.length + 50, 5000); i++) {
-        const r = allRows[i] || [];
-        const ctrl = r[controlColIndex] ? String(r[controlColIndex]).trim() : '';
-        const smpl = r[sampleNameColIndex] ? String(r[sampleNameColIndex]).trim() : '';
-        
-        if (!smpl) {
+        if (!readSample(allRows[i] || [])) {
           emptyRowIndex = i;
           break;
         }
@@ -214,7 +280,7 @@ function getColumnLetter(colNumber: number): string {
       if (emptyRowIndex !== -1) {
         sheetRowNumber = emptyRowIndex + 1;
         
-        const mergedValuesToAppend = isBulk 
+        const mergedValuesToAppend = isBulk
           ? rowDataArray.map((row, j) => {
               const existingRow = allRows[emptyRowIndex + j] || [];
               return row.map((v, idx) => v === null ? (existingRow[idx] || '') : v);
@@ -279,6 +345,7 @@ function getColumnLetter(colNumber: number): string {
            const sampleNameStr = String(
              fullPayloadData['SAMPLE NAME'] || 
              fullPayloadData['SAMPLE'] || 
+             fullPayloadData['SAMPLE DESCRIPTION'] ||
              fullPayloadData['WATER SOURCE'] || 
              fullPayloadData['SAMPLING POINT'] || 
              fullPayloadData['POINT'] || 
@@ -303,7 +370,7 @@ function getColumnLetter(colNumber: number): string {
              headers.forEach((h: string, i: number) => {
                 pd[h] = rowDataArray[index][i] || '';
              });
-             const sName = String(pd['SAMPLE NAME'] || pd['SAMPLE'] || pd['WATER SOURCE'] || pd['SAMPLING POINT'] || pd['POINT'] || 'Unknown').trim();
+             const sName = readSample(rowDataArray[index]) || 'Unknown';
              return {
                 control_number: item.controlNumber || controlNumber,
                 sample_name: sName,

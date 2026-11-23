@@ -12,6 +12,7 @@ export type EnviCategory =
   | 'FILLING - AKASH 1'
   | 'FILLING - AKASH 2'
   | 'FILLING - LEEPACK'
+  | 'COP Swabbing'
   | 'MV01'
   | 'Other';
 

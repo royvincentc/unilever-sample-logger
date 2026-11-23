@@ -15,8 +15,7 @@ import { sendToWebhook, sendToWebhookBulk, analyseSheetForSubmission } from '../
 import { generateNextControlNumber } from '../utils/controlNumber';
 import { getSheetTabName } from '../utils/sheetMapping';
 import { addToQueue, addToHistory, getHighestControlNumberForSubmission } from '../utils/db';
-import { getUserName } from '../utils/auth';
-import { useSheetSchema, remapPayloadToLiveColumns } from '../hooks/useSheetSchema';
+import { getSettings, getUserName } from '../utils/auth';
 import type { SampleType, EnviFormData, WaterFormData, RawMatsFormData, AirFormData, QueueItem, HistoryEntry } from '../types';
 
 import { useTheme } from '../hooks/useTheme';
@@ -29,13 +28,8 @@ export default function NewSample({ onQueueUpdate }: NewSampleProps) {
   const { theme, setTheme } = useTheme();
   const [searchParams] = useSearchParams();
   const [selectedType, setSelectedType] = useState<SampleType | null>(null);
-  const [currentDate] = useState(new Date().toISOString().split('T')[0]);
   const { showToast } = useToast();
   const isOnline = useOnlineStatus();
-
-  // Pre-fetch live column schema when a sample type is selected so the
-  // payload keys are remapped to whatever the current sheet headers say.
-  const { schema } = useSheetSchema(selectedType, currentDate, isOnline);
 
   useEffect(() => {
     const type = searchParams.get('type') as SampleType | null;
@@ -61,6 +55,7 @@ export default function NewSample({ onQueueUpdate }: NewSampleProps) {
     overrideControlNumber?: string
   ) => {
     try {
+      const { spreadsheetId } = getSettings();
       const subType = sampleType === 'RawMats' ? (formData as RawMatsFormData).type : undefined;
       const sheetTab = getSheetTabName(sampleType, subType, sampleType === 'ENVI' ? new Date(formData.dateSampled) : undefined);
       const endpoint = sampleType === 'ENVI' ? 'envi' : sampleType === 'WATER' ? 'water' : sampleType === 'AIR' ? 'air' : 'rawmats';
@@ -96,8 +91,10 @@ export default function NewSample({ onQueueUpdate }: NewSampleProps) {
         controlNumber = generateNextControlNumber(sampleType, highestControl, formData.dateSampled);
       }
 
-      const basePayload: Record<string, unknown> = {
+      const payload: Record<string, unknown> = {
         ...(formData as unknown as Record<string, unknown>),
+        sampleLogger: true,
+        spreadsheetId,
         controlNumber,
         sheetTab,
         sampleType,
@@ -108,24 +105,9 @@ export default function NewSample({ onQueueUpdate }: NewSampleProps) {
         category: (formData as any).categories ? (formData as any).categories.join(', ') : undefined,
       };
 
-      // Remap payload field names to live sheet column headers.
-      // This makes submission resilient to column renames in Google Sheets.
-      const liveHeaders = schema?.headers ?? [];
-      const payload = liveHeaders.length > 0
-        ? {
-            ...remapPayloadToLiveColumns(basePayload, liveHeaders),
-            // Always preserve meta fields n8n needs (not sheet columns)
-            controlNumber,
-            sheetTab,
-            sampleType,
-            isUpdate,
-          }
-        : basePayload;
-
       if (!isOnline) {
         const queueItem = makeQueueItem(sampleType, formData, sampleName);
         queueItem.controlNumber = controlNumber;
-        // Store the remapped payload so retry sends the right column names too
         queueItem.formData = payload as any; 
         await addToQueue(queueItem);
         onQueueUpdate();
@@ -188,6 +170,7 @@ export default function NewSample({ onQueueUpdate }: NewSampleProps) {
     sharedControlNumber: string
   ) => {
     try {
+      const { spreadsheetId } = getSettings();
       if (!isOnline) {
         // Fallback to offline queuing if connection drops during bulk attempt
         for (const item of items) {
@@ -195,6 +178,8 @@ export default function NewSample({ onQueueUpdate }: NewSampleProps) {
           queueItem.controlNumber = sharedControlNumber;
           queueItem.formData = {
             ...(item.formData as any),
+            sampleLogger: true,
+            spreadsheetId,
             controlNumber: sharedControlNumber,
             sheetTab: getSheetTabName(sampleType, sampleType === 'RawMats' ? (item.formData as any).type : undefined, sampleType === 'ENVI' ? new Date(item.formData.dateSampled) : undefined),
             sampleType,
@@ -202,15 +187,6 @@ export default function NewSample({ onQueueUpdate }: NewSampleProps) {
             sample: item.sampleName,
             category: (item.formData as any).categories ? (item.formData as any).categories.join(', ') : undefined
           } as any;
-          if (schema?.headers && schema.headers.length > 0) {
-            queueItem.formData = {
-              ...remapPayloadToLiveColumns(queueItem.formData as any, schema.headers),
-              controlNumber: sharedControlNumber,
-              sheetTab: (queueItem.formData as any).sheetTab,
-              sampleType,
-              isUpdate: false
-            } as any;
-          }
           await addToQueue(queueItem);
         }
         onQueueUpdate();
@@ -221,28 +197,17 @@ export default function NewSample({ onQueueUpdate }: NewSampleProps) {
       const endpoint = sampleType === 'ENVI' ? 'envi' : sampleType === 'AIR' ? 'air' : 'water';
       const sheetTab = getSheetTabName(sampleType, undefined, sampleType === 'ENVI' ? new Date(items[0].formData.dateSampled) : undefined);
       
-      const bulkPayloads = items.map(item => {
-        const basePayload: Record<string, unknown> = {
-          ...(item.formData as unknown as Record<string, unknown>),
-          controlNumber: sharedControlNumber,
-          sheetTab,
-          sampleType,
-          isUpdate: false,
-          sample: item.sampleName,
-          category: (item.formData as any).categories ? (item.formData as any).categories.join(', ') : undefined,
-        };
-
-        const liveHeaders = schema?.headers ?? [];
-        return liveHeaders.length > 0
-          ? {
-              ...remapPayloadToLiveColumns(basePayload, liveHeaders),
-              controlNumber: sharedControlNumber,
-              sheetTab,
-              sampleType,
-              isUpdate: false,
-            }
-          : basePayload;
-      });
+      const bulkPayloads = items.map(item => ({
+        ...(item.formData as unknown as Record<string, unknown>),
+        sampleLogger: true,
+        spreadsheetId,
+        controlNumber: sharedControlNumber,
+        sheetTab,
+        sampleType,
+        isUpdate: false,
+        sample: item.sampleName,
+        category: (item.formData as any).categories ? (item.formData as any).categories.join(', ') : undefined,
+      }));
 
       const result = await sendToWebhookBulk(endpoint, bulkPayloads);
       

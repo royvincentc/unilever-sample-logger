@@ -1,5 +1,6 @@
 import { getSettings } from './auth';
 import type { Shift, ShiftRows } from './shiftSummary';
+import type { SampleType } from '../types';
 
 /** Fetch every summary tab directly; an incomplete read must never become a report. */
 export async function fetchShiftSummaryRows(date: string, shift: Shift, now = new Date()): Promise<ShiftRows> {
@@ -88,6 +89,8 @@ export async function sendToWebhook(
   data: Record<string, unknown>
 ): Promise<WebhookResponse> {
   const settings = getSettings();
+  const spreadsheetId = data.sampleLogger === true && typeof data.spreadsheetId === 'string'
+    ? data.spreadsheetId : settings.spreadsheetId;
 
   try {
     const response = await fetch('/api/submit', {
@@ -95,7 +98,10 @@ export async function sendToWebhook(
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         ...data,
-        spreadsheetId: settings.spreadsheetId,
+        spreadsheetId,
+        ...(data.sampleLogger === true && {
+          sheetOverrides: settings.sheetPayloadOverrides?.[spreadsheetId]?.[data.sampleType as SampleType] ?? [],
+        }),
       }),
     });
 
@@ -248,7 +254,6 @@ import { getHistory, updateHistory } from './db';
  * Returns an array of updated entry IDs.
  */
 import { getSheetTabName } from './sheetMapping';
-import type { SampleType } from '../types';
 
 export async function fetchActiveIncubationsFromSheet(): Promise<any[]> {
   const settings = getSettings();
@@ -430,14 +435,14 @@ export async function fetchLiveSheetData(sheetTab: string, forceRefresh = false)
 /**
  * Fetch the live header row (schema) for a given sheet tab via Vercel Function.
  */
-export async function fetchSheetSchema(sheetTab: string): Promise<string[]> {
-  const settings = getSettings();
+export async function fetchSheetSchema(sheetTab: string, spreadsheetId = getSettings().spreadsheetId): Promise<string[]> {
   try {
-    const response = await fetch(`/api/sheet-data?sheetId=${settings.spreadsheetId}&tab=${encodeURIComponent(sheetTab)}&schemaOnly=true`);
+    const params = new URLSearchParams({ sheetId: spreadsheetId, tab: sheetTab, schemaOnly: 'true' });
+    const response = await fetch(`/api/sheet-data?${params}`);
     if (!response.ok) return [];
 
     const data = await response.json();
-    return Array.isArray(data?.headers) ? data.headers : [];
+    return Array.isArray(data?.headers) ? data.headers.map((header: unknown) => String(header ?? '')) : [];
   } catch (error) {
     console.error('fetchSheetSchema failed:', error);
     return [];
@@ -453,6 +458,9 @@ export async function sendToWebhookBulk(
   items: Record<string, unknown>[]
 ): Promise<WebhookResponse> {
   const settings = getSettings();
+  const first = items[0];
+  const spreadsheetId = first?.sampleLogger === true && typeof first.spreadsheetId === 'string'
+    ? first.spreadsheetId : settings.spreadsheetId;
 
   try {
     const response = await fetch('/api/submit', {
@@ -460,9 +468,12 @@ export async function sendToWebhookBulk(
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         bulk: true,
+        ...(first?.sampleLogger === true && {
+          sheetOverrides: settings.sheetPayloadOverrides?.[spreadsheetId]?.[first.sampleType as SampleType] ?? [],
+        }),
         items: items.map(item => ({
           ...item,
-          spreadsheetId: settings.spreadsheetId,
+          spreadsheetId,
         })),
       }),
     });
