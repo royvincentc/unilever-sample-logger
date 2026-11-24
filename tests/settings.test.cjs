@@ -28,6 +28,11 @@ function loadModule(file, dependencies, globals = {}) {
 }
 
 const constants = loadModule('src/data/constants.ts', {});
+const sampleData = loadModule('src/data/sampleData.ts', {});
+const { defaultSampleCatalog, getEnviCatalogGroups, validateSampleCatalog } = loadModule('src/data/sampleCatalog.ts', {
+  './constants.js': constants,
+  './sampleData.js': sampleData,
+});
 
 function createEnvironment(settings, rejectWrites = false) {
   const storage = new Map();
@@ -207,7 +212,7 @@ test('retry and bulk requests use overrides for their original workbook and pres
 });
 
 test('COP Swabbing lists all 64 equipment-prefixed sample names in order', () => {
-  const { ENVI_CATEGORIES, EQUIPMENT_GROUPS } = loadModule('src/data/sampleData.ts', {});
+  const { ENVI_CATEGORIES, EQUIPMENT_GROUPS } = sampleData;
   const category = ENVI_CATEGORIES.find(({ id }) => id === 'COP Swabbing');
   const groups = Array.from(category.equipmentIds, id => EQUIPMENT_GROUPS[id]);
   assert.deepEqual(groups.map(({ label }) => label), ['Akash 1', 'Akash 2', 'Leepack']);
@@ -221,4 +226,81 @@ test('COP Swabbing lists all 64 equipment-prefixed sample names in order', () =>
     ...['XXS', 'Small', 'Medium', 'Large'].flatMap(size => points(`Leepack ${size} Nozzle`, 6)),
     ...points('Leepack Cutoff Hose', 4),
   ]);
+});
+
+test('the sample catalog preserves defaults and applies edited Envi hierarchy in saved order', () => {
+  assert.equal(validateSampleCatalog(defaultSampleCatalog), undefined);
+  const catalog = structuredClone(defaultSampleCatalog);
+  const category = catalog.envi.find(item => item.label === 'COP Swabbing');
+  category.label = 'COP Checks';
+  category.groups.reverse();
+  category.groups[0].samples = ['New Leepack point', 'Leepack XXS Nozzle 2'];
+  const groups = getEnviCatalogGroups(catalog.envi, ['COP Checks']);
+  assert.equal(groups[0].label, 'Leepack');
+  assert.deepEqual(groups[0].samples, ['New Leepack point', 'Leepack XXS Nozzle 2']);
+  assert.equal(getEnviCatalogGroups(catalog.envi, ['COP Swabbing']).length, 0);
+  assert.equal(validateSampleCatalog(catalog), undefined);
+  catalog.waterSources.push(catalog.waterSources[0].toLowerCase());
+  assert.match(validateSampleCatalog(catalog), /Water sources/);
+  assert.match(validateSampleCatalog({ ...defaultSampleCatalog, airPoints: ['=1+1'] }), /Sampling points/);
+});
+
+test('workspace catalog writes require an admin and reject stale revisions', async () => {
+  class HttpError extends Error {
+    constructor(status, message) { super(message); this.status = status; }
+  }
+  let saved;
+  const query = (operation, incoming) => {
+    const filter = {};
+    const finish = () => {
+      if (operation === 'insert') {
+        if (saved) return { error: { code: '23505' } };
+        saved = incoming;
+      } else if (operation === 'update') {
+        if (saved?.workspace_id !== filter.workspace_id || saved.revision !== filter.revision) return { data: null };
+        saved = { ...saved, ...incoming };
+      }
+      return { data: saved };
+    };
+    const builder = {
+      select: () => builder,
+      eq: (key, value) => { filter[key] = value; return builder; },
+      single: finish,
+      maybeSingle: finish,
+    };
+    return builder;
+  };
+  const handler = loadModule('api/_sampleCatalogHandler.ts', {
+    '../src/data/sampleCatalog.js': { defaultSampleCatalog, validateSampleCatalog },
+    './_collaborationAuth.js': {
+      HttpError,
+      safeFailure: error => ({ status: error.status ?? 500, message: error.message }),
+      membership: async (req, write, admin) => {
+        if (req.method === 'POST') assert.ok(write && admin);
+        if (admin && req.role !== 'admin') throw new HttpError(403, 'Admin required');
+        return { workspaceId: 'workspace', uid: 'user' };
+      },
+    },
+    './_supabase.js': { supabase: { from: () => ({
+      select: () => query('select'),
+      insert: value => query('insert', value),
+      update: value => query('update', value),
+    }) } },
+  }).default;
+  const call = async (method, role, body) => {
+    const reply = { status: 200 };
+    await handler({ method, role, body }, {
+      status(code) { reply.status = code; return this; },
+      json(result) { reply.body = result; return this; },
+    });
+    return reply;
+  };
+  assert.equal((await call('GET', 'viewer')).body.revision, 0);
+  const catalog = { ...defaultSampleCatalog, waterSources: ['Edited water source'] };
+  assert.equal((await call('POST', 'editor', { catalog, revision: 0 })).status, 403);
+  assert.equal((await call('POST', 'admin', { catalog, revision: 0 })).body.revision, 1);
+  assert.equal((await call('POST', 'admin', { catalog, revision: 0 })).status, 409);
+  assert.equal((await call('POST', 'admin', { catalog, revision: 1 })).body.revision, 2);
+  assert.equal((await call('POST', 'admin', { catalog, revision: 1 })).status, 409);
+  assert.equal((await call('GET', 'viewer')).body.catalog.waterSources[0], 'Edited water source');
 });

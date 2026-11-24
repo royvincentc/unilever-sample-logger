@@ -11,13 +11,12 @@ import { usePersonnel } from '../../hooks/usePersonnel';
 import {
   STATUS_OPTIONS,
   RAWMATS_TYPES,
-  RFAF_OPTIONS,
-  RAWMATS_SAMPLES,
-  RAWMATS_SOURCES,
 } from '../../data/constants';
-import type { RawMatsFormData, RawMatsType, RfafOption } from '../../types';
+import type { RawMatsFormData, RawMatsType } from '../../types';
+import type { SampleCatalog } from '../../data/sampleCatalog';
 
 interface RawMatsFormProps {
+  catalog: Pick<SampleCatalog, 'rawSamples' | 'rawSources' | 'rfaf'>;
   onSubmit: (data: RawMatsFormData) => Promise<void>;
   onBack: () => void;
 }
@@ -31,7 +30,7 @@ const fadeUp = {
   show: { opacity: 1, y: 0, transition: panelTransition },
 };
 
-export default function RawMatsForm({ onSubmit, onBack }: RawMatsFormProps) {
+export default function RawMatsForm({ catalog, onSubmit, onBack }: RawMatsFormProps) {
   const { lists } = usePersonnel();
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState<RawMatsFormData>({
@@ -103,7 +102,7 @@ export default function RawMatsForm({ onSubmit, onBack }: RawMatsFormProps) {
         {/* RFAF, Batch # */}
         <motion.div variants={fadeUp} className="glass rounded-2xl p-5 space-y-4">
           <h4 className="text-sm font-semibold text-[var(--text-primary)] uppercase tracking-wider">Reference</h4>
-          <RadioGroup label="RFAF" value={form.rfaf} options={RFAF_OPTIONS} onChange={(v) => setForm({ ...form, rfaf: v as RfafOption })} required />
+          <RadioGroup label="RFAF" value={form.rfaf} options={catalog.rfaf} onChange={(v) => setForm({ ...form, rfaf: v })} required />
           <TextInput label="Batch #" value={form.batchNo} onChange={(v) => setForm({ ...form, batchNo: v, mixingBatchNo: v })} placeholder="e.g. LP01 010526 or 1401262A21" />
         </motion.div>
 
@@ -111,12 +110,12 @@ export default function RawMatsForm({ onSubmit, onBack }: RawMatsFormProps) {
         <motion.div variants={fadeUp} className="glass rounded-2xl p-5 space-y-4">
           <h4 className="text-sm font-semibold text-[var(--text-primary)] uppercase tracking-wider">Sample Details</h4>
           <RadioGroup label="Type" value={form.type} options={RAWMATS_TYPES} onChange={(v) => setForm({ ...form, type: v as RawMatsType })} required />
-          <ComboBox label="Sample" value={form.sample} options={RAWMATS_SAMPLES} onChange={(v) => setForm({ ...form, sample: v })} placeholder="Select sample..." required />
+          <ComboBox label="Sample" value={form.sample} options={catalog.rawSamples} onChange={(v) => setForm({ ...form, sample: v })} placeholder="Select sample..." required />
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <TextInput label="Unit" value={form.unit || '120 mL'} onChange={(v) => setForm({ ...form, unit: v })} placeholder="e.g. 120 mL, 25 mL, 40 mL, 2.5 L" />
             <TextInput label="Quantity" value={form.qty || '1'} onChange={(v) => setForm({ ...form, qty: v })} placeholder="e.g. 1, 12, 6" />
           </div>
-          <Dropdown label="Source" value={form.source} options={RAWMATS_SOURCES} onChange={(v) => setForm({ ...form, source: v })} placeholder="Select source..." required />
+          <Dropdown label="Source" value={form.source} options={catalog.rawSources} onChange={(v) => setForm({ ...form, source: v })} placeholder="Select source..." required />
         </motion.div>
 
         {/* Personnel & Status */}

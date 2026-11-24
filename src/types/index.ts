@@ -25,7 +25,7 @@ export interface EnviEquipmentGroup {
 export interface EnviFormData {
   dateSampled: string;
   timeSampled: string;
-  categories: EnviCategory[];
+  categories: string[];
   selectedSamples: string[];
   swabbedBy: string;
   dateAnalyzed: string;
@@ -38,12 +38,10 @@ export interface EnviFormData {
 }
 
 // ===== WATER =====
-export type WaterSource = 'Chlorine Tank 1' | 'Chlorine Tank 2' | 'Demin Water' | 'RO Water System' | 'QCL Deionized Water' | 'QCL Chlorine Water' | 'COP Chlorine Water';
-
 export interface WaterFormData {
   dateSampled: string;
   timeSampled: string;
-  waterSource: WaterSource | '';
+  waterSource: string;
   sampledBy: string;
   dateAnalyzed: string;
   analyzedBy: string;
@@ -56,12 +54,11 @@ export interface WaterFormData {
 
 // ===== RAWMATS =====
 export type RawMatsType = 'SFG' | 'CUC' | 'ROH';
-export type RfafOption = 'WITH RFAF' | 'NONE';
 
 export interface RawMatsFormData {
   dateSampled: string;
   timeSampled: string;
-  rfaf: RfafOption | '';
+  rfaf: string;
   batchNo: string;
   mixingBatchNo?: string;
   cucNo?: string;
@@ -82,25 +79,9 @@ export interface RawMatsFormData {
 }
 
 // ===== AIR =====
-export type AirMethod = 'ACTIVE' | 'PASSIVE';
-export type AirSamplingPoint = 
-  | 'Compounding Area: Corner 1' 
-  | 'Compounding Area: Corner 2' 
-  | 'Compounding Area: Corner 3' 
-  | 'Compounding Area: Corner 4' 
-  | 'Compounding Area: Center' 
-  | 'Compounding Area: Main Mixing Tank Center'
-  | 'Filling Area: Akash 1 - Near Nozzle'
-  | 'Filling Area: Akash 1 - Near Packaging'
-  | 'Filling Area: Akash 2 - Near Nozzle'
-  | 'Filling Area: Akash 2 - Near Packaging'
-  | 'Filling Area: Leepack - Near Nozzle'
-  | 'Filling Area: Leepack - Near Packaging'
-  | 'Dispensary Area: Center';
-
 export interface AirFormData {
-  method: AirMethod | '';
-  samplingPoints: AirSamplingPoint[];
+  method: string;
+  samplingPoints: string[];
   dateSampled: string;
   timeSampled: string;
   performedBy: string;

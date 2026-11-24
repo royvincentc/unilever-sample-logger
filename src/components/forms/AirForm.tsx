@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { panelTransition } from '../../design/motion';
 import { ArrowLeft, Save } from 'lucide-react';
-import type { AirFormData, AirMethod, AirSamplingPoint } from '../../types';
+import type { AirFormData } from '../../types';
+import type { SampleCatalog } from '../../data/sampleCatalog';
 import DatePicker from '../ui/DatePicker';
 import TimePicker from '../ui/TimePicker';
 import Dropdown from '../ui/Dropdown';
@@ -13,34 +14,17 @@ import { usePersonnel } from '../../hooks/usePersonnel';
 import { STATUS_OPTIONS } from '../../data/constants';
 
 interface AirFormProps {
+  catalog: Pick<SampleCatalog, 'airMethods' | 'airPoints'>;
   onSubmit: (data: AirFormData) => Promise<void>;
   onBack: () => void;
 }
-
-const AIR_METHODS: AirMethod[] = ['ACTIVE', 'PASSIVE'];
-
-const SAMPLING_POINTS: AirSamplingPoint[] = [
-  'Compounding Area: Corner 1',
-  'Compounding Area: Corner 2',
-  'Compounding Area: Corner 3',
-  'Compounding Area: Corner 4',
-  'Compounding Area: Center',
-  'Compounding Area: Main Mixing Tank Center',
-  'Filling Area: Akash 1 - Near Nozzle',
-  'Filling Area: Akash 1 - Near Packaging',
-  'Filling Area: Akash 2 - Near Nozzle',
-  'Filling Area: Akash 2 - Near Packaging',
-  'Filling Area: Leepack - Near Nozzle',
-  'Filling Area: Leepack - Near Packaging',
-  'Dispensary Area: Center'
-];
 
 const fadeUp = {
   hidden: { opacity: 0, y: 15 },
   show: { opacity: 1, y: 0, transition: panelTransition }
 };
 
-export default function AirForm({ onSubmit, onBack }: AirFormProps) {
+export default function AirForm({ catalog, onSubmit, onBack }: AirFormProps) {
   const { lists } = usePersonnel();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [form, setForm] = useState<AirFormData>({
@@ -58,7 +42,7 @@ export default function AirForm({ onSubmit, onBack }: AirFormProps) {
     if (form.samplingPoints.length === 0) return;
     setIsSubmitting(true);
     try {
-      await onSubmit(form);
+      await onSubmit({ ...form, samplingPoints: catalog.airPoints.filter(point => form.samplingPoints.includes(point)) });
     } finally {
       setIsSubmitting(false);
     }
@@ -95,8 +79,8 @@ const stagger = {
             <Dropdown
               label="Method"
               value={form.method}
-              options={AIR_METHODS}
-              onChange={(v: string) => setForm({ ...form, method: v as AirMethod })}
+              options={catalog.airMethods}
+              onChange={(v: string) => setForm({ ...form, method: v })}
               placeholder="Select method..."
               required
             />
@@ -104,9 +88,9 @@ const stagger = {
           <div className="mt-4">
             <MultiSelectGroup
               label="Sampling Points"
-              options={SAMPLING_POINTS}
+              options={catalog.airPoints}
               values={form.samplingPoints}
-              onChange={(vals: string[]) => setForm(prev => ({ ...prev, samplingPoints: vals as AirSamplingPoint[] }))}
+              onChange={(vals: string[]) => setForm(prev => ({ ...prev, samplingPoints: vals }))}
               required
             />
           </div>

@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { Save, Wifi, WifiOff, Trash2, Lock, Unlock, ShieldCheck, LogOut, RefreshCw, AlertTriangle, CheckCircle2, Table2 } from 'lucide-react';
 import PersonnelEditor from '../components/settings/PersonnelEditor';
 import SheetPayloadEditor from '../components/settings/SheetPayloadEditor';
+import SampleCatalogEditor from '../components/settings/SampleCatalogEditor';
 import Header from '../components/Layout/Header';
 import TextInput from '../components/ui/TextInput';
 import Button from '../components/ui/Button';
@@ -21,6 +22,7 @@ export default function Settings({ onLogout }: { onLogout?: () => void }) {
   const { theme, setTheme } = useTheme();
   const [settings, setSettings] = useState(getSettings());
   const [isLocked, setIsLocked] = useState(true);
+  const [catalogOpened, setCatalogOpened] = useState(false);
   const navigate = useNavigate();
   const { showToast } = useToast();
   const [isSyncing, setIsSyncing] = useState(false);
@@ -180,8 +182,17 @@ export default function Settings({ onLogout }: { onLogout?: () => void }) {
             </Button>
           </motion.div>
 
+          <details className="glass rounded-2xl p-5 space-y-4"
+            onToggle={event => { if (event.currentTarget.open) setCatalogOpened(true); }}>
+            <summary className="cursor-pointer font-semibold text-[var(--text-primary)]">Sample Logger choices</summary>
+            <p className="text-sm text-[var(--text-secondary)]">
+              Manage the categories, equipment groups, and choices staff see in the four Sample Logger forms.
+            </p>
+            {catalogOpened && <SampleCatalogEditor />}
+          </details>
+
           <details className="glass rounded-2xl p-5 space-y-4">
-            <summary className="cursor-pointer font-semibold text-[var(--text-primary)]">Google Sheets payload</summary>
+            <summary className="cursor-pointer font-semibold text-[var(--text-primary)]">Google Sheets column mappings</summary>
             <p className="text-sm text-[var(--text-secondary)]">
               Edit what the Sample Logger sends to this spreadsheet. Saved mappings apply in this browser.
             </p>

@@ -8,12 +8,13 @@ import ComboBox from '../ui/ComboBox';
 import MultiSelectGroup from '../ui/MultiSelectGroup';
 import CollapsibleGroup from '../ui/CollapsibleGroup';
 import Button from '../ui/Button';
-import { ENVI_CATEGORIES, getEquipmentForCategories } from '../../data/sampleData';
+import { getEnviCatalogGroups, type EnviCatalogCategory } from '../../data/sampleCatalog';
 import { usePersonnel } from '../../hooks/usePersonnel';
 import { STATUS_OPTIONS } from '../../data/constants';
-import type { EnviCategory, EnviFormData, EnviEquipmentGroup } from '../../types';
+import type { EnviFormData } from '../../types';
 
 interface EnviFormProps {
+  catalog: EnviCatalogCategory[];
   onSubmit: (data: EnviFormData) => Promise<void>;
   onBack: () => void;
 }
@@ -27,7 +28,7 @@ const fadeUp = {
   show: { opacity: 1, y: 0, transition: panelTransition },
 };
 
-export default function EnviForm({ onSubmit, onBack }: EnviFormProps) {
+export default function EnviForm({ catalog, onSubmit, onBack }: EnviFormProps) {
   const { lists } = usePersonnel();
   const [loading, setLoading] = useState(false);
   const [customOtherInput, setCustomOtherInput] = useState('');
@@ -44,9 +45,8 @@ export default function EnviForm({ onSubmit, onBack }: EnviFormProps) {
     remarks: '',
   });
 
-  const equipmentGroups: EnviEquipmentGroup[] = form.categories.length > 0
-    ? getEquipmentForCategories(form.categories)
-    : [];
+  const equipmentGroups = getEnviCatalogGroups(catalog, form.categories);
+  const allowsCustomPoints = catalog.some(category => category.custom && form.categories.includes(category.label));
 
   const handleAddCustomOther = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
@@ -88,10 +88,10 @@ export default function EnviForm({ onSubmit, onBack }: EnviFormProps) {
     });
   }, []);
 
-  const allAvailableSamples = [
+  const allAvailableSamples = [...new Set([
     ...equipmentGroups.flatMap((g) => g.samples),
-    ...(form.categories.includes('Other') ? customOtherSamples : []),
-  ];
+    ...(allowsCustomPoints ? customOtherSamples : []),
+  ])];
   const allSamplesSelected = allAvailableSamples.length > 0 && 
     allAvailableSamples.every(s => form.selectedSamples.includes(s));
 
@@ -106,7 +106,7 @@ export default function EnviForm({ onSubmit, onBack }: EnviFormProps) {
   const handleCategoriesChange = (cats: string[]) => {
     setForm((prev) => ({
       ...prev,
-      categories: cats as EnviCategory[],
+      categories: catalog.filter(category => cats.includes(category.label)).map(category => category.label),
       selectedSamples: [], // Reset selected samples when categories change to prevent invalid state
     }));
   };
@@ -116,7 +116,7 @@ export default function EnviForm({ onSubmit, onBack }: EnviFormProps) {
     if (form.selectedSamples.length === 0) return;
     setLoading(true);
     try {
-      await onSubmit(form);
+      await onSubmit({ ...form, selectedSamples: allAvailableSamples.filter(sample => form.selectedSamples.includes(sample)) });
     } finally {
       setLoading(false);
     }
@@ -162,14 +162,14 @@ export default function EnviForm({ onSubmit, onBack }: EnviFormProps) {
           <MultiSelectGroup
             label="Select categories"
             values={form.categories}
-            options={ENVI_CATEGORIES.map((c) => c.label)}
+            options={catalog.map(category => category.label)}
             onChange={handleCategoriesChange}
             required
           />
         </motion.div>
 
         {/* Equipment & Samples */}
-        {(equipmentGroups.length > 0 || form.categories.includes('Other')) && (
+        {(equipmentGroups.length > 0 || allowsCustomPoints) && (
           <motion.div variants={fadeUp} className="glass rounded-2xl p-5 space-y-4">
             <div className="flex items-center justify-between">
               <h4 className="text-sm font-semibold text-[var(--text-primary)] uppercase tracking-wider">
@@ -201,9 +201,9 @@ export default function EnviForm({ onSubmit, onBack }: EnviFormProps) {
                 />
               ))}
 
-              {form.categories.includes('Other') && (
+              {allowsCustomPoints && (
                 <div className="space-y-3 pt-2">
-                  <h5 className="text-sm font-medium text-[var(--text-primary)]">Other (Custom Swab Points)</h5>
+                  <h5 className="text-sm font-medium text-[var(--text-primary)]">Custom Swab Points</h5>
                   <div className="flex gap-2">
                     <input
                       type="text"

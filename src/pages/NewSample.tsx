@@ -19,6 +19,8 @@ import { getSettings, getUserName } from '../utils/auth';
 import type { SampleType, EnviFormData, WaterFormData, RawMatsFormData, AirFormData, QueueItem, HistoryEntry } from '../types';
 
 import { useTheme } from '../hooks/useTheme';
+import { defaultSampleCatalog, validateSampleCatalog, type SampleCatalog } from '../data/sampleCatalog';
+import { beginGoogleSignIn, request, RequestError, workspaceId } from '../utils/collaboration/client';
 
 interface NewSampleProps {
   onQueueUpdate: () => void;
@@ -28,8 +30,40 @@ export default function NewSample({ onQueueUpdate }: NewSampleProps) {
   const { theme, setTheme } = useTheme();
   const [searchParams] = useSearchParams();
   const [selectedType, setSelectedType] = useState<SampleType | null>(null);
+  const [catalog, setCatalog] = useState<SampleCatalog>();
+  const [catalogNotice, setCatalogNotice] = useState('');
+  const [catalogSignIn, setCatalogSignIn] = useState(false);
   const { showToast } = useToast();
   const isOnline = useOnlineStatus();
+
+  useEffect(() => {
+    let active = true;
+    const workspace = encodeURIComponent(workspaceId());
+    const cacheKey = `sample_logger_catalog:${workspace}`;
+    request<{ catalog: SampleCatalog }>(`/api/sample-catalog?workspace=${workspace}`).then(result => {
+      if (!active) return;
+      const error = validateSampleCatalog(result.catalog);
+      if (error) throw new Error(error);
+      setCatalog(result.catalog);
+      try { localStorage.setItem(cacheKey, JSON.stringify(result.catalog)); } catch { /* optional offline cache */ }
+    }).catch(error => {
+      if (!active) return;
+      if (error instanceof RequestError && (error.status === 401 || error.status === 403)) {
+        setCatalogSignIn(true);
+        setCatalog(defaultSampleCatalog);
+        setCatalogNotice('Using default sample choices.');
+        return;
+      }
+      let cached: SampleCatalog | undefined;
+      try {
+        const value = JSON.parse(localStorage.getItem(cacheKey) ?? 'null');
+        if (!validateSampleCatalog(value)) cached = value;
+      } catch { /* use bundled choices */ }
+      setCatalog(cached ?? defaultSampleCatalog);
+      setCatalogNotice(cached ? 'Using the last downloaded sample choices.' : 'Shared sample choices are unavailable. Using defaults.');
+    });
+    return () => { active = false; };
+  }, []);
 
   useEffect(() => {
     const type = searchParams.get('type') as SampleType | null;
@@ -331,6 +365,12 @@ export default function NewSample({ onQueueUpdate }: NewSampleProps) {
       <div className="lab-page-content flex-1 w-full max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-24">
         <PageIntro title="Log a new sample" description="Choose a sample type. Your existing lab fields and submission workflow are ready." kind="envi" />
         <PersonnelSync />
+        {catalogNotice && <p role="status" className="my-3 text-sm text-[var(--text-secondary)]">
+          {catalogNotice}{' '}
+          {catalogSignIn && <button type="button" className="underline" onClick={() => beginGoogleSignIn()}>
+            Sign in with Google for workspace choices
+          </button>}
+        </p>}
         <AnimatePresence mode="wait">
           {!selectedType ? (
             <motion.div
@@ -342,6 +382,8 @@ export default function NewSample({ onQueueUpdate }: NewSampleProps) {
             >
               <SampleTypeSelector onSelect={setSelectedType} />
             </motion.div>
+          ) : !catalog ? (
+            <p key="catalog-loading" role="status">Loading sample choices…</p>
           ) : selectedType === 'ENVI' ? (
             <motion.div
               key="envi"
@@ -350,7 +392,7 @@ export default function NewSample({ onQueueUpdate }: NewSampleProps) {
               exit={{ opacity: 0, x: -20 }}
               transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
             >
-              <EnviForm onSubmit={handleEnviSubmit} onBack={() => setSelectedType(null)} />
+              <EnviForm catalog={catalog.envi} onSubmit={handleEnviSubmit} onBack={() => setSelectedType(null)} />
             </motion.div>
           ) : selectedType === 'WATER' ? (
             <motion.div
@@ -360,7 +402,7 @@ export default function NewSample({ onQueueUpdate }: NewSampleProps) {
               exit={{ opacity: 0, x: -20 }}
               transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
             >
-              <WaterForm onSubmit={handleWaterSubmit} onBack={() => setSelectedType(null)} />
+              <WaterForm sources={catalog.waterSources} onSubmit={handleWaterSubmit} onBack={() => setSelectedType(null)} />
             </motion.div>
           ) : selectedType === 'RawMats' ? (
             <motion.div
@@ -370,7 +412,7 @@ export default function NewSample({ onQueueUpdate }: NewSampleProps) {
               exit={{ opacity: 0, x: -20 }}
               transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
             >
-              <RawMatsForm onSubmit={handleRawMatsSubmit} onBack={() => setSelectedType(null)} />
+              <RawMatsForm catalog={catalog} onSubmit={handleRawMatsSubmit} onBack={() => setSelectedType(null)} />
             </motion.div>
           ) : (
             <motion.div
@@ -380,7 +422,7 @@ export default function NewSample({ onQueueUpdate }: NewSampleProps) {
               exit={{ opacity: 0, x: -20 }}
               transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
             >
-              <AirForm onSubmit={handleAirSubmit} onBack={() => setSelectedType(null)} />
+              <AirForm catalog={catalog} onSubmit={handleAirSubmit} onBack={() => setSelectedType(null)} />
             </motion.div>
           )}
         </AnimatePresence>

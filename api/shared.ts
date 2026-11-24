@@ -7,6 +7,7 @@ const routes = {
   collaboration: () => import('./_collaborationHandler.js'),
   workspace: () => import('./_workspaceHandler.js'),
   'drive-settings': () => import('./_driveSettingsHandler.js'),
+  'sample-catalog': () => import('./_sampleCatalogHandler.js'),
   'drive-checkpoints': () => import('./_driveCheckpointsHandler.js'),
   'drive-worker': () => import('./_driveWorkerHandler.js'),
 };

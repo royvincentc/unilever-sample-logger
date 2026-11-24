@@ -12,6 +12,7 @@
     { "source": "/api/collaboration", "destination": "/api/shared?__route=collaboration" },
     { "source": "/api/workspace", "destination": "/api/shared?__route=workspace" },
     { "source": "/api/drive-settings", "destination": "/api/shared?__route=drive-settings" },
+    { "source": "/api/sample-catalog", "destination": "/api/shared?__route=sample-catalog" },
     { "source": "/api/drive-checkpoints", "destination": "/api/shared?__route=drive-checkpoints" },
     { "source": "/api/drive-worker", "destination": "/api/shared?__route=drive-worker" },
     {

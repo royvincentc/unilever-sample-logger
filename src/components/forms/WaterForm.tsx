@@ -7,10 +7,11 @@ import Dropdown from '../ui/Dropdown';
 import ComboBox from '../ui/ComboBox';
 import Button from '../ui/Button';
 import { usePersonnel } from '../../hooks/usePersonnel';
-import { STATUS_OPTIONS, WATER_SOURCES } from '../../data/constants';
-import type { WaterFormData, WaterSource } from '../../types';
+import { STATUS_OPTIONS } from '../../data/constants';
+import type { WaterFormData } from '../../types';
 
 interface WaterFormProps {
+  sources: string[];
   onSubmit: (data: WaterFormData) => Promise<void>;
   onBack: () => void;
 }
@@ -24,7 +25,7 @@ const fadeUp = {
   show: { opacity: 1, y: 0, transition: panelTransition },
 };
 
-export default function WaterForm({ onSubmit, onBack }: WaterFormProps) {
+export default function WaterForm({ sources, onSubmit, onBack }: WaterFormProps) {
   const { lists } = usePersonnel();
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState<WaterFormData>({
@@ -82,8 +83,8 @@ export default function WaterForm({ onSubmit, onBack }: WaterFormProps) {
             <Dropdown
               label="Water Source"
               value={form.waterSource}
-              options={WATER_SOURCES}
-              onChange={(v) => setForm({ ...form, waterSource: v as WaterSource })}
+              options={sources}
+              onChange={(v) => setForm({ ...form, waterSource: v })}
               required
             />
             <ComboBox label="Sampled By" value={form.sampledBy} options={lists.waterSampler} onChange={(v) => setForm({ ...form, sampledBy: v })} required />
