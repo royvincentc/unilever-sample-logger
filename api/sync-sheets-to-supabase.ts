@@ -2,12 +2,13 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getAuthClient } from './_sheets.js';
 import { google } from 'googleapis';
 import { supabase } from './_supabase.js';
+import { readPersonnel } from './_personnel.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const { spreadsheetId } = req.query;
-    if (!spreadsheetId) {
-       return res.status(400).json({ error: 'spreadsheetId required in query params' });
+    if (typeof spreadsheetId !== 'string' || !/^[\w-]+$/.test(spreadsheetId)) {
+       return res.status(400).json({ error: 'Valid spreadsheetId required in query params' });
     }
 
     if (!supabase) {
@@ -25,7 +26,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const tabs = sheetMeta.data.sheets?.map(s => s.properties?.title).filter(Boolean) as string[];
     
     let totalSynced = 0;
-    const syncedRecords = [];
+    const syncedRecords: string[] = [];
     
     // 1. Collect all rows from all tabs first (to ensure no data loss if Google API fails)
     const allRowsToUpsert: any[] = [];
@@ -122,7 +123,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
        }
     }
 
-    return res.status(200).json({ success: true, totalSynced, sampleOutput: syncedRecords.slice(0, 10) });
+    let personnelSynced = false;
+    try {
+      const year = new Intl.DateTimeFormat('en', { year: 'numeric', timeZone: 'Asia/Manila' }).format(new Date());
+      const lists = await readPersonnel(sheets, spreadsheetId, year);
+      const { error } = await supabase.from('sheet_personnel').upsert({
+        spreadsheet_id: spreadsheetId, year, lists, synced_at: Date.now(),
+      });
+      if (error) throw error;
+      personnelSynced = true;
+    } catch (error) {
+      console.error('Unable to publish personnel dropdowns:', error);
+    }
+
+    return res.status(200).json({ success: true, totalSynced, personnelSynced, sampleOutput: syncedRecords.slice(0, 10) });
 
   } catch (error: any) {
     return res.status(500).json({ error: error.message, stack: error.stack });

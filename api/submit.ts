@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getSheetsClient } from './_sheets.js';
 import { supabase } from './_supabase.js';
-import { mapSampleColumns, resolveColumn, SAMPLE_IDENTITY_HEADERS, sheetColumnLetter, validateSheetOverrides } from '../src/utils/sheetPayload.js';
+import { mapSampleColumns, renamedRawReceiverColumn, resolveColumn, SAMPLE_IDENTITY_HEADERS, sheetColumnLetter, updateRawReceiverOverrides, validateSheetOverrides } from '../src/utils/sheetPayload.js';
 
 /**
  * Vercel Serverless Function to append or update a row in Google Sheets.
@@ -71,7 +71,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // 2. Prepare the row arrays matching the header order
     const isSampleLogger = basePayload.sampleLogger === true;
-    const overrides = payload.sheetOverrides ?? [];
+    const submittedOverrides = payload.sheetOverrides ?? [];
+    const overrides = sampleType === 'RawMats' && Array.isArray(submittedOverrides)
+      ? updateRawReceiverOverrides(submittedOverrides, headers) : submittedOverrides;
     if (isSampleLogger) {
       const error = validateSheetOverrides(overrides, headers, sampleType);
       if (error) return res.status(422).json({ error });
@@ -80,8 +82,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(400).json({ error: 'Samples in a batch must share a destination and control number.' });
       }
     }
+    const renamedReceiver = /^RM,FG,SFG 20\d{2}$/i.test(sheetTab) ? renamedRawReceiverColumn(headers) : undefined;
     const mappedItems = items.map(item => {
-      if (!isSampleLogger) return item;
+      if (!isSampleLogger) {
+        return renamedReceiver && Object.hasOwn(item, 'RECEIVED BY') && !Object.hasOwn(item, renamedReceiver)
+          ? { ...item, [renamedReceiver]: item['RECEIVED BY'] } : item;
+      }
       const { spreadsheetId, sheetTab, sampleType, isUpdate, sampleLogger, sheetOverrides, selectedSamples,
         categories, samplingPoints, ...fields } = item;
       return mapSampleColumns(fields, headers, overrides);

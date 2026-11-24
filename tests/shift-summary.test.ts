@@ -25,7 +25,7 @@ test('AM includes 06:00 but excludes assigned 18:00 activity and groups by the r
     ],
     RawMats: [
       { 'DATE RECEIVED/SAMPLED': '10/28/2026', TIME: '06:38', SAMPLE: 'SLD CB', 'BATCH #': '2810261A1', 'ANALYZED BY': 'ROY', 'RECEIVED BY': 'OTHER' },
-      { ' date received ': '10/28/2026', ' time received ': '06:32', sample: 'SFC BF', 'MIXING BATCH #': '2810261A2', 'ANALYZED BY': ' - ', 'RECEIVED BY': 'DCN' },
+      { ' date received ': '10/28/2026', ' time received ': '06:32', sample: 'SFC BF', 'MIXING BATCH #': '2810261A2', 'ANALYZED BY': ' - ', 'RECEIVED / SAMPLED BY': 'DCN' },
     ],
   }, '2026-10-28', 'AM', new Date('2026-10-28T18:00:00+08:00'));
   assert.match(report.text, /^Good evening!\n\n10\/28\/2026\n\nENVI\n/);

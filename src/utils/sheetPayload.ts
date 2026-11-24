@@ -38,6 +38,16 @@ export function isIdentityColumn(header: string): boolean {
   return name.includes('CONTROL') || SAMPLE_IDENTITY_HEADERS.includes(name);
 }
 
+export function renamedRawReceiverColumn(headers: string[]): string | undefined {
+  if (headers.includes('RECEIVED BY')) return;
+  return headers.find(header => /^RECEIVED\s*\/\s*SAMPLED BY$/i.test(header.trim()));
+}
+
+export function updateRawReceiverOverrides(rules: SheetColumnOverride[], headers: string[]): SheetColumnOverride[] {
+  const renamed = renamedRawReceiverColumn(headers);
+  return renamed ? rules.map(rule => rule?.header === 'RECEIVED BY' ? { ...rule, header: renamed } : rule) : rules;
+}
+
 export function validateSheetOverrides(overrides: unknown, headers: string[], sampleType: SampleType): string | undefined {
   if (!Array.isArray(overrides) || overrides.length > headers.length || !Object.hasOwn(SHEET_PAYLOAD_FIELDS, sampleType)) {
     return 'Invalid Google Sheets payload overrides.';
@@ -101,7 +111,7 @@ const FIELD_KEYWORDS: Record<string, string[]> = {
   'unit':                  ['unit', 'units'],
   'qty':                   ['qty', 'quantity'],
   'source':                ['source', 'supplier', 'vendor', 'origin'],
-  'receivedBy':            ['received by', 'sampled by', 'collected by'],
+  'receivedBy':            ['received / sampled by', 'received/sampled by', 'received by', 'sampled by', 'collected by'],
   'indicativeResult':      ['indicative result', 'indicative'],
   'comments':              ['comments', 'comment'],
   'remarks2':              ['remarks2'],

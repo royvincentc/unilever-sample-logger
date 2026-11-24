@@ -6,7 +6,7 @@ import PersonnelSync from '../ui/PersonnelSync';
 const labels: Record<PersonnelListKey, string> = {
   envi: 'ENVI — Swabbed By', enviAnalyst: 'ENVI — Analyzed By',
   waterSampler: 'WATER — Sampled By', waterAnalyst: 'WATER — Analyzed By',
-  air: 'AIR — Performed By', rawReceiver: 'SFG / FG / RM — Received By', rawAnalyst: 'SFG / FG / RM — Analyzed By',
+  air: 'AIR — Performed By', rawReceiver: 'SFG / FG / RM — Received / Sampled By', rawAnalyst: 'SFG / FG / RM — Analyzed By',
 };
 
 export default function PersonnelEditor() {

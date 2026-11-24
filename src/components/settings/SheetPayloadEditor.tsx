@@ -3,7 +3,7 @@ import type { SampleType } from '../../types';
 import { getSettings, saveSettings } from '../../utils/auth';
 import { fetchSheetSchema } from '../../utils/api';
 import { getSheetTabName } from '../../utils/sheetMapping';
-import { describeAutomaticColumns, isIdentityColumn, SHEET_PAYLOAD_FIELDS, sheetColumnLetter, validateSheetOverrides } from '../../utils/sheetPayload';
+import { describeAutomaticColumns, isIdentityColumn, SHEET_PAYLOAD_FIELDS, sheetColumnLetter, updateRawReceiverOverrides, validateSheetOverrides } from '../../utils/sheetPayload';
 import type { SheetColumnOverride } from '../../utils/sheetPayload';
 import Button from '../ui/Button';
 import TextInput from '../ui/TextInput';
@@ -20,7 +20,8 @@ export default function SheetPayloadEditor({ spreadsheetId }: { spreadsheetId: s
   const [headers, setHeaders] = useState<string[] | null>(null);
   const [drafts, setDrafts] = useState<Partial<Record<SampleType, SheetColumnOverride[]>>>(() =>
     getSettings().sheetPayloadOverrides?.[spreadsheetId] ?? {});
-  const rules = drafts[sampleType] ?? [];
+  const savedRules = drafts[sampleType] ?? [];
+  const rules = sampleType === 'RawMats' && headers ? updateRawReceiverOverrides(savedRules, headers) : savedRules;
   const [refresh, setRefresh] = useState(0);
   const automatic = headers?.length ? describeAutomaticColumns(sampleType, headers) : {};
 

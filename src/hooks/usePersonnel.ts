@@ -17,6 +17,7 @@ let state = { lists: DEFAULTS as PersonnelState, syncedAt: 0, syncing: false, er
 let inFlight: Promise<void> | null = null;
 let inFlightSource = '';
 let attemptedAt = 0;
+let checkedPublishedAt = 0;
 
 function readStorage(key: string) {
   try { return JSON.parse(localStorage.getItem(key) ?? 'null'); } catch { return null; }
@@ -39,8 +40,25 @@ function ensureSource() {
   if (next === source) return;
   source = next;
   attemptedAt = 0;
+  checkedPublishedAt = 0;
   const cached = readStorage(`personnel_sheet:${source}`);
   publish({ lists: validLists(cached?.lists) ? cached.lists : DEFAULTS, syncedAt: validLists(cached?.lists) ? cached.syncedAt ?? 0 : 0, error: '' });
+}
+
+function saveLists(requestSource: string, lists: PersonnelState, syncedAt: number) {
+  if (requestSource !== source || requestSource !== currentSource() || syncedAt <= state.syncedAt) return;
+  try { localStorage.setItem(`personnel_sheet:${requestSource}`, JSON.stringify({ lists, syncedAt })); } catch {}
+  publish({ lists, syncedAt, error: '' });
+}
+
+async function checkPublishedPersonnel() {
+  const requestSource = source;
+  const [sheetId, year] = requestSource.split(':');
+  checkedPublishedAt = Date.now();
+  const response = await fetch(`/api/personnel?${new URLSearchParams({ sheetId, year, published: '1' })}`, { cache: 'no-store' });
+  if (!response.ok || response.status === 204) return;
+  const data = await response.json();
+  if (validLists(data.lists) && Number.isFinite(data.syncedAt)) saveLists(requestSource, data.lists, data.syncedAt);
 }
 
 export async function syncPersonnel(): Promise<void> {
@@ -62,10 +80,7 @@ export async function syncPersonnel(): Promise<void> {
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Personnel sync failed.');
       if (!validLists(data.lists)) throw new Error('Incomplete personnel dropdowns. Cached names were kept.');
-      if (requestSource !== currentSource()) return;
-      const syncedAt = Date.now();
-      try { localStorage.setItem(`personnel_sheet:${requestSource}`, JSON.stringify({ lists: data.lists, syncedAt })); } catch {}
-      publish({ lists: data.lists, syncedAt, error: '' });
+      saveLists(requestSource, data.lists, Number.isFinite(data.syncedAt) ? data.syncedAt : Date.now());
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unable to sync personnel.';
       if (requestSource === currentSource()) publish({ error: message });
@@ -82,8 +97,12 @@ export async function syncPersonnel(): Promise<void> {
 export function startPersonnelSync() {
   const check = () => {
     ensureSource();
-    if (state.autoSync && navigator.onLine && Date.now() - state.syncedAt >= PERSONNEL_SYNC_INTERVAL && Date.now() - attemptedAt >= 5 * 60 * 1000) {
+    if (!navigator.onLine) return;
+    const now = Date.now();
+    if (state.autoSync && now - state.syncedAt >= PERSONNEL_SYNC_INTERVAL && now - attemptedAt >= 5 * 60 * 1000) {
       void syncPersonnel().catch(() => {});
+    } else if (now - checkedPublishedAt >= 60 * 1000) {
+      void checkPublishedPersonnel().catch(() => {});
     }
   };
   publish({ autoSync: readStorage('personnel_auto_sync') !== false });

@@ -156,11 +156,22 @@ const loggerItem = {
 };
 
 test('the payload editor identifies automatic sources and unmapped columns', () => {
-  const headers = ['CONTROL #', 'SAMPLE DESCRIPTION', 'DATE SAMPLED', 'BATCH #', 'CUC #', 'QA NOTES', 'PROGRAM'];
+  const headers = ['CONTROL #', 'SAMPLE DESCRIPTION', 'DATE SAMPLED', 'BATCH #', 'CUC #', 'QA NOTES', 'PROGRAM', 'RECEIVED / SAMPLED BY', 'RECEIVED BY'];
   const columns = payloadMapping.describeAutomaticColumns('RawMats', headers);
   assert.deepEqual(headers.map(header => columns[header]), [
-    'controlNumber', 'sample', 'dateSampled', 'batchNo', 'cucNo', 'remarks', undefined,
+    'controlNumber', 'sample', 'dateSampled', 'batchNo', 'cucNo', 'remarks', undefined, 'receivedBy', undefined,
   ]);
+});
+
+test('the renamed receiver column retains saved RawMats overrides', () => {
+  const renamed = 'RECEIVED / SAMPLED BY';
+  const rule = { header: 'RECEIVED BY', source: 'fixed', value: 'PF4: JBE' };
+  const headers = ['CONTROL #', renamed];
+  const updated = payloadMapping.updateRawReceiverOverrides([rule], headers);
+  assert.equal(rule.header, 'RECEIVED BY');
+  assert.equal(payloadMapping.validateSheetOverrides(updated, headers, 'RawMats'), undefined);
+  assert.equal(payloadMapping.mapSampleColumns({ receivedBy: 'A. Receiver' }, headers, updated)[renamed], "'PF4: JBE");
+  assert.equal(payloadMapping.updateRawReceiverOverrides([rule], ['RECEIVED BY', renamed])[0].header, 'RECEIVED BY');
 });
 
 test('sheet payload overrides move, omit, and correct fields in single and bulk submissions', async () => {

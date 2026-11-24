@@ -131,7 +131,7 @@ export function generateShiftSummary(
         ? cell(row, 'WATER SOURCE', 'SAMPLING POINT', 'SAMPLE', 'SAMPLE NAME')
         : cell(row, 'SAMPLE', 'SAMPLE NAME', 'SAMPLE DESCRIPTION', 'SAMPLING POINT');
       const batch = type === 'RawMats' ? cell(row, 'MIXING BATCH #', 'BATCH #', 'BATCH NO', 'BATCH NO.', 'CUC #', 'CUC NO', 'CUC') : '';
-      const person = (type === 'RawMats' ? cell(row, 'ANALYZED BY', 'RECEIVED BY')
+      const person = (type === 'RawMats' ? cell(row, 'ANALYZED BY', 'RECEIVED / SAMPLED BY', 'RECEIVED BY')
         : cell(row, 'ANALYZED BY')) || 'Unspecified';
       const hours = Math.floor(seconds / 3600), minutes = Math.floor(seconds / 60) % 60;
       const time = `${hours % 12 || 12}:${String(minutes).padStart(2, '0')} ${hours < 12 ? 'AM' : 'PM'}`;

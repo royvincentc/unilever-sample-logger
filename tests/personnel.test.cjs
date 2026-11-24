@@ -18,12 +18,13 @@ function load(file, dependencies = {}, globals = {}) {
 }
 const api = load('api/_personnel.ts');
 
-function sheetFixture({ range = false, missing = false, tables = false, tableOffset = 0 } = {}) {
+function sheetFixture({ range = false, missing = false, tables = false, tableOffset = 0, official = false } = {}) {
   const sourceReads = [];
   const gridReads = [];
   const headers = {
     SWAB: { G: 'SWABBED BY', I: 'ANALYZED BY' }, WATER: { G: 'SAMPLED BY', I: 'ANALYZED BY' },
-    AIR: { F: 'PERFORMED BY' }, 'RM,FG,SFG': { K: 'RECEIVED BY', M: 'ANALYZED BY' },
+    [official ? 'AIR/PERSONNEL' : 'AIR']: { [official ? 'G' : 'F']: 'PERFORMED BY' },
+    'RM,FG,SFG': { K: official ? 'RECEIVED / SAMPLED BY' : 'RECEIVED BY', M: 'ANALYZED BY' },
   };
   const sheets = { spreadsheets: {
     values: { get: async ({ range: ref }) => {
@@ -79,8 +80,16 @@ test('reads table dropdowns at the supplied columns even without cell validation
   const lists = await api.readPersonnel(sheets, 'sheet', '2026');
   assert.deepEqual(Array.from(lists.envi), ['SWABBED BY current', 'JUEN/ALBESA']);
   assert.deepEqual(Array.from(lists.enviAnalyst), ['ANALYZED BY current', 'JUEN/ALBESA']);
-  assert.deepEqual(gridReads, ["'SWAB 2026'!G:G", "'SWAB 2026'!I:I", "'WATER 2026'!G:G", "'WATER 2026'!I:I", "'Air 2026'!F:F", "'RM,FG,SFG 2026'!K:K", "'RM,FG,SFG 2026'!M:M"]);
+  assert.deepEqual(gridReads, []);
   assert.equal(Object.keys(lists).length, 7);
+});
+
+test('reads the official workbook with the renamed column K and AIR/PERSONNEL tab', async () => {
+  const { sheets } = sheetFixture({ tables: true, official: true });
+  const lists = await api.readPersonnel(sheets, 'official', '2026');
+  assert.deepEqual(Array.from(lists.rawReceiver), ['RECEIVED / SAMPLED BY current', 'JUEN/ALBESA']);
+  assert.deepEqual(Array.from(lists.waterSampler), ['SAMPLED BY current', 'JUEN/ALBESA']);
+  assert.deepEqual(Array.from(lists.air), ['PERFORMED BY current', 'JUEN/ALBESA']);
 });
 
 test('table column indices are relative to the table and override old cell dropdowns', async () => {
@@ -102,6 +111,50 @@ test('missing dropdown definitions reject rather than replacing saved names', as
   await assert.rejects(api.readPersonnel(sheets, 'sheet', '2026'), /no dropdown names/);
 });
 
+test('the Sheets import publishes dropdowns for the dashboard without requiring sample rows', async () => {
+  const { sheets } = sheetFixture({ tables: true, official: true });
+  const saved = new Map();
+  const supabase = { from(table) {
+    assert.equal(table, 'sheet_personnel');
+    const filter = {};
+    const query = {
+      upsert: async row => { saved.set(`${row.spreadsheet_id}:${row.year}`, row); return {}; },
+      select: () => query,
+      eq: (key, value) => { filter[key] = value; return query; },
+      maybeSingle: async () => ({ data: saved.get(`${filter.spreadsheet_id}:${filter.year}`) }),
+    };
+    return query;
+  } };
+  const sheetsWithEmptyTabs = { spreadsheets: {
+    get: request => sheets.spreadsheets.get({ fields: 'tables(', ...request }),
+    values: { get: async request => request.range.includes('!') ? sheets.spreadsheets.values.get(request) : { data: {} } },
+  } };
+  class Clock extends Date { constructor() { super('2026-11-25T00:00:00Z'); } }
+  const dependencies = { './_personnel.js': api, './_supabase.js': { supabase } };
+  const sync = load('api/sync-sheets-to-supabase.ts', {
+    ...dependencies, './_sheets.js': { getAuthClient: async () => ({}) },
+    googleapis: { google: { sheets: () => sheetsWithEmptyTabs } },
+  }, { Date: Clock }).default;
+  const personnel = load('api/personnel.ts', { ...dependencies, './_sheets.js': {} }).default;
+  const call = async (handler, query) => {
+    const response = {};
+    await handler({ method: 'GET', query }, {
+      setHeader() {},
+      status(code) { response.status = code; return this; },
+      json(body) { response.body = body; },
+      end() {},
+    });
+    return response;
+  };
+  const result = await call(sync, { spreadsheetId: 'official' });
+  assert.equal(result.body.personnelSynced, true);
+  assert.equal(result.body.totalSynced, 0);
+  const response = await call(personnel, { sheetId: 'official', year: '2026', published: '1' });
+  assert.equal(response.status, 200);
+  assert.deepEqual(Array.from(response.body.lists.rawReceiver), ['RECEIVED / SAMPLED BY current', 'JUEN/ALBESA']);
+  assert.equal((await call(personnel, { sheetId: 'practice', year: '2026', published: '1' })).status, 204);
+});
+
 function environment() {
   let id = 'practice';
   let now = new Date('2026-10-09T04:00:00Z').getTime();
@@ -112,6 +165,7 @@ function environment() {
   let calls = 0;
   let fail = false;
   let fetchImpl;
+  let published;
   let snapshot;
   const lists = Object.fromEntries(Object.keys(api.PERSONNEL_FIELDS).map(key => [key, [`${key} NEW`]]));
   const hook = load('src/hooks/usePersonnel.ts', {
@@ -123,12 +177,20 @@ function environment() {
     localStorage: { getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value) },
     window: { setInterval: callback => { interval = callback; return 1; }, clearInterval: () => {},
       addEventListener: (name, callback) => events.set(name, callback), removeEventListener: name => events.delete(name) },
-    fetch: async (...args) => { calls++; if (fetchImpl) return fetchImpl(...args); return { ok: !fail, json: async () => fail ? { error: 'Sheets unavailable' } : { lists } }; },
+    fetch: async (...args) => {
+      if (args[0].includes('published=1')) {
+        return { ok: true, status: published ? 200 : 204, json: async () => published };
+      }
+      calls++;
+      if (fetchImpl) return fetchImpl(...args);
+      return { ok: !fail, json: async () => fail ? { error: 'Sheets unavailable' } : { lists } };
+    },
   });
   hook.usePersonnel();
   return { hook, events, storage, lists, state: () => snapshot(), calls: () => calls,
     tick: () => interval(), advance: ms => { now += ms; }, switch: () => { id = 'official'; },
-    fail: () => { fail = true; }, mockFetch: impl => { fetchImpl = impl; } };
+    fail: () => { fail = true; }, mockFetch: impl => { fetchImpl = impl; },
+    publish: (lists, offset = 0) => { published = { lists, syncedAt: now + offset }; } };
 }
 const flush = () => new Promise(resolve => setImmediate(resolve));
 
@@ -156,6 +218,23 @@ test('failed refresh retains names and last successful timestamp', async () => {
   assert.equal(env.state().lists, previous.lists);
   assert.equal(env.state().syncedAt, previous.syncedAt);
   assert.equal(env.state().syncing, false);
+});
+
+test('a Sheets sync updates available names before the dashboard four-hour interval', async () => {
+  const env = environment();
+  const stop = env.hook.startPersonnelSync();
+  await flush();
+  env.advance(60_000);
+  env.publish({ ...env.lists, waterSampler: ['Current sampler'], rawReceiver: ['Current receiver'] });
+  env.tick(); await flush();
+  assert.deepEqual(Array.from(env.state().lists.waterSampler), ['Current sampler']);
+  assert.deepEqual(Array.from(env.state().lists.rawReceiver), ['Current receiver']);
+  assert.equal(env.calls(), 1);
+  env.advance(60_000);
+  env.publish(env.lists, -120_000);
+  env.tick(); await flush();
+  assert.deepEqual(Array.from(env.state().lists.rawReceiver), ['Current receiver']);
+  stop();
 });
 
 test('disabled automatic sync allows manual refresh and caches separately for each spreadsheet', async () => {
