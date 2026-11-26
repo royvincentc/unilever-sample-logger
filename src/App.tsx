@@ -1,12 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { signInAnonymously } from 'firebase/auth';
 import { auth } from './utils/firebase';
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import { AnimatePresence, motion, MotionConfig, useReducedMotion } from 'framer-motion';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { motion, MotionConfig } from 'framer-motion';
 import ScienceGraphic from './components/ui/ScienceGraphic';
-import { panelTransition } from './design/motion';
 import { RefreshCw } from 'lucide-react';
 import Layout from './components/Layout/Layout';
+import RouteTransition from './components/Layout/RouteTransition';
 import LoginPage from './components/auth/LoginPage';
 import { ToastProvider } from './components/ui/Toast';
 import { useTheme } from './hooks/useTheme';
@@ -25,20 +25,6 @@ import Logbook from './pages/Logbook';
 import Calendar from './pages/Calendar';
 import Kanban from './pages/Kanban';
 import Whiteboard from './pages/Whiteboard';
-
-function PageTransition({ children }: { children: React.ReactNode }) {
-  const reduced = useReducedMotion();
-  return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={reduced ? { duration: 0 } : panelTransition}
-    >
-      {children}
-    </motion.div>
-  );
-}
 
 interface AppContentProps {
   authenticated: boolean;
@@ -61,7 +47,6 @@ function AppContent({
   queueCount,
   refreshQueueCount,
 }: AppContentProps) {
-  const location = useLocation();
   const { theme, setTheme } = useTheme();
 
   return (
@@ -82,23 +67,23 @@ function AppContent({
           authenticated ? (
             firebaseReady ? (
               <Layout onLogout={logout} queueCount={queueCount}>
-                <AnimatePresence mode="wait">
-                  <Routes location={location} key={location.pathname}>
-                    <Route index element={<PageTransition><Dashboard theme={theme} onSetTheme={setTheme} queueCount={queueCount} /></PageTransition>} />
-                    <Route path="new" element={<PageTransition><NewSample onQueueUpdate={refreshQueueCount} /></PageTransition>} />
-                    <Route path="queue" element={<PageTransition><SubmissionQueue onQueueUpdate={refreshQueueCount} /></PageTransition>} />
-                    <Route path="history" element={<PageTransition><SampleHistory /></PageTransition>} />
-                    <Route path="live" element={<PageTransition><LiveSheetView /></PageTransition>} />
-                    <Route path="logbook" element={<PageTransition><Logbook /></PageTransition>} />
-                    <Route path="incubation" element={<PageTransition><Incubation /></PageTransition>} />
-                    <Route path="results" element={<PageTransition><Results /></PageTransition>} />
-                    <Route path="settings" element={<PageTransition><Settings onLogout={logout} /></PageTransition>} />
-                    <Route path="calendar" element={<PageTransition><Calendar /></PageTransition>} />
-                    <Route path="kanban/:id?" element={<PageTransition><Kanban /></PageTransition>} />
-                    <Route path="whiteboard/:id?" element={<PageTransition><Whiteboard /></PageTransition>} />
+                <RouteTransition>{routeLocation => (
+                  <Routes location={routeLocation}>
+                    <Route index element={<Dashboard theme={theme} onSetTheme={setTheme} queueCount={queueCount} />} />
+                    <Route path="new" element={<NewSample onQueueUpdate={refreshQueueCount} />} />
+                    <Route path="queue" element={<SubmissionQueue onQueueUpdate={refreshQueueCount} />} />
+                    <Route path="history" element={<SampleHistory />} />
+                    <Route path="live" element={<LiveSheetView />} />
+                    <Route path="logbook" element={<Logbook />} />
+                    <Route path="incubation" element={<Incubation />} />
+                    <Route path="results" element={<Results />} />
+                    <Route path="settings" element={<Settings onLogout={logout} />} />
+                    <Route path="calendar" element={<Calendar />} />
+                    <Route path="kanban/:id?" element={<Kanban />} />
+                    <Route path="whiteboard/:id?" element={<Whiteboard />} />
                     <Route path="*" element={<Navigate to="/" replace />} />
                   </Routes>
-                </AnimatePresence>
+                )}</RouteTransition>
               </Layout>
             ) : (
               <motion.div 

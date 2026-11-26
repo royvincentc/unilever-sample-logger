@@ -20,7 +20,7 @@ Existing React/Vite SPA on Vercel. Collaboration uses verified Firebase Google i
 
 ## Brand Commitments
 
-Preserve the incumbent Precision Lab identity, reusable components, SVG icons, themes and motion settings, as explicitly required by the user.
+Keep the reusable components, SVG icons, themes and motion settings. In 2026-11 the user authorized replacing the original Precision Lab blue palette. A short-lived "Living Lab" look was then refined into a restrained, neutral palette with a single blue accent, solid surfaces with hairline borders, sentence-case labels, and a visible entrance cascade with hover lift that settles within about a second, optimised for low-end devices (no blur, no decorative loops, one mounted page per route). The home tab keeps a "Today's reminders" panel listing the analyst's incubation readings due today or tomorrow, and the hero responds to the mouse with a spotlight and plate parallax. It is presentation only and leaves data, routes and submission logic untouched. Its motion spec is in design/motion.md.
 
 ## Evidence on Hand
 

@@ -1,6 +1,7 @@
 /** Synthetic-only services, wired exclusively by preview.config.ts. Never used by the production build. */
+import { localDateString } from '../../src/utils/date';
 const today = new Date();
-const date = (days = 0) => { const d = new Date(today); d.setDate(d.getDate() - days); return d.toISOString().slice(0, 10); };
+const date = (days = 0) => { const d = new Date(today); d.setDate(d.getDate() - days); return localDateString(d); };
 export let history = [
   { id:'demo-1',sampleType:'ENVI',sampleName:'Surface swab A',controlNumber:'E26-001',status:'ONGOING',dateSampled:date(2),dateAnalyzed:date(2),submittedAt:today.toISOString(),submittedBy:'Demo analyst',categories:['MV01'] },
   { id:'demo-2',sampleType:'WATER',sampleName:'Water point A',controlNumber:'W26-001',status:'PENDING RELEASE',dateSampled:date(14),dateAnalyzed:date(14),submittedAt:today.toISOString(),submittedBy:'Demo analyst' },
@@ -20,12 +21,15 @@ export const query = (ref:any,..._args:any[])=>ref;
 export const orderBy = (..._args:any[])=>({});
 export const limit = (..._args:any[])=>({});
 export const where = (..._args:any[])=>({});
-export const getDocs = async (ref:any)=>snapshot(ref);
+// `?slow` holds the first history read for 1.5 s so the loading state can be reviewed.
+const slow = new URLSearchParams(location.search).has('slow');
+const wait = (ms:number)=>new Promise(r=>setTimeout(r,ms));
+export const getDocs = async (ref:any)=>{if(slow)await wait(1500);return snapshot(ref);};
 export const getDoc = async (ref:any)=>snapshot(ref);
-export const onSnapshot = (ref:any,callback:any)=>{callback(snapshot(ref));const cb=()=>callback(snapshot(ref));listeners.add(cb);return ()=>listeners.delete(cb);};
+export const onSnapshot = (ref:any,callback:any)=>{if(slow)wait(1500).then(()=>callback(snapshot(ref)));else callback(snapshot(ref));const cb=()=>callback(snapshot(ref));listeners.add(cb);return ()=>listeners.delete(cb);};
 let rejectNextHistorySave = false;
 export const failNextHistorySave = ()=>{rejectNextHistorySave=true;};
-export const setDoc = async (ref:any,row:any)=>{if(ref.path.startsWith('history/')){if(rejectNextHistorySave){rejectNextHistorySave=false;throw Error('Synthetic history outage');}const found=history.findIndex(r=>r.id===row.id);if(found<0)history.push(row);else history[found]=row;listeners.forEach(cb=>cb(null));}};
+export const setDoc = async (ref:any,row:any)=>{if(ref.path.startsWith('history/')){if(rejectNextHistorySave){rejectNextHistorySave=false;throw Error('Synthetic history outage');}const found=history.findIndex(r=>r.id===row.id);if(found<0)history.unshift(row);else history[found]=row;listeners.forEach(cb=>cb(null));}};
 export const deleteDoc = async (ref:any)=>{history=history.filter(r=>!ref.path.endsWith('/'+r.id));listeners.forEach(cb=>cb(null));};
 export const writeBatch = (_db:any)=>{const writes:any[]=[];return {set:(ref:any,row:any)=>writes.push([ref,row]),delete:(ref:any)=>writes.push([ref,null]),commit:async()=>{for(const [ref,row] of writes) row ? await setDoc(ref,row):await deleteDoc(ref);}};};
 export const auth = { currentUser:{uid:'synthetic-user',providerData:[]},onAuthStateChanged:(callback:any)=>{callback({uid:'synthetic-user',providerData:[]});return ()=>{};} };
@@ -57,7 +61,7 @@ export function sheetRows(tab='SWAB') {
   const type=tab.includes('WATER')?'WATER':tab.includes('AIR')?'AIR':tab.includes('RM')||tab.includes('SFG')?'RawMats':'ENVI';
   return history.filter(r=>r.sampleType===type).map((r,i)=>({_rowIndex:i+2,'CONTROL #':r.controlNumber,'SAMPLE':r.sampleName,'DATE SAMPLED':r.dateSampled,'DATE ANALYZED':r.dateAnalyzed,'STATUS':r.status,'ANALYZED BY':r.submittedBy,'APC':'0','MY':'0','REMARKS':'Pass',...rowEdits[r.controlNumber]}));
 }
-export const fetchHistoryFromSheet = async()=>{if(!navigator.onLine)throw Error('Synthetic offline state');return history.map(r=>r.id);};
+export const fetchHistoryFromSheet = async()=>{if(!navigator.onLine)throw Error('Synthetic offline state');await new Promise(r=>setTimeout(r,1200));return history.map(r=>r.id);};
 export const fetchLiveSheetData = async(tab:string)=>sheetRows(tab);
 export const fetchActiveIncubationsFromSheet = async()=>history.filter(r=>r.status!=='COMPLETED');
 export const fetchSheetSchema = async()=>headers;
@@ -68,3 +72,8 @@ export const sendToWebhook = async(endpoint:string,_payload:any)=>navigator.onLi
 export const sendToWebhookBulk = async(endpoint:string,payloads:any[])=>({success:true,results:await Promise.all(payloads.map(p=>sendToWebhook(endpoint,p))),controlNumber:`${endpoint==='air'?'A':endpoint==='water'?'W':'E'}26-${++counter}`});
 export const updateSheetRow = async(_tab:string,control:string,values:Record<string,unknown>)=>{rowEdits[control]={...values};return {success:true};};
 export const testWebhookConnection = async()=>true;
+export const fetchShiftSummaryRows = async(..._args:any[])=>({ENVI:sheetRows('SWAB'),WATER:sheetRows('WATER'),RawMats:sheetRows('RM')});
+export const sendShiftSummaryToTelegram = async(_text:string)=>{};
+export const getFirestore = (..._args:any[])=>db;
+export const enableMultiTabIndexedDbPersistence = async(..._args:any[])=>{};
+export const getAuth = (..._args:any[])=>auth;

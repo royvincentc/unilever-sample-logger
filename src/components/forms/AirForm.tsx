@@ -1,3 +1,4 @@
+import { localDateString } from '../../utils/date';
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { panelTransition } from '../../design/motion';
@@ -30,7 +31,7 @@ export default function AirForm({ catalog, onSubmit, onBack }: AirFormProps) {
   const [form, setForm] = useState<AirFormData>({
     method: '',
     samplingPoints: [],
-    dateSampled: new Date().toISOString().split('T')[0],
+    dateSampled: localDateString(),
     timeSampled: '',
     performedBy: '',
     status: 'ON GOING',

@@ -1,3 +1,4 @@
+import { localDateString } from '../../utils/date';
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { panelTransition } from '../../design/motion';
@@ -34,7 +35,7 @@ export default function RawMatsForm({ catalog, onSubmit, onBack }: RawMatsFormPr
   const { lists } = usePersonnel();
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState<RawMatsFormData>({
-    dateSampled: new Date().toISOString().split('T')[0],
+    dateSampled: localDateString(),
     timeSampled: '',
     rfaf: '',
     batchNo: '',
@@ -80,9 +81,7 @@ export default function RawMatsForm({ catalog, onSubmit, onBack }: RawMatsFormPr
 
         <motion.div variants={fadeUp}>
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-purple-500 flex items-center justify-center shadow-lg">
-              <span className="text-lg font-bold text-white">R</span>
-            </div>
+            <span className="lab-sample-marker rawmats" aria-hidden="true">RM</span>
             <div>
               <h3 className="text-lg font-bold text-[var(--text-primary)]">RawMats, FG & SFG</h3>
               <p className="text-sm text-[var(--text-secondary)]">Raw materials & finished goods</p>

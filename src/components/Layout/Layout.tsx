@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import type { ReactNode } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import Sidebar from './Sidebar';
+import { panelTransition } from '../../design/motion';
 import BottomNav from './BottomNav';
 import OfflineBanner from '../ui/OfflineBanner';
 import ReportIssueModal from '../ui/ReportIssueModal';
@@ -18,7 +20,7 @@ export default function Layout({children,onLogout,queueCount}:LayoutProps) {
   return <div className={`lab-shell ${collapsed?'sidebar-compact':''}`}>
     <a href="#main-content" className="lab-skip-link">Skip to content</a>
     <OfflineBanner visible={!online}/>
-    {menuOpen && <div className="lab-drawer-backdrop" onClick={()=>setMenuOpen(false)} aria-hidden="true"/>}
+    <AnimatePresence>{menuOpen && <motion.div className="lab-drawer-backdrop" onClick={()=>setMenuOpen(false)} aria-hidden="true" initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} transition={panelTransition}/>}</AnimatePresence>
     <div ref={drawerRef}><Sidebar onLogout={onLogout} queueCount={queueCount} isCollapsed={collapsed} onToggleCollapse={()=>setCollapsed(!collapsed)} isMobileOpen={menuOpen} onMobileClose={()=>setMenuOpen(false)}/></div>
     <div inert={menuOpen ? true : undefined}><BottomNav queueCount={queueCount} onMenuClick={()=>setMenuOpen(true)}/><main id="main-content" tabIndex={-1} className="lab-main">{children}</main><ReportIssueModal/></div>
   </div>;

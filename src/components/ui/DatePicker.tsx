@@ -64,6 +64,8 @@ export default function DatePicker({
   required = false,
   id,
 }: DatePickerProps) {
+  const [open, setOpen] = useState(false);
+  // Re-read the clock on each open so a tab left running overnight still marks the real today.
   const today = useMemo(() => {
     const now = new Date();
     return {
@@ -71,7 +73,7 @@ export default function DatePicker({
       month: now.getMonth(),
       day: now.getDate(),
     };
-  }, []);
+  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const parsedValue = useMemo(() => {
     if (!value) return null;
@@ -81,7 +83,6 @@ export default function DatePicker({
 
   const generatedId = useId();
   const controlId = id || generatedId;
-  const [open, setOpen] = useState(false);
   const [viewYear, setViewYear] = useState(parsedValue?.year ?? today.year);
   const [viewMonth, setViewMonth] = useState(parsedValue?.month ?? today.month);
   const [direction, setDirection] = useState(0);
@@ -152,24 +153,13 @@ export default function DatePicker({
     };
   }, [open, updatePosition]);
 
-  // Body scroll lock
+  // Lock scrolling in place: pinning the body with position:fixed made the page jump to the top and smooth-scroll back on close.
   useEffect(() => {
-    if (open) {
-      const scrollY = window.scrollY;
-      document.body.style.position = 'fixed';
-      document.body.style.top = `-${scrollY}px`;
-      document.body.style.left = '0';
-      document.body.style.right = '0';
-      document.body.style.overflow = 'hidden';
-      return () => {
-        document.body.style.position = '';
-        document.body.style.top = '';
-        document.body.style.left = '';
-        document.body.style.right = '';
-        document.body.style.overflow = '';
-        window.scrollTo(0, scrollY);
-      };
-    }
+    if (!open) return;
+    const html = document.documentElement;
+    const previous = html.style.overflow;
+    html.style.overflow = 'hidden';
+    return () => { html.style.overflow = previous; };
   }, [open]);
 
   const navigateMonth = useCallback((delta: number) => {

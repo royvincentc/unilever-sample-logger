@@ -1,3 +1,4 @@
+import { localDateString } from '../../utils/date';
 import { useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { panelTransition } from '../../design/motion';
@@ -34,7 +35,7 @@ export default function EnviForm({ catalog, onSubmit, onBack }: EnviFormProps) {
   const [customOtherInput, setCustomOtherInput] = useState('');
   const [customOtherSamples, setCustomOtherSamples] = useState<string[]>([]);
   const [form, setForm] = useState<EnviFormData>({
-    dateSampled: new Date().toISOString().split('T')[0],
+    dateSampled: localDateString(),
     timeSampled: '',
     categories: [],
     selectedSamples: [],
@@ -137,9 +138,7 @@ export default function EnviForm({ catalog, onSubmit, onBack }: EnviFormProps) {
         {/* Header */}
         <motion.div variants={fadeUp}>
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center shadow-lg">
-              <span className="text-lg font-bold text-white">E</span>
-            </div>
+            <span className="lab-sample-marker envi" aria-hidden="true">E</span>
             <div>
               <h3 className="text-lg font-bold text-[var(--text-primary)]">ENVI Sample</h3>
               <p className="text-sm text-[var(--text-secondary)]">Environmental swab logging</p>

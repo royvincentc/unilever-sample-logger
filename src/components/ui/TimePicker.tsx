@@ -92,24 +92,13 @@ export default function TimePicker({
     setOpen(false);
   }, []);
 
-  // Prevent body scroll when time picker is open
+  // Lock scrolling in place: pinning the body with position:fixed made the page jump to the top and smooth-scroll back on close.
   useEffect(() => {
-    if (open) {
-      const scrollY = window.scrollY;
-      document.body.style.position = 'fixed';
-      document.body.style.top = `-${scrollY}px`;
-      document.body.style.left = '0';
-      document.body.style.right = '0';
-      document.body.style.overflow = 'hidden';
-      return () => {
-        document.body.style.position = '';
-        document.body.style.top = '';
-        document.body.style.left = '';
-        document.body.style.right = '';
-        document.body.style.overflow = '';
-        window.scrollTo(0, scrollY);
-      };
-    }
+    if (!open) return;
+    const html = document.documentElement;
+    const previous = html.style.overflow;
+    html.style.overflow = 'hidden';
+    return () => { html.style.overflow = previous; };
   }, [open]);
 
   // Keyboard navigation
@@ -196,9 +185,7 @@ export default function TimePicker({
             <motion.div
               className="absolute inset-0"
               style={{
-                backgroundColor: 'rgba(0,0,0,0.4)',
-                backdropFilter: 'blur(8px)',
-                WebkitBackdropFilter: 'blur(8px)',
+                backgroundColor: 'rgba(0,0,0,0.5)', // no backdrop blur: it re-rasterises the page every frame on low-end GPUs
               }}
               onClick={handleCancel}
               initial={{ opacity: 0 }}
@@ -244,7 +231,7 @@ export default function TimePicker({
                   {tempHour.toString().padStart(2, '0')}
                 </button>
 
-                <span className="text-2xl font-bold text-[var(--text-muted)] animate-pulse">:</span>
+                <span className="text-2xl font-bold text-[var(--text-muted)]">:</span>
 
                 {/* Minute Box */}
                 <button

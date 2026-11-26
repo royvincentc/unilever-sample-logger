@@ -75,7 +75,7 @@ export default function MultiSelect({ values, onChange, options, placeholder = "
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -5, scale: 0.95 }}
             transition={{ duration: 0.15, ease: "easeOut" }}
-            className="absolute z-50 w-full min-w-max mt-1.5 bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-xl shadow-2xl backdrop-blur-2xl max-h-60 overflow-y-auto hide-scrollbar"
+            className="absolute z-50 w-full min-w-max mt-1.5 bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-xl shadow-2xl max-h-60 overflow-y-auto hide-scrollbar"
             style={{ transformOrigin: "top" }}
           >
             <div className="p-1.5 flex flex-col gap-0.5">

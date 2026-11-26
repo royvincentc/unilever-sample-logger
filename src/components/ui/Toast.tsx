@@ -79,7 +79,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                 role={toast.type === 'error' ? 'alert' : 'status'}
                 className={`
                   lab-toast pointer-events-auto rounded-xl border-l-4 px-4 py-3
-                  shadow-lg backdrop-blur-xl flex items-start gap-3
+                  shadow-lg flex items-start gap-3
                   ${colors[toast.type]}
                 `}
               >

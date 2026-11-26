@@ -664,7 +664,7 @@ export default function Logbook() {
           , document.body)}
 
           {loading ? (
-            <div className="flex flex-col items-center justify-center p-12 bg-[var(--bg-card)]/50 backdrop-blur-sm z-20 rounded-2xl">
+            <div className="flex flex-col items-center justify-center p-12 bg-[var(--bg-card)]/80 z-20 rounded-2xl">
               <RefreshCw className="w-8 h-8 text-primary-500 animate-spin mb-4" />
               <p className="text-[var(--text-secondary)] font-medium">Loading combined logbook...</p>
             </div>

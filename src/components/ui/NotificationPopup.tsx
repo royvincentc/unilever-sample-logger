@@ -1,120 +1,82 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Bell, X, AlertCircle } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Bell, ChevronDown, ChevronRight } from 'lucide-react';
 import { getHistory } from '../../utils/db';
-import type { HistoryEntry } from '../../types';
+import { dueReminders, type Reminder } from '../../utils/reminders';
+import { localDateString } from '../../utils/date';
+import { reveal, spring } from '../../design/motion';
 
-interface NotificationPopupProps {
-  userName: string;
-}
+const COLLAPSED_KEY = 'lab-reminders-collapsed';
 
-export default function NotificationPopup({ userName }: NotificationPopupProps) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [notifications, setNotifications] = useState<string[]>([]);
-  const [hasDismissed, setHasDismissed] = useState(false);
+/** Today's incubation readings for this analyst. Always shown, so "nothing due" is an answer rather than a missing panel. */
+export default function NotificationPopup({ userName }: { userName: string }) {
+  const [reminders, setReminders] = useState<Reminder[] | null>(null);
+  const [failed, setFailed] = useState(false);
+  // Collapsing lasts for the rest of the day; tomorrow's readings open it again.
+  const [collapsed, setCollapsed] = useState(() => localStorage.getItem(COLLAPSED_KEY) === localDateString());
 
   useEffect(() => {
-    if (hasDismissed) return;
+    let live = true;
+    getHistory(5000)
+      .then(history => { if (live) setReminders(dueReminders(history, userName)); })
+      .catch(err => { console.error('Failed to fetch reminders:', err); if (live) setFailed(true); });
+    return () => { live = false; };
+  }, [userName]);
 
-    const checkNotifications = async () => {
-      try {
-        const history = await getHistory(5000);
-        // Only care about this user's or endorsed to this user
-        const relevantHistory = history.filter(h => 
-          h.submittedBy === userName || h.endorsedTo === userName
-        );
+  const dueToday = reminders?.filter(r => r.inDays === 0).length ?? 0;
+  const summary = failed ? "Couldn't check readings"
+    : !reminders ? 'Checking incubation…'
+    : dueToday ? `${dueToday} reading${dueToday === 1 ? '' : 's'} due today`
+    : reminders.length ? 'No readings due today · more tomorrow' : 'No readings due today';
 
-        const newNotifs: string[] = [];
-        const today = new Date();
-        today.setHours(0,0,0,0);
-
-        relevantHistory.forEach(entry => {
-          if (entry.status === 'RELEASED' || entry.status === 'COMPLETED') return;
-          
-          const baseDate = new Date(entry.dateAnalyzed || entry.dateSampled || entry.submittedAt);
-          baseDate.setHours(0, 0, 0, 0);
-
-          const checkCondition = (conditionDays: number, msg: string) => {
-            const dueDate = new Date(baseDate);
-            dueDate.setDate(dueDate.getDate() + conditionDays);
-            const diffDays = Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-            if (diffDays === 0) {
-              newNotifs.push(`${entry.controlNumber} (${entry.sampleName}): ${msg}`);
-            }
-          };
-
-          // Liquid Detergents / Fabric Conditioner (assuming RM / SFG)
-          if (entry.sampleType === 'RawMats') {
-            const sampleName = (entry.sampleName || '').toLowerCase();
-            if (sampleName.includes('liquid') || sampleName.includes('detergent')) {
-              checkCondition(3, 'Indicative reading due today (3 days)');
-            } else if (sampleName.includes('fabric') || sampleName.includes('fabcon')) {
-              checkCondition(5, 'Indicative reading due today (5 days)');
-            }
-          }
-
-          // Water Reminders
-          if (entry.sampleType === 'WATER') {
-            checkCondition(2, '2nd day reading due today');
-            checkCondition(7, '7th day reading due today');
-            checkCondition(14, '14th day reading due today');
-          }
-        });
-
-        if (newNotifs.length > 0) {
-          setNotifications(newNotifs);
-          setIsOpen(true);
-        }
-      } catch (err) {
-        console.error('Failed to fetch notifications:', err);
-      }
-    };
-
-    checkNotifications();
-  }, [userName, hasDismissed]);
-
-  if (!isOpen) return null;
+  const toggle = () => {
+    if (collapsed) localStorage.removeItem(COLLAPSED_KEY);
+    else localStorage.setItem(COLLAPSED_KEY, localDateString());
+    setCollapsed(!collapsed);
+  };
 
   return (
-    <AnimatePresence>
-      <motion.div
-        initial={{ opacity: 0, y: 50, scale: 0.9 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        exit={{ opacity: 0, y: 50, scale: 0.9 }}
-        className="lab-reminders glass rounded-xl overflow-hidden"
-        role="region" aria-label="Today's reading reminders"
-      >
-        <div className="bg-primary-500/10 px-4 py-3 flex items-center justify-between border-b border-[var(--border-subtle)]">
-          <div className="flex items-center gap-2 text-primary-500">
-            <Bell className="w-5 h-5" />
-            <span className="font-bold text-sm tracking-wider uppercase">Today's Reminders</span>
+    <motion.section variants={reveal} className="lab-panel lab-reminders" aria-labelledby="reminders-title">
+      <div className="lab-section-heading">
+        <div className="lab-reminders-title">
+          <motion.span
+            className={`lab-icon ${dueToday ? 'due' : ''}`}
+            animate={dueToday ? { rotate: [0, -16, 13, -9, 5, 0] } : { rotate: 0 }}
+            transition={{ duration: 0.7, delay: 0.5, ease: 'easeOut' }}
+          ><Bell size={18} aria-hidden="true" /></motion.span>
+          <div>
+            <h2 id="reminders-title">Today's reminders</h2>
+            <p aria-live="polite">{summary}</p>
           </div>
-          <button 
-            aria-label="Dismiss reading reminders"
-            onClick={() => {
-              setIsOpen(false);
-              setHasDismissed(true);
-            }}
-            className="text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors p-1"
-          >
-            <X className="w-4 h-4" />
-          </button>
         </div>
-        <div className="p-4 max-h-[300px] overflow-y-auto custom-scrollbar space-y-3">
-          {notifications.map((n, i) => (
-            <motion.div 
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: i * 0.1 }}
-              key={i} 
-              className="flex items-start gap-3 bg-[var(--bg-hover)] p-3 rounded-xl border border-[var(--border-subtle)]"
-            >
-              <AlertCircle className="w-4 h-4 text-warning-500 flex-shrink-0 mt-0.5" />
-              <p className="text-xs text-[var(--text-primary)] leading-relaxed">{n}</p>
-            </motion.div>
-          ))}
+        <div className="lab-reminders-tools">
+          <Link to="/incubation" className="lab-text-link">Incubation <ChevronRight size={14} /></Link>
+          {!!reminders?.length && (
+            <button type="button" className="lab-reminders-toggle" onClick={toggle} aria-expanded={!collapsed} aria-controls="reminders-list" aria-label={collapsed ? 'Show reminders' : 'Hide reminders for today'}>
+              <motion.span animate={{ rotate: collapsed ? -90 : 0 }} transition={spring.snap} style={{ display: 'grid' }}><ChevronDown size={18} /></motion.span>
+            </button>
+          )}
         </div>
-      </motion.div>
-    </AnimatePresence>
+      </div>
+      <AnimatePresence initial={false}>
+        {!collapsed && !!reminders?.length && (
+          <motion.ul id="reminders-list" className="lab-reminder-list" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.18 }}>
+            {reminders.map(({ key, entry, reading, inDays }, i) => (
+              <motion.li key={key} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ ...spring.settle, delay: 0.1 + i * 0.05 }}>
+                <Link to="/incubation" className="lab-reminder">
+                  <span className={`lab-sample-marker ${entry.sampleType.toLowerCase()}`}>{entry.sampleType === 'RawMats' ? 'RM' : entry.sampleType.slice(0, 1)}</span>
+                  <div className="lab-record-name">
+                    <h3>{entry.sampleName}</h3>
+                    <p><span>{entry.controlNumber || 'Pending number'}</span> · {reading}</p>
+                  </div>
+                  <span className={`lab-status ${inDays === 0 ? 'review' : ''}`}><span />{inDays === 0 ? 'Due today' : 'Tomorrow'}</span>
+                </Link>
+              </motion.li>
+            ))}
+          </motion.ul>
+        )}
+      </AnimatePresence>
+    </motion.section>
   );
 }

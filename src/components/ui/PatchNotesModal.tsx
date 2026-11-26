@@ -54,7 +54,7 @@ export default function PatchNotesModal() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="absolute inset-0 bg-black/40 backdrop-blur-sm pointer-events-auto"
+          className="absolute inset-0 bg-black/40 pointer-events-auto"
           onClick={handleDismiss}
         />
 
@@ -75,14 +75,14 @@ export default function PatchNotesModal() {
             <button 
               onClick={handleDismiss}
               aria-label="Close workspace update"
-              className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-black/20 hover:bg-black/40 text-white backdrop-blur-md transition-all z-10"
+              className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-black/20 hover:bg-black/40 text-white transition-all z-10"
             >
               <X className="w-5 h-5" />
             </button>
 
             <div className="absolute bottom-4 left-6 right-6">
               <div className="flex items-center gap-2 mb-2">
-                <span className="px-3 py-1 bg-primary-500/90 backdrop-blur-md text-white text-xs font-bold uppercase tracking-wider rounded-full flex items-center gap-1.5 shadow-lg">
+                <span className="px-3 py-1 bg-primary-500/90 text-white text-xs font-bold uppercase tracking-wider rounded-full flex items-center gap-1.5 shadow-lg">
                   <Sparkles className="w-3.5 h-3.5" />
                   New Update
                 </span>

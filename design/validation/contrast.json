@@ -2,109 +2,109 @@
   {
     "theme": "light",
     "name": "text primary / app",
-    "contrast": 13.29,
+    "contrast": 16.55,
     "pass": true
   },
   {
     "theme": "light",
     "name": "text primary / card",
-    "contrast": 14.26,
+    "contrast": 17.74,
     "pass": true
   },
   {
     "theme": "light",
     "name": "text secondary / app",
-    "contrast": 5.71,
+    "contrast": 7.05,
     "pass": true
   },
   {
     "theme": "light",
     "name": "text secondary / card",
-    "contrast": 6.12,
+    "contrast": 7.56,
     "pass": true
   },
   {
     "theme": "light",
     "name": "text muted / app",
-    "contrast": 4.7,
+    "contrast": 5.06,
     "pass": true
   },
   {
     "theme": "light",
     "name": "text muted / card",
-    "contrast": 5.04,
+    "contrast": 5.43,
     "pass": true
   },
   {
     "theme": "light",
     "name": "blue status",
-    "contrast": 5.23,
+    "contrast": 5.19,
     "pass": true
   },
   {
     "theme": "light",
     "name": "teal status",
-    "contrast": 4.98,
+    "contrast": 4.93,
     "pass": true
   },
   {
     "theme": "light",
     "name": "amber status",
-    "contrast": 5.02,
+    "contrast": 4.88,
     "pass": true
   },
   {
     "theme": "dark",
     "name": "text primary / app",
-    "contrast": 18.31,
+    "contrast": 17.66,
     "pass": true
   },
   {
     "theme": "dark",
     "name": "text primary / card",
-    "contrast": 17.5,
+    "contrast": 16.6,
     "pass": true
   },
   {
     "theme": "dark",
     "name": "text secondary / app",
-    "contrast": 12.11,
+    "contrast": 10.52,
     "pass": true
   },
   {
     "theme": "dark",
     "name": "text secondary / card",
-    "contrast": 11.57,
+    "contrast": 9.88,
     "pass": true
   },
   {
     "theme": "dark",
     "name": "text muted / app",
-    "contrast": 7.77,
+    "contrast": 6.29,
     "pass": true
   },
   {
     "theme": "dark",
     "name": "text muted / card",
-    "contrast": 7.42,
+    "contrast": 5.91,
     "pass": true
   },
   {
     "theme": "dark",
     "name": "blue status",
-    "contrast": 6.77,
+    "contrast": 7.1,
     "pass": true
   },
   {
     "theme": "dark",
     "name": "teal status",
-    "contrast": 7.65,
+    "contrast": 8.13,
     "pass": true
   },
   {
     "theme": "dark",
     "name": "amber status",
-    "contrast": 9.03,
+    "contrast": 9.64,
     "pass": true
   }
 ]

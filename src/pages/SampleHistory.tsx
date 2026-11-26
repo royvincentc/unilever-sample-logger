@@ -184,9 +184,6 @@ export default function SampleHistory() {
     return groupedEntries.slice(start, start + rowsPerPage);
   }, [groupedEntries, currentPage, rowsPerPage]);
 
-  const badge = (type: string) =>
-    type === 'ENVI' ? 'from-emerald-500 to-teal-500' :
-    type === 'WATER' ? 'from-blue-500 to-cyan-500' : 'from-violet-500 to-purple-500';
   const letter = (type: string) => type === 'ENVI' ? 'E' : type === 'WATER' ? 'W' : 'R';
 
   return (
@@ -281,7 +278,7 @@ export default function SampleHistory() {
                     className={`w-full text-left flex items-center justify-between px-5 py-4 transition-colors cursor-pointer ${isExpanded ? 'bg-[var(--bg-hover)]/50' : 'hover:bg-[var(--bg-hover)]'}`}
                   >
                     <div className="flex items-center gap-4">
-                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold text-white bg-gradient-to-br shadow-md ${badge(sampleType)}`}>
+                      <div className={`lab-sample-marker shrink-0 ${sampleType.toLowerCase()}`}>
                         {letter(sampleType)}
                       </div>
                       <div>
@@ -389,7 +386,7 @@ export default function SampleHistory() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={() => setSelectedEntry(null)}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm cursor-pointer"
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 cursor-pointer"
           >
             <motion.div 
               ref={dialogRef} role="dialog" aria-modal="true" aria-label="Sample details"
@@ -403,7 +400,7 @@ export default function SampleHistory() {
             >
               <div className="px-5 py-4 border-b border-[var(--border-subtle)] bg-[var(--bg-sidebar)] flex items-center justify-between sticky top-0">
                 <div className="flex items-center gap-3">
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold text-white bg-gradient-to-br ${badge(selectedEntry.sampleType)}`}>
+                  <div className={`lab-sample-marker shrink-0 ${selectedEntry.sampleType.toLowerCase()}`}>
                     {letter(selectedEntry.sampleType)}
                   </div>
                   <div>

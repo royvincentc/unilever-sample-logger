@@ -14,32 +14,24 @@ const types = [
     label: 'ENVI',
     description: 'Environmental swab samples',
     icon: FlaskConical,
-    gradient: 'from-emerald-500 to-teal-500',
-    shadow: 'shadow-emerald-500/25',
   },
   {
     id: 'WATER' as SampleType,
     label: 'WATER',
     description: 'Water source samples',
     icon: Droplets,
-    gradient: 'from-blue-500 to-cyan-500',
-    shadow: 'shadow-blue-500/25',
   },
   {
     id: 'RawMats' as SampleType,
     label: 'RawMats, FG & SFG',
     description: 'Raw materials & finished goods',
     icon: Package,
-    gradient: 'from-violet-500 to-purple-500',
-    shadow: 'shadow-violet-500/25',
   },
   {
     id: 'AIR' as SampleType,
     label: 'AIR',
     description: 'Air quality samples',
     icon: Wind,
-    gradient: 'from-yellow-400 to-amber-500',
-    shadow: 'shadow-amber-500/25',
   },
 ];
 
