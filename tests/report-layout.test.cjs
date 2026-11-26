@@ -60,7 +60,7 @@ test('updated main report template preserves all generation fields', () => {
   });
   const fields = [
     'Category', 'DateReceived', 'SampleName', 'DateReleased', 'DateMfd',
-    'BatchNo', 'FillVol', 'ExpiryDate', 'RequestedBy', 'Purpose', 'Logbook',
+    'BatchNo', 'FillVol', 'ExpiryDate', 'RequestedBy', 'Purpose', 'MIC', 'PageNumber', 'controlNO.',
     'APC_Spec', 'APC_Result', 'APC_Remarks', 'MY_Spec', 'MY_Result', 'MY_Remarks',
     'GN_Spec', 'GN_Result', 'GN_Remarks', 'OverallRemarks', 'AnalyzedBy', 'DateReleasedOnly',
   ];

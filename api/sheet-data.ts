@@ -25,7 +25,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const { sheetId, tab, schemaOnly, controlNumbersOnly } = req.query;
+    const { sheetId, tab, schemaOnly, controlNumbersOnly, rawValues } = req.query;
     res.setHeader('Cache-Control', 'no-store');
 
     if (!sheetId || typeof sheetId !== 'string') {
@@ -44,7 +44,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
 
     const rows = response.data.values || [];
-    
+
+    // Lookup tabs (e.g. MIC) have no sample header row, so return the cells untouched.
+    if (rawValues === 'true') {
+      return res.status(200).json({ values: rows });
+    }
+
     if (rows.length === 0) {
       return res.status(200).json(controlNumbersOnly === 'true' ? { controlNumbers: [] } : []);
     }

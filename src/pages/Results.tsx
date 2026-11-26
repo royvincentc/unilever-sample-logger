@@ -8,7 +8,7 @@ import {
   ArrowUpDown, ArrowUp, ArrowDown, Eye, GripVertical
 } from 'lucide-react';
 import Header from '../components/Layout/Header';
-import { fetchLiveSheetData, fetchSheetSchema } from '../utils/api';
+import { fetchLiveSheetData, fetchSheetSchema, fetchMicRows } from '../utils/api';
 import { updateSheetRow } from '../utils/api';
 import { getSheetTabName } from '../utils/sheetMapping';
 import { useTheme } from '../hooks/useTheme';
@@ -232,14 +232,37 @@ export default function Results() {
   const [editForm, setEditForm] = useState<Record<string, string>>({});
   const [isSaving, setIsSaving] = useState(false);
 
-  const handleGenerateReport = async (row: any) => {
+  // Page Number and Requested By are collected in a pop-up before the file is generated.
+  const [reportRow, setReportRow] = useState<any | null>(null);
+  const [reportForm, setReportForm] = useState({ pageNumber: '', requestedBy: '' });
+  const [isGenerating, setIsGenerating] = useState(false);
+  const reportDialogRef = useRef<HTMLFormElement>(null);
+  const closeReportPrompt = () => { if (!isGenerating) setReportRow(null); };
+  useDialogFocus(reportDialogRef, !!reportRow, closeReportPrompt);
+
+  const handleGenerateReport = (row: any) => {
+    setReportForm({ pageNumber: '', requestedBy: String(row['RFAF'] || '').trim() });
+    setReportRow(row);
+  };
+
+  const submitReport = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsGenerating(true);
     try {
       showToast('info', 'Generating report...');
-      await generateDocxReport(row, '', selectedTab);
+      const micRows = await fetchMicRows().catch(err => {
+        console.error(err);
+        showToast('warning', 'Could not read the MIC sheet. MIC will be blank.');
+        return [];
+      });
+      await generateDocxReport(reportRow, '', selectedTab, { ...reportForm, micRows });
       showToast('success', 'Report downloaded successfully!');
+      setReportRow(null);
     } catch (err: any) {
       console.error(err);
       showToast('error', err.message || 'Failed to generate report');
+    } finally {
+      setIsGenerating(false);
     }
   };
 
@@ -861,6 +884,70 @@ export default function Results() {
                 </Button>
               </div>
             </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Report details prompt */}
+      <AnimatePresence>
+        {reportRow && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={closeReportPrompt}
+              className="absolute inset-0 bg-black/60"
+            />
+            <motion.form
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              ref={reportDialogRef} role="dialog" aria-modal="true" aria-labelledby="report-prompt-title"
+              onSubmit={submitReport}
+              className="relative w-full max-w-md bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-3xl shadow-2xl overflow-hidden flex flex-col"
+            >
+              <div className="p-6 border-b border-[var(--border-subtle)] bg-[var(--bg-card)]">
+                <h2 id="report-prompt-title" className="text-xl font-bold text-[var(--text-primary)]">Report Details</h2>
+                <p className="text-sm text-[var(--text-secondary)] mt-1">
+                  Control #: {reportRow['CONTROL #'] || reportRow['CONTROL'] || reportRow.__rawRow?.[0] || 'Unknown'}
+                </p>
+              </div>
+              <div className="p-6 space-y-4">
+                {([['pageNumber', 'Page Number (Logbook)'], ['requestedBy', 'Requested By (from RFAF)']] as const).map(([key, label]) => (
+                  <div key={key} className="flex flex-col gap-1.5">
+                    <label htmlFor={`report-${key}`} className="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider ml-1">{label}</label>
+                    <input
+                      id={`report-${key}`}
+                      type="text"
+                      required
+                      value={reportForm[key]}
+                      onChange={(e) => setReportForm(form => ({ ...form, [key]: e.target.value }))}
+                      disabled={isGenerating}
+                      className="w-full px-4 py-2.5 rounded-xl border border-[var(--border-subtle)] text-sm bg-[var(--bg-input)] text-[var(--text-primary)] focus:border-primary-500 focus:ring-1 focus:ring-primary-500 transition-colors"
+                    />
+                  </div>
+                ))}
+              </div>
+              <div className="p-6 border-t border-[var(--border-subtle)] bg-[var(--bg-card)] flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={closeReportPrompt}
+                  disabled={isGenerating}
+                  className="px-6 py-2.5 rounded-xl font-bold text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] transition-colors"
+                >
+                  Cancel
+                </button>
+                <Button
+                  type="submit"
+                  loading={isGenerating}
+                  icon={<FileText className="w-4 h-4" />}
+                  className="px-8 py-2.5 rounded-xl font-bold bg-primary-500 text-white hover:bg-primary-600 shadow-lg shadow-primary-500/20"
+                >
+                  Generate
+                </Button>
+              </div>
+            </motion.form>
           </div>
         )}
       </AnimatePresence>

@@ -17,8 +17,7 @@ const ANALYST_NAME_MAP: Record<string, string> = {
 /**
  * Resolves analyst surname(s) to full name(s).
  * - Single analyst: "JUEN" -> "Karen M. Juen"
- * - Dual analyst: "CODINERA/NUEVA" -> "Roy Vincent Codiñera\nDaryl Chris D. Nueva"
- *   (left = first line, right = second line)
+ * - Dual analyst: "CODINERA/NUEVA" -> "Roy Vincent Codiñera / Daryl Chris D. Nueva"
  * Falls back to the original value if the surname is not recognized.
  */
 function resolveAnalystName(rawValue: string): string {
@@ -27,9 +26,9 @@ function resolveAnalystName(rawValue: string): string {
 
   // Check for dual analyst format (separated by /)
   if (trimmed.includes('/')) {
-    const parts = trimmed.split('/').map(s => s.trim().toUpperCase());
+    const parts = trimmed.split('/').map(s => s.trim().toUpperCase()).filter(Boolean);
     const resolved = parts.map(surname => ANALYST_NAME_MAP[surname] || surname);
-    return resolved.join('\n');
+    return resolved.join(' / ');
   }
 
   // Single analyst
@@ -37,7 +36,38 @@ function resolveAnalystName(rawValue: string): string {
   return ANALYST_NAME_MAP[upper] || trimmed;
 }
 
-export async function generateDocxReport(data: any, analyzedBy: string, tab: string) {
+const normalizeName = (value: unknown) =>
+  String(value ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().trim();
+const isMicHeader = (value: unknown) => /\bMIC\b/.test(normalizeName(value)) && !/\d/.test(String(value ?? ''));
+
+/**
+ * Looks up each analyst ("JUEN" or "JUEN/ALBESA") in the MIC sheet rows and
+ * returns their MIC numbers joined as "MIC 1 / MIC 2".
+ * Uses the column headed "MIC" when present, otherwise name in column A and MIC in column B.
+ */
+export function findMicNumbers(micRows: unknown[][], analyst: string): string {
+  // A header row has a MIC cell plus a name column, so a lone "MIC LIST" title row is skipped.
+  const headerIndex = micRows.findIndex(row => row.some(isMicHeader) && row.filter(c => String(c ?? '').trim()).length > 1);
+  const header = micRows[headerIndex] || [];
+  const micCol = headerIndex < 0 ? 1 : header.findIndex(isMicHeader);
+  const nameCols = headerIndex < 0 ? [0] : header.map((_, i) => i).filter(i => i !== micCol);
+  const body = micRows.slice(headerIndex + 1);
+  const words = (value: unknown) => normalizeName(value).split(/[^A-Z]+/);
+
+  return String(analyst || '').split('/').map(normalizeName).filter(Boolean).map(name => {
+    const row = body.find(r => nameCols.some(i => normalizeName(r[i]) === name))
+      || body.find(r => nameCols.some(i => words(r[i]).includes(name)));
+    return String(row?.[micCol] ?? '').trim();
+  }).filter(Boolean).join(' / ');
+}
+
+export interface ReportPrompt {
+  pageNumber?: string;
+  requestedBy?: string;
+  micRows?: unknown[][];
+}
+
+export async function generateDocxReport(data: any, analyzedBy: string, tab: string, prompt: ReportPrompt = {}) {
   try {
     // Fetch the template from the public folder
     const response = await fetch('/template.docx');
@@ -55,6 +85,7 @@ export async function generateDocxReport(data: any, analyzedBy: string, tab: str
 
     let templateData: any = {};
     const raw = data.__rawRow || [];
+    const analystRaw = String(data['ANALYZED BY'] || data['PERFORMED BY'] || (tab === 'RawMats' ? raw[13] || raw[12] : '') || analyzedBy || '');
 
     const mapCategory = (cat: string) => {
       const c = (cat || '').toUpperCase().trim();
@@ -174,7 +205,6 @@ export async function generateDocxReport(data: any, analyzedBy: string, tab: str
         FillVol: String(data['UNIT'] || raw[5] || 'N/A').trim() || 'N/A',
         RequestedBy: data['RFAF'] || '[REFER TO RFAF]',
         BatchNo: getBatchNo(),
-        Logbook: '[TO BE FILLED UP]',
         
         // Spec
         APC_Spec: apcSpec,
@@ -191,7 +221,7 @@ export async function generateDocxReport(data: any, analyzedBy: string, tab: str
         GN_Remarks: gnRemarks,
         
         OverallRemarks: overallRemarks,
-        AnalyzedBy: resolveAnalystName(data['ANALYZED BY'] || raw[13] || raw[12] || analyzedBy || 'Jasmin C. Barangan'),
+        AnalyzedBy: resolveAnalystName(analystRaw || 'Jasmin C. Barangan'),
         DateAnalyzed: data['DATE ANALYZED'] || raw[12] || new Date().toLocaleDateString(),
         DateReleasedOnly: data['DATE RELEASED'] || raw[15] || raw[14] || ''
       };
@@ -223,10 +253,18 @@ export async function generateDocxReport(data: any, analyzedBy: string, tab: str
         GN_Remarks: '',
         
         OverallRemarks: '',
-        AnalyzedBy: resolveAnalystName(analyzedBy || 'Jasmin C. Barangan'),
+        AnalyzedBy: resolveAnalystName(analystRaw || 'Jasmin C. Barangan'),
         DateAnalyzed: new Date().toLocaleDateString(),
       };
     }
+
+    // Fields shared by every tab; Page Number and Requested By come from the pre-generation prompt.
+    Object.assign(templateData, {
+      'controlNO.': String(data['CONTROL #'] || raw[0] || data['CONTROL'] || '').trim(),
+      MIC: findMicNumbers(prompt.micRows || [], analystRaw),
+      PageNumber: String(prompt.pageNumber ?? '').trim(),
+      RequestedBy: String(prompt.requestedBy ?? '').trim() || templateData.RequestedBy,
+    });
 
     // Render the document
     doc.render(templateData);

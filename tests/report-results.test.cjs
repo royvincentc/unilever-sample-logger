@@ -34,6 +34,40 @@ function resultCells(buffer, parameter) {
   );
 }
 
+const loadReport = (globals) => load('src/utils/report.ts', {
+  pizzip: PizZip, docxtemplater: Docxtemplater, 'file-saver': { saveAs() {} },
+}, globals);
+
+test('MIC lookup handles headed and plain MIC sheets, dual analysts and accents', () => {
+  const { findMicNumbers } = loadReport();
+  const headed = [['MIC LIST'], ['NAME', 'SURNAME', 'MIC NO.'], ['Karen M. Juen', 'JUEN', 'MIC-001'], ['Roy Vincent Codiñera', 'CODIÑERA', 'MIC-002']];
+  assert.equal(findMicNumbers(headed, 'JUEN'), 'MIC-001');
+  assert.equal(findMicNumbers(headed, 'JUEN / CODINERA'), 'MIC-001 / MIC-002');
+  assert.equal(findMicNumbers([['Karen M. Juen', 'MIC-001']], 'juen'), 'MIC-001');
+  assert.equal(findMicNumbers(headed, 'UNKNOWN'), '');
+  assert.equal(findMicNumbers([], 'JUEN'), '');
+});
+
+test('Results download fills control number, MIC, page number, requester and both analysts', async () => {
+  let output;
+  const { generateDocxReport } = load('src/utils/report.ts', {
+    pizzip: PizZip, docxtemplater: Docxtemplater, 'file-saver': { saveAs: blob => { output = blob; } },
+  }, {
+    fetch: async () => ({
+      blob: async () => ({ arrayBuffer: async () => fs.readFileSync(path.join(__dirname, '../public/template.docx')) }),
+    }),
+  });
+  await generateDocxReport({ TYPE: 'ROH', SAMPLE: 'Glycerin', 'CONTROL #': '26-1358', 'PERFORMED BY': 'JUEN/CODINERA', RFAF: 'Sheet Name' }, '', 'RawMats', {
+    pageNumber: '42', requestedBy: 'Juan Dela Cruz', micRows: [['NAME', 'MIC'], ['JUEN', 'MIC-001'], ['CODINERA', 'MIC-002']],
+  });
+  const zip = new PizZip(await output.arrayBuffer());
+  const text = ['word/header1.xml', 'word/footer1.xml'].map(file => zip.file(file).asText().replace(/<[^>]+>/g, '')).join(' ');
+  for (const expected of ['26-1358', 'MIC-001 / MIC-002', '42', 'Juan Dela Cruz', 'Karen M. Juen / Roy Vincent Codiñera']) {
+    assert.ok(text.includes(expected), `Missing ${expected}`);
+  }
+  assert.ok(!text.includes('Sheet Name'), 'Typed requester should replace the RFAF column value');
+});
+
 async function browserReport(data) {
   let output;
   const { generateDocxReport } = load('src/utils/report.ts', {

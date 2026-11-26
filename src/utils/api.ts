@@ -449,6 +449,15 @@ export async function fetchSheetSchema(sheetTab: string, spreadsheetId = getSett
   }
 }
 
+/** Reads the analyst-to-MIC lookup tab as plain cell rows. Throws so the caller can warn. */
+export async function fetchMicRows(spreadsheetId = getSettings().spreadsheetId): Promise<string[][]> {
+  const params = new URLSearchParams({ sheetId: spreadsheetId, tab: 'MIC', rawValues: 'true' });
+  const response = await fetch(`/api/sheet-data?${params}`);
+  if (!response.ok) throw new Error(`MIC sheet request failed (${response.status})`);
+  const data = await response.json();
+  return Array.isArray(data?.values) ? data.values : [];
+}
+
 
 /**
  * Send bulk sample data to Vercel Serverless Function (replaces n8n).
